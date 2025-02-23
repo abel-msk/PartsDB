@@ -1,0 +1,24 @@
+<RCC>
+  <qresource prefix="types">
+    <file>icons/fileslist.png</file>
+    <file>icons/no_file.png</file>
+    <file>icons/file_export.png</file>
+    <file>icons/def_file.png</file>
+    <file>icons/img_file.png</file>
+    <file>icons/html_file.png</file>
+    <file>icons/bin_file.png</file>
+    <file>icons/cad_file.png</file>
+    <file>icons/doc_file.png</file>
+    <file>icons/text_file.png</file>
+    <file>icons/pdf_file.png</file>
+  </qresource>
+  <qresource prefix="btn">
+    <file>icons/find_folder.png</file>
+    <file>icons/folder.png</file>
+    <file>icons/select.png</file>
+    <file>icons/del.png</file>
+    <file>icons/search.png</file>
+    <file>icons/minus.png</file>
+    <file>icons/add.png</file>
+  </qresource>
+</RCC>
