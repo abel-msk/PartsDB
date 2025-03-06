@@ -1,9 +1,11 @@
 import logging
 import sys
-
-from PyQt6.QtCore import QProcess, QObject
+from PyQt6.QtCore import QProcess, QObject, pyqtSignal
+# from PyQt6.QtCore.QProcess import ProcessError
+from PyQt6.QtWidgets import QMessageBox
 
 import ElConfig
+
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 handler = logging.StreamHandler(stream=sys.stderr)
@@ -18,6 +20,16 @@ PROCESS_STATE_NOTRUN = 3
 PROCESS_STATE_FINISH = 4
 
 
+def showError(msg):
+    msgBox = QMessageBox()
+    msgBox.setText(msg)
+    return msgBox.exec()
+
+
+class Communicate(QObject):
+    processError = pyqtSignal(str, int, str)
+
+
 class Process(QObject):
 
     def __init__(self, name="Unnamed"):
@@ -26,6 +38,8 @@ class Process(QObject):
         self.name = name
         self.processId = -1
         self.process = QProcess()
+        self.comm = Communicate()
+        self.process.errorOccurred.connect(self.handle_starting)
         self.process.readyReadStandardOutput.connect(self.handle_stdout)
         self.process.readyReadStandardError.connect(self.handle_stderr)
         self.process.stateChanged.connect(self.handle_state)
@@ -49,12 +63,18 @@ class Process(QObject):
             final_args = ["-a", self.app] + argsAr
             logger.debug("Starting process EXE: open %s ", " ".join(map(str, final_args)))
 
-            self.process.start("/usr/bin/open",  final_args)
+            self.process.start("/usr/bin/open", final_args)
             self.process.waitForStarted()
-            # if self.state != PROCESS_STATE_FINISH:
             self.processId = self.process.processId()
+
+            self.process.waitForStarted(1000)
+            rc: QProcess.ProcessError = self.process.error()
+            if rc != QProcess.ProcessError.UnknownError:
+                showError("Error while running : " + " ".join(final_args))
+                logger.debug("Cannot start process. Error %s (%s)", self.name, str(rc), str(self.process.errorString()))
         else:
             raise ValueError("Application path not set.")
+
         # https://www.pythonguis.com/tutorials/pyqt6-qprocess-external-programs/
         # open -n ./AppName.app --args -AppCommandLineArg
         # open -a APP_NAME --args ARGS
@@ -67,7 +87,15 @@ class Process(QObject):
     def handle_stderr(self):
         data = self.process.readAllStandardError()
         stderr = bytes(data).decode("utf8")
-        logger.debug("E>>> %s", stderr)
+        rc: QProcess.ProcessError = self.process.error()
+        logger.debug("Error(%s)>>> %s,", rc, stderr)
+
+        msgBox = QMessageBox()
+        msgBox.setText("Got Error.")
+        msgBox.setInformativeText(stderr)
+        # msgBox.setStandardButtons(QMessageBox.StandardButton.Save)
+        # msgBox.setDefaultButton(QMessageBox.StandardButton.Save.Discard)
+        msgBox.exec()
 
     def handle_stdout(self):
         data = self.process.readAllStandardOutput()
@@ -77,6 +105,10 @@ class Process(QObject):
     def handle_state(self, state):
         self.state = self.stateslist[state]
         logger.debug("Process '%s', change state %s", self.name, str(state))
+
+    def handle_starting(self, err: QProcess.ProcessError):
+        logger.warning("Process '%s', execute error: %s (%s)", self.name, str(err), str(self.process.errorString()))
+        self.comm.processError.connect(self.name, err, str(self.process.errorString()))
 
     def process_finished(self):
         self.state = PROCESS_STATE_FINISH
@@ -106,4 +138,3 @@ class ProcessFactory:
 
     def processForExt(self, name, ext):
         config: ElConfig = ElConfig.CONFIG_OBJECT
-
