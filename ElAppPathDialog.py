@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog
+from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog, QWidget
 
 from ElAppList import AppList, AppDef
 from ElAppPathWnd import Ui_AppPathDialog
@@ -22,8 +22,10 @@ class AppPathConfig(QDialog):
     def __init__(self, parent, app_list: AppList):
         super().__init__(parent)
         self.ui = Ui_AppPathDialog()
+
         self.ui.setupUi(self)
         self.ui.buttonBox.accepted.connect(self.onAccepted)
+        self.ui.widget.window().setWindowTitle("View application select")
 
         self.appList: AppList = app_list
         logger.debug("Load config %s", )
@@ -60,12 +62,17 @@ class AppPathConfig(QDialog):
 
     def onAccepted(self):
         logger.debug("Dialog OK button ressed.")
+        self.appList.save()
 
     def onDelApp(self):
         for item in self.ui.appNamesList.selectedItems():
-            app = item.data(Qt.ItemDataRole.UserRole)
+            app: AppDef = item.data(Qt.ItemDataRole.UserRole)
             self.appList.remove(app.name)
             self.ui.appNamesList.takeItem(self.ui.appNamesList.row(item))
+            logger.debug("Delete app description %s", app.name)
+            # app.remove()
+            # self.appList.remove(app.name)
+            self.appList.save()
 
     def onOpenApp(self):
         dlg = OpenFileDialog(self, "/Applications")
@@ -98,3 +105,4 @@ class AppPathConfig(QDialog):
         else:
             logger.error("Wrong app name %s", name)
 
+        self.appList.save()

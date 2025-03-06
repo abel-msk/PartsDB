@@ -38,6 +38,9 @@ class AppDef:
         self.config.set_value(CONF_APP_ARGS, self.args, self.appSection)
         # self.config.set_value(CONF_APP_ICON, self.icon, self.appSection)
 
+    def remove(self):
+        self.config.removeSection(self.appSection)
+
 
 class AppList:
     def __init__(self, config: ElConfig):
@@ -49,6 +52,9 @@ class AppList:
                 appName = section[len(CONFIG_APP_SECTION)+1:]
                 appName = appName.replace('_', ' ')
                 self.apps[appName] = AppDef(appName, self.config)
+
+    def save(self):
+        self.config.save()
 
     def getNames(self):
         return list(self.apps.keys())
@@ -75,6 +81,7 @@ class AppList:
 
     def remove(self, name):
         self.config.removeSection(CONFIG_APP_SECTION+"_" + name.replace(' ', '_'))
+        del self.apps[name]
 
     def execute(self):
         # TODO: Start application
