@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog, QWidget
 
+import ElLogger
 from ElAppList import AppList, AppDef
 from ElAppPathWnd import Ui_AppPathDialog
 import logging
@@ -9,12 +10,14 @@ import sys
 
 from ElConfig import ElConfig
 from ElOpenFileDialog import OpenFileDialog
+logger = ElLogger.setLogger(__name__)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+#
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 
 class AppPathConfig(QDialog):

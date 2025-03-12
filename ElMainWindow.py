@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QM
 
 import ElConfig
 import ElDBScheme
+import ElLogger
 import ElTypesTree
 import constants
 from ElAppList import AppList
@@ -22,12 +23,12 @@ from ElPartsTable import PartsTableModel, TableView
 from ElProcess import ProcessFactory, Process
 from ElTypesTree import TypesTree
 
-
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+logger = ElLogger.setLogger(__name__)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 #
 # icon = QtGui.QIcon()

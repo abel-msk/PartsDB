@@ -5,11 +5,14 @@ import os
 from pathlib import Path
 from logging import StreamHandler, Formatter
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = StreamHandler(stream=sys.stderr)
-handler.setFormatter(Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+import ElLogger
+
+logger = ElLogger.setLogger(__name__)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = StreamHandler(stream=sys.stderr)
+# handler.setFormatter(Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 CONFIG_OBJECT = None
 
@@ -65,7 +68,7 @@ class ElConfig:
 
     def save(self, fn=""):
         if not self.is_changed:
-            logger.debug("Nothing to save. cancel procedure.")
+            logger.info("Nothing to save. cancel procedure.")
             return
 
         if fn:
@@ -76,10 +79,11 @@ class ElConfig:
                 self.create_config(self.filename)
 
             try:
+                logger.info("Save config file %s",self.filename)
                 # logger.debug("Save config file %s", self.filename)
                 with open(self.filename, 'w') as yaml_file:
                     yaml.dump(self.data, yaml_file, default_flow_style=False)
-                    logger.debug("Save config file to %s", self.filename)
+                    # logger.debug("Save config file to %s", self.filename)
                     self.is_changed = False
 
             except FileNotFoundError as err:

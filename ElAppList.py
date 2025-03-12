@@ -1,13 +1,15 @@
 import logging
 import sys
 from PyQt6 import QtGui
-from ElConfig import ElConfig
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+import ElLogger
+from ElConfig import ElConfig
+logger = ElLogger.setLogger(__name__)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 CONFIG_APP_SECTION= "application"
 CONF_APP_EXE = "exec"

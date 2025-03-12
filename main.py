@@ -2,21 +2,22 @@ import getopt
 import logging
 import os
 import sys
+import traceback
 
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 import ElDBScheme
+import ElLogger
 import constants
 from ElConfig import ElConfig
 from ElDBScheme import DBScheme, DBFactory
 from ElMainWindow import MainWindow
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+logger = ElLogger.setLogger(__name__)
+
 
 # constants.LAST_OPEN_FILE = "last_open_file"
 HOME = os.getenv('HOME')
@@ -60,11 +61,15 @@ def MainWindowOpen(factory, startupMode):
 
 
 def main():
-    prog_name = "elworks"
+    prog_name = "elworks"  ##  Rename to PartsDB
     conf_name = prog_name + ".conf"
     resources_path_list = []
     config_file = ""
+    log_file = None
+    log_level = logging.ERROR
     db_file = ""
+    verb = False
+
 
     path = os.path.join(HOME, "." + prog_name)
     if not os.path.exists(path):
@@ -77,10 +82,10 @@ def main():
         resources_path_list.append(path)
 
     startupMode = constants.STARTUP_MODE_CATALOG if not config or not config.has_value(
-        constants.CONFIG_STARTUP_MODE) else config.get_value(CONFIG_STARTUP_MODE)
+        constants.CONFIG_STARTUP_MODE) else config.get_value(constants.CONFIG_STARTUP_MODE)
 
     argv = sys.argv[1:]
-    options, args = getopt.getopt(argv, "c:i:d:", ["config=", "input=", "dbpath="])
+    options, args = getopt.getopt(argv, "c:i:d:l:v", ["config=", "input=", "dbpath=", "logfile=", "verbose"])
 
     for name, value in options:
         if name in ['-c', '--conf']:
@@ -89,6 +94,10 @@ def main():
             input_file = value
         elif name in ['-d', '--dbpath']:
             db_file = value
+        elif name in ['-l', '--logfile']:
+            log_file = value
+        elif name in ['-v', '--verbose']:
+            verb = True
 
     if config_file:
         config.load(config_file)
@@ -115,13 +124,57 @@ def main():
                 config.set_value(constants.CONFIG_DB_FILE, factory.db_file)
                 break
 
-    ElDBScheme.DB_FACTORY = factory
-    MainWindowOpen(factory, startupMode)
+    if verb:
+        log_level = logging.DEBUG
+    else:
+        llconf = config.get_value(constants.LOG_LEVEL)
+        if llconf is None:
+            loglevel = logging.ERROR
+            log_level = logging.ERROR
+            config.set_value(constants.LOG_LEVEL, "err")
+        elif llconf == "err":
+            log_level = logging.ERROR
+        elif llconf == "debug":
+            log_level = logging.DEBUG
+        else:
+            log_level = logging.ERROR
+            config.set_value(constants.LOG_LEVEL, "err")
 
-    logger.debug("Close DB Connection.")
-    factory.disconnect()
-    config.set_value(constants.CONFIG_STARTUP_MODE, startupMode)
-    config.save(config_file)
+    ElLogger.setLevel(log_level)
+
+    if log_file is None:
+        log_file = config.get_value(constants.LOG_FILE)
+
+    if log_file is not None and log_file != "":
+        ElLogger.setLogFile(log_file)
+    else:
+        log_file = os.path.join("/tmp", prog_name + ".log")
+        ElLogger.setLogFile(log_file)
+
+
+    ElDBScheme.DB_FACTORY = factory
+
+    try:
+        MainWindowOpen(factory, startupMode)
+    except Exception as err:
+        message = f"Unexpected {err=}, {type(err)=}"
+        e_traceback = traceback.format_exception(err.__class__, err, err.__traceback__)
+        traceback_lines = []
+        for line in [line.rstrip('\n') for line in e_traceback]:
+            traceback_lines.extend(line.splitlines())
+        logger.critical(traceback_lines.__str__())
+
+        logger.exception(message)
+        # if logger:
+        #     logger.exception(message)
+        # if logger is None:
+        #     logging.exception(message)
+        # return None
+    finally:
+        logger.info("Close DB Connection.")
+        factory.disconnect()
+        config.set_value(constants.CONFIG_STARTUP_MODE, startupMode)
+        config.save(config_file)
 
 
 if __name__ == '__main__':

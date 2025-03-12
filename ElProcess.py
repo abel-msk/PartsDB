@@ -5,14 +5,16 @@ from PyQt6.QtCore import QProcess, QObject, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox
 
 import ElConfig
+import ElLogger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 from ElAppList import AppList
+logger = ElLogger.setLogger(__name__)
 
 PROCESS_STATE_RUN = 1
 PROCESS_STATE_START = 2

@@ -9,15 +9,18 @@ from PyQt6.QtWidgets import QTreeWidget, QTreeView, QHeaderView, QMenu, QInputDi
     QListWidget
 
 import ElDBScheme
+import ElLogger
 from ElDBScheme import DBFactory, Type, Types, Parts, Part, Document
 from ElHdrEditDialog import HeaderEditDialog
 from ElIconListWidget import IconsListWidget
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
+
+logger = ElLogger.setLogger(__name__)
 
 DB_COLUMNS = list(ElDBScheme.ELEMENT_FIELDS.keys())
 PARTS_COLUMN_COUNT = len(DB_COLUMNS) - 2
@@ -207,7 +210,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
                 column = section + 2
                 fldName = list(ElDBScheme.ELEMENT_FIELDS.keys())[column]
                 result = self.headers[fldName].display
-                logger.debug("Header %s, value %s",fldName, result)
+                # logger.debug("Header %s, value %s",fldName, result)
                 # result = self.headers[fldName].display
                 return result
 

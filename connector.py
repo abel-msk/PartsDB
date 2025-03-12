@@ -4,6 +4,7 @@ import sqlite3 # https://docs.python.org/3/library/sqlite3.html
 import logging
 from sqlite3 import Cursor
 from sqlite3 import Error
+import ElLogger
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -12,11 +13,13 @@ from sqlite3 import Error
 # handler.setFormatter(logging.Formatter(fmt='[%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
 # logger.addHandler(handler)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+logger = ElLogger.setLogger(__name__)
+
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 
 class DBError(Exception):

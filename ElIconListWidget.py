@@ -8,16 +8,18 @@ from PyQt6 import QtCore, QtGui
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QMessageBox, QListView, QLabel, \
     QToolButton, QVBoxLayout, QListWidget, QListWidgetItem, QSizePolicy, QGraphicsView, QFrame, QGraphicsScene, \
     QAbstractItemView
+
+import ElLogger
 import ElTypesTree
 from ElDBScheme import DBFactory, Type, Parts, Part, Documents, Document
 import resources   ###  Do Not delete
 
-
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+logger = ElLogger.setLogger(__name__)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 # https://stackoverflow.com/questions/74910845/pyqt-qlistmodelview-iconmode-highlight-to-be-constant-size-and-add-one-more-line
 # https://www.pythonguis.com/faq/file-image-browser-app-with-thumbnails/

@@ -6,13 +6,16 @@ from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction, QDropEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QMenu, QInputDialog, QMessageBox
+
+import ElLogger
 from ElDBScheme import DBFactory, Type, Types, Part
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
+logger = ElLogger.setLogger(__name__)
 
 #  https://stackoverflow.com/questions/55553660/how-to-emit-custom-events-to-the-event-loop-in-pyqt
 

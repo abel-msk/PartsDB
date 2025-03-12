@@ -6,13 +6,21 @@ from PyQt6 import QtCore, QtWidgets
 import logging
 import sys
 import ElDBScheme
+import ElLogger
 from ElHdrEditWnd import Ui_HdrEditDialog
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+logger = ElLogger.setLogger(__name__)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
+# logging.basicConfig(filename='example.log',
+#                     encoding='utf-8',
+#                     level=logging.DEBUG,
+#                     format='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s')
+#
+# handler = logging.StreamHandler(stream=sys.stderr)
+# handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 # HEADER_FIELDS = {
 #     "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -177,6 +185,7 @@ class HeaderEditDialog(QDialog):
         #     QtWidgets.QAbstractItemView.EditTrigger.AnyKeyPressed |
         #     QtWidgets.QAbstractItemView.EditTrigger.DoubleClicked |
         #     QtWidgets.QAbstractItemView.EditTrigger.EditKeyPressed)
+        logger.debug("Load data for Type id %s", typeId)
         self.tableModel.load(typeId)
         self.ui.headersTbl.setModel(self.tableModel)
 

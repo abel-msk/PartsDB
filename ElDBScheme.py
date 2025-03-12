@@ -5,18 +5,21 @@ import os
 import bisect
 from sqlite3 import Cursor
 
+import ElLogger
+
 # from numpy import *
 
 DB_FACTORY = None
 
 from connector import SQLiteConnector, DBError
 
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-handler = logging.StreamHandler(stream=sys.stderr)
-# handler.setFormatter(Formatter(fmt='[%(levelname)s] %(name)s: %(message)s'))
-handler.setFormatter(logging.Formatter(fmt='[%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
-logger.addHandler(handler)
+logger = ElLogger.setLogger(__name__)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(level=logging.DEBUG)
+# handler = logging.StreamHandler(stream=sys.stderr)
+# # handler.setFormatter(Formatter(fmt='[%(levelname)s] %(name)s: %(message)s'))
+# handler.setFormatter(logging.Formatter(fmt='[%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
+# logger.addHandler(handler)
 
 F_ALIGN_LEFT = "LEFT"
 F_ALIGN_RIGHT = "RIGHT"
