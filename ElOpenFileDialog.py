@@ -41,7 +41,7 @@ class OpenFileDialog(QDialog):
 
         self.dirModel = QFileSystemModel()  # for exclude use FilterProxy
         self.dirModel.setRootPath(QDir.rootPath())
-        self.dirModel.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs )
+        self.dirModel.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
         self.ui.treeView.setModel(self.dirModel)
         # self.ui.treeView.resizeColumnToContents(1)
         self.ui.treeView.setColumnHidden(1, True)
@@ -49,10 +49,10 @@ class OpenFileDialog(QDialog):
         self.ui.treeView.setColumnHidden(3, True)
 
         self.fileModel = QFileSystemModel()
-        self.fileModel.setFilter(QDir.Filter.AllDirs | QDir.Filter.Files)
-        # self.fileModel.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.Files)
-        # self.fileModel.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.Files)
-
+        if (self.ui.isFilesOnly.isChecked()):
+            self.fileModel.setFilter(QDir.Filter.Files)
+        else:
+            self.fileModel.setFilter(QDir.Filter.AllDirs | QDir.Filter.Files)
         self.ui.listView.setModel(self.fileModel)
 
         self.ui.treeView.setRootIndex(self.dirModel.index(self.userRoot))
@@ -60,6 +60,9 @@ class OpenFileDialog(QDialog):
 
         self.ui.treeView.clicked.connect(self.on_clicked)
         self.ui.listView.doubleClicked.connect(self.onFileSelect)
+
+        self.ui.treeView.clicked.connect(self.on_clicked)
+        self.ui.isFilesOnly.stateChanged.connect(self.onFilesOnlyChanged)
 
     def keyPressEvent(self, event: QKeyEvent):
         if self.ui.pathInput.hasFocus():
@@ -72,6 +75,16 @@ class OpenFileDialog(QDialog):
         self.ui.listView.setRootIndex(self.fileModel.setRootPath(path))
         self.userRoot = path
         self.ui.pathInput.setText(path)
+
+    def onFilesOnlyChanged(self):
+        fileViewMode = self.ui.listView.model()
+        if (self.ui.isFilesOnly.isChecked()):
+            fileViewMode.setFilter(QDir.Filter.AllDirs)
+        else:
+            fileViewMode.setFilter(QDir.Filter.AllDirs | QDir.Filter.Files)
+        self.ui.listView.setModel(fileViewMode)
+
+        # self.ui.listView.reset();
 
     def onChangeRoot(self):
         path = self.ui.pathInput.text()

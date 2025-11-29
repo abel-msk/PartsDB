@@ -7,6 +7,7 @@ from PyQt6.QtCore import Qt, QItemSelectionModel, QPoint, QPointF, QModelIndex
 from PyQt6.QtGui import QIcon, QAction, QDragEnterEvent, QDropEvent, QDragMoveEvent
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QMessageBox, QFileDialog, QDialog
 
+import urllib.parse
 import ElConfig
 import ElDBScheme
 import ElLogger
@@ -178,8 +179,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 dataAr = mimeData.data().decode().split("\n")
                 for data in dataAr:
                     if str(data).startswith("file:///"):
-                        fname = data[len("file:///")-1:]
-                        ext = os.path.splitext(fname)[1][1:]
+                        fname = urllib.parse.unquote(data[len("file:///")-1:])
+                        ext = urllib.parse.unquote(os.path.splitext(fname)[1][1:])
                         type = ElDBScheme.extToDocType(ext)
                         logger.debug("Add file %s, ext=%s", fname, ext)
                         try:
@@ -336,6 +337,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             argsAr = []
             for token in str(app.args).split(" "):
                 if token == "{file}":
+                    # token = urllib.parse.unquote(doc.link)
                     token = doc.link
                 argsAr.append(token)
 

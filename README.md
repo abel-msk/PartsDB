@@ -57,3 +57,13 @@ tabulate                  0.9.0
 winapi                    0.0.0
 ```
 
+# Running
+
+```
+ElPartsCatalog [-cdlv]
+    Where:
+    -c --config  Configfile path
+    -d --dbpath  Path to sqlite db file 
+    -l --logfile  Path to log file. When the -l is set, all std err output will copy to specifiyed file
+    -v --verbose  Use verbose logging (debug level).  Otherwise logging only Critical and Error level.
+```
