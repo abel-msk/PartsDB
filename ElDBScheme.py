@@ -74,6 +74,21 @@ ELEMENT_FIELDS_DISPLAY = {
 
 
 ELEMENT_FLD_NAMES = list(ELEMENT_FIELDS.keys())
+
+ICON_COLUMN_POSITION = 0  # Visual position of the "icon" column in the parts table (0 = leftmost)
+
+
+def defaultColumnOrder() -> list:
+    """Parts table fields (without id, type_id) in their default visual order."""
+    fields = [f for f in ELEMENT_FLD_NAMES[2:] if f != "icon"]
+    fields.insert(ICON_COLUMN_POSITION, "icon")
+    return fields
+
+
+def defaultHeaderPosition(field_name: str) -> int:
+    order = defaultColumnOrder()
+    return order.index(field_name) if field_name in order else len(order)
+
 #  DataSheet
 #  Image
 #  Project
@@ -102,7 +117,8 @@ HEADER_FIELDS = {
     "hidden": "BOOLEAN",
     "sort": "BOOLEAN",
     "display": "TEXT",
-    "width": "INTEGER"
+    "width": "INTEGER",
+    "position": "INTEGER"  # Visual column position in the parts table
 }
 
 HEADER_FLD_NAMES = list(HEADER_FIELDS.keys())
@@ -179,6 +195,22 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
                 "value TEXT" \
                 ");"
 
+# Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
+# On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
+# (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
+DB_VERSION = 2
+BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
+
+ENV_DB_VERSION = "db_version"
+ENV_ICONS_PATH = "icons_path"  # Folder with part icons, relative to the data folder (or absolute)
+DEFAULT_ICONS_DIR = "icons"
+
+# Rows every DB must have in ENVIRONMENT, with their default values
+ENVIRONMENT_DEFAULTS = {
+    ENV_DB_VERSION: str(DB_VERSION),
+    ENV_ICONS_PATH: DEFAULT_ICONS_DIR,
+}
+
 
 class DBScheme:
     def __init__(self, db_file: str):
@@ -202,6 +234,68 @@ class DBScheme:
             self.db.exec(EL_BY_PROJECT_TABLE_SQL)
             self.db.exec(ENVIRONMENT_TABLE_SQL)
             self.db.commit()
+            self.ensureEnvironment()
+
+    def getEnvironment(self, name: str):
+        """Value of an ENVIRONMENT row, or None if the row is missing."""
+        curr = self.db.select_params("SELECT value FROM " + ENVIRONMENT_TABLE + " WHERE name = ?;", (name,))
+        row = curr.fetchone()
+        curr.close()
+        return None if row is None else row[0]
+
+    def setEnvironment(self, name: str, value):
+        """Create or update an ENVIRONMENT row."""
+        if self.getEnvironment(name) is None:
+            self.db.exec_insert("INSERT INTO " + ENVIRONMENT_TABLE + " (name, value) VALUES (?, ?);",
+                                (name, str(value)))
+        else:
+            self.db.exec_insert("UPDATE " + ENVIRONMENT_TABLE + " SET value = ? WHERE name = ?;",
+                                (str(value), name))
+
+    def ensureEnvironment(self):
+        """Add missing ENVIRONMENT rows with their default values. Existing rows are kept."""
+        for name, value in ENVIRONMENT_DEFAULTS.items():
+            if self.getEnvironment(name) is None:
+                logger.info("Add ENVIRONMENT.%s = '%s'", name, value)
+                self.db.exec_insert("INSERT INTO " + ENVIRONMENT_TABLE + " (name, value) VALUES (?, ?);",
+                                    (name, value))
+
+    def getDBVersion(self) -> int:
+        """Scheme version stored in the DB; BASE_DB_VERSION if it was never recorded."""
+        value = self.getEnvironment(ENV_DB_VERSION)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            if value not in (None, ""):
+                logger.warning("Bad ENVIRONMENT.%s = '%s', treat as %s", ENV_DB_VERSION, value, BASE_DB_VERSION)
+            return BASE_DB_VERSION
+
+    def migrate(self):
+        """Upgrade an existing DB to DB_VERSION, one MIGRATIONS step per version, in order.
+
+        The version is saved after every step, so if a step fails the DB stays at the last
+        completed version and the next open continues from there.
+        """
+        if not self.db.isConnect():
+            return
+        self.db.exec(ENVIRONMENT_TABLE_SQL)
+        version = self.getDBVersion()
+
+        if version > DB_VERSION:
+            logger.warning("DB version %s is newer than this program supports (%s). No upgrade.",
+                           version, DB_VERSION)
+            return
+
+        for target in range(version + 1, DB_VERSION + 1):
+            step = MIGRATIONS.get(target)
+            if step is None:
+                raise RuntimeError("No migration step to DB version {}".format(target))
+            logger.info("Migrate DB: version %s -> %s", target - 1, target)
+            step(self)
+            self.db.commit()
+            self.setEnvironment(ENV_DB_VERSION, target)
+
+        self.ensureEnvironment()
 
     def loadTypes(self, parent_id: int = 0):
         if self.db.isConnect():
@@ -324,23 +418,18 @@ class DBScheme:
 
     def updatePart(self, els):
         allow_fields = ELEMENT_FIELDS.keys()
-        sql = ""
+        assignments = []
+        values = []
         for key in els.keys():
-            try:
-                if key in allow_fields:
-                    if key != "id":
-                        sql += key + " = '"
-                        sql += str(els[key]) if els[key] is not None else ""
-                        sql += "',"
-                else:
-                    raise AttributeError("Try to assign undefined parts field {}".format(key))
-            except AttributeError:
-                logger.warning("Try to assign undefined parts field %", key)
+            if key not in allow_fields:
+                logger.warning("Try to assign undefined parts field %s", key)
+            elif key != "id":
+                assignments.append(key + " = ?")
+                values.append(els[key])
 
-        #   Remove trail comas
-        sql = sql[:-1]
-        sql = "UPDATE " + PARTS_TABLE_NAME + "  SET " + sql + " WHERE id=" + str(els['id']) + ";"
-        recId = self.db.exec(sql)
+        values.append(els['id'])
+        sql = "UPDATE " + PARTS_TABLE_NAME + " SET " + ", ".join(assignments) + " WHERE id = ?;"
+        recId = self.db.exec_insert(sql, values)
         self.db.commit()
         return recId
 
@@ -413,13 +502,10 @@ class DBScheme:
 
     def partSearch(self, searchStr):
         #"select * from tovari where [ИмяПоля] like '%" + TextBox.Text + "%'"
-        sql = "Select "+ get_parts_fld_str() + " FROM " + PARTS_TABLE_NAME +\
-              " WHERE part_num like '%" + searchStr + "%' OR" \
-              " device_code like '%" + searchStr + "%' OR" \
-              " description like '%" + searchStr + "%'" \
-                                                        ";"
-        curr = self.db.select(sql)
-        return curr.fetchall()
+        sql = "SELECT " + get_parts_fld_str() + " FROM " + PARTS_TABLE_NAME + \
+              " WHERE part_num LIKE ? OR device_code LIKE ? OR description LIKE ?;"
+        pattern = "%" + searchStr + "%"
+        return self.db.select_params(sql, [pattern, pattern, pattern]).fetchall()
 
     def disconnect(self):
         self.db.disconnect()
@@ -581,6 +667,28 @@ class Types:
             pass
 
 
+# ---------------------------------------------------------------------------------------------
+#   DB upgrade steps. MIGRATIONS[n] upgrades a DB from version n-1 to n.
+#   Write steps so that re-running them is harmless (check before ALTER etc.).
+# ---------------------------------------------------------------------------------------------
+
+def _migrate_to_2(scheme: DBScheme):
+    """v2: HEADERS.position (visual column order, icon column first) and ENVIRONMENT defaults."""
+    columns = [row[1] for row in scheme.db.select_all("PRAGMA table_info(" + HEADER_TABLE_NAME + ");")]
+    if columns and "position" not in columns:
+        scheme.db.exec("ALTER TABLE " + HEADER_TABLE_NAME + " ADD COLUMN position INTEGER;")
+        for position, field_name in enumerate(defaultColumnOrder()):
+            scheme.db.exec_insert("UPDATE " + HEADER_TABLE_NAME + " SET position = ? WHERE field_name = ?;",
+                                  (position, field_name))
+    if scheme.getEnvironment(ENV_ICONS_PATH) is None:
+        scheme.setEnvironment(ENV_ICONS_PATH, ENVIRONMENT_DEFAULTS[ENV_ICONS_PATH])
+
+
+MIGRATIONS = {
+    2: _migrate_to_2,
+}
+
+
 class Header:
     def __init__(self, scheme: DBScheme, type_id, field_name):
         self.scheme = scheme
@@ -597,12 +705,15 @@ class Header:
         self.changed = False
         self.type_id = type_id
         self.field_name = field_name
+        self.position = defaultHeaderPosition(field_name)
 
     def setFields(self, el):
         for fldName in HEADER_FLD_NAMES:
             value = el[int(HEADER_FLD_NAMES.index(fldName))]
             if HEADER_FIELDS[fldName] == "BOOLEAN":
                 self.__dict__[fldName] = True if value == 1 else False
+            elif fldName == "position" and value in (None, ""):
+                self.position = defaultHeaderPosition(self.field_name)
             elif HEADER_FIELDS[fldName] == "INTEGER":
                 self.__dict__[fldName] = int(value)
             else:
@@ -966,9 +1077,11 @@ class Parts:
 
 class DBFactory:
 
-    def __init__(self, db_file: str):
+    def __init__(self, db_file: str, data_path: str = None):
         self.rootTypes = None
         self.db_file = db_file
+        # Data folder: base for relative paths stored in the DB (icons). Defaults to the DB's folder.
+        self.dataPath = os.path.abspath(data_path) if data_path else os.path.dirname(os.path.abspath(db_file))
         self.scheme: DBScheme = DBScheme(self.db_file)
         self.idPos = ELEMENT_FLD_NAMES.index("id")
 
@@ -978,9 +1091,36 @@ class DBFactory:
             self.scheme.db.conn.commit()
         else:
             self.scheme.connect()
+            self.scheme.migrate()
 
     def isDB(self) -> bool:
         return True if os.path.exists(self.db_file) else False
+
+    def getIconsDir(self, create: bool = True) -> str:
+        """Absolute icons folder: ENVIRONMENT.icons_path relative to the data folder.
+
+        An empty setting is replaced with DEFAULT_ICONS_DIR and saved; the folder is created if missing.
+        """
+        iconsPath = self.scheme.getEnvironment(ENV_ICONS_PATH)
+        if not iconsPath:
+            iconsPath = DEFAULT_ICONS_DIR
+            self.scheme.setEnvironment(ENV_ICONS_PATH, iconsPath)
+            logger.info("Set ENVIRONMENT.%s = '%s'", ENV_ICONS_PATH, iconsPath)
+        iconsPath = os.path.expanduser(iconsPath)
+        if not os.path.isabs(iconsPath):
+            iconsPath = os.path.join(self.dataPath, iconsPath)
+        iconsPath = os.path.normpath(iconsPath)
+        if create and not os.path.isdir(iconsPath):
+            logger.info("Create icons folder %s", iconsPath)
+            os.makedirs(iconsPath, exist_ok=True)
+        return iconsPath
+
+    def resolveIconPath(self, icon: str) -> str:
+        """Full path of a part's icon: PARTS.icon is relative to the icons folder (absolute is kept)."""
+        if not icon:
+            return ""
+        icon = os.path.expanduser(str(icon).strip())
+        return icon if os.path.isabs(icon) else os.path.join(self.getIconsDir(create=False), icon)
 
     def getRootTypes(self):
         if self.rootTypes is None:

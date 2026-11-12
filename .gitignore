@@ -7,6 +7,10 @@ venv/
 dist/
 dist/main
 build/
-icons/
-tests/
 db/
+
+# Local test databases and their backups
+tests/**/*.sqlite
+tests/**/*.sqlite.bak-*
+tests/icons/
+/test_db.sqlite

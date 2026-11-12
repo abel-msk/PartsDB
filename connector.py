@@ -74,6 +74,16 @@ class SQLiteConnector:
         else:
             raise DBSyntax("SQLite get: Incorrect SQL syntax {}".format(sql_str))
 
+    def select_params(self, sql_str, values) -> Cursor:
+        """SELECT with ? placeholders: values are passed separately, never pasted into the SQL."""
+        if sqlite3.complete_statement(sql_str):
+            logger.debug("SQLite select: %s, values:%s", sql_str, ", ".join(map(str, values)))
+            cur = self.conn.cursor()
+            cur.execute(sql_str, values)
+            return cur
+        else:
+            raise DBSyntax("SQLite get: Incorrect SQL syntax {}".format(sql_str))
+
     def exec(self, sql_str) -> int:
         if sqlite3.complete_statement(sql_str):
             try:

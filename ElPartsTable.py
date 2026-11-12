@@ -13,6 +13,8 @@ import ElLogger
 from ElDBScheme import DBFactory, Type, Types, Parts, Part, Document
 from ElHdrEditDialog import HeaderEditDialog
 from ElIconListWidget import IconsListWidget
+from ElIconDelegate import IconCellDelegate
+from ElDefaultIcons import DefaultPartIcons
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -24,6 +26,8 @@ logger = ElLogger.setLogger(__name__)
 
 DB_COLUMNS = list(ElDBScheme.ELEMENT_FIELDS.keys())
 PARTS_COLUMN_COUNT = len(DB_COLUMNS) - 2
+ICON_COLUMN = DB_COLUMNS.index("icon") - 2  # view column of PARTS.icon (models skip id, type_id)
+ROW_HEIGHT = 48  # px, tall enough for readable part icons
 timestamp = {}
 
 CLICK_EVENT_NAME = "on_click"
@@ -284,7 +288,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         return True
 
     def appendRow(self, thePart: Part):
-        newRow = len(self.parts.partsAr) + 1
+        newRow = len(self.parts.partsAr)  # rows are 0-based: the appended row goes at index rowCount()
         self.beginInsertRows(QModelIndex(), newRow, newRow)
         self.parts.partsAr.append(thePart)
         self.endInsertRows()
@@ -351,6 +355,12 @@ class TableView(QtCore.QObject):
         self.tableView.horizontalHeader().setSortIndicatorShown(True)
 
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+
+        # Draw the picture from the "icon" column instead of its path text
+        self.iconDelegate = IconCellDelegate(self.tableView, iconsDir=self.factory.getIconsDir(),
+                                             defaultIcons=DefaultPartIcons(self.factory))
+        self.tableView.setItemDelegateForColumn(ICON_COLUMN, self.iconDelegate)
+        self.tableView.verticalHeader().setDefaultSectionSize(ROW_HEIGHT)
 
         self.tableModel: PartsTableModel = None
         self.header: QHeaderView = self.tableView.horizontalHeader()
@@ -491,6 +501,7 @@ class TableView(QtCore.QObject):
         self.searchMode = True
         self.tableModel = SearchTableModel(self.factory, parts)
         self.tableView.setModel(self.tableModel)
+        self.applyColumnOrder()
         self.tableView.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         selection_model = self.tableView.selectionModel()
         selection_model.selectionChanged.connect(self.onSelectionChanged)
@@ -525,6 +536,8 @@ class TableView(QtCore.QObject):
 
             # self.tableView.horizontalHeader().setSortIndicatorShown(True)
 
+        self.applyColumnOrder()
+
         #### Loop throw header section for set size
         # header.resizeSection(col, hdr_width)
         # self.header.sectionResized.connect(self.onColumnResize)
@@ -536,6 +549,19 @@ class TableView(QtCore.QObject):
         self.tableView.selectRow(0)
         self.saveResize = True
 
+
+    def applyColumnOrder(self):
+        """Arrange columns visually by HEADERS.position (defaults when there are no headers, e.g. search)."""
+
+        def position(column):
+            fieldName = ElDBScheme.ELEMENT_FLD_NAMES[column + 2]
+            if self.headers is not None:
+                return self.headers[fieldName]["position"]
+            return ElDBScheme.defaultHeaderPosition(fieldName)
+
+        order = sorted(range(PARTS_COLUMN_COUNT), key=lambda column: (position(column), column))
+        for visual, logical in enumerate(order):
+            self.header.moveSection(self.header.visualIndex(logical), visual)
 
     # def dataChanged(self, index1, index2):
     #     logger.debug("DataChanged event occurred.")

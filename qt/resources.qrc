@@ -21,4 +21,16 @@
     <file>icons/minus.png</file>
     <file>icons/add.png</file>
   </qresource>
+  <qresource prefix="parts">
+    <file>icons/capacitor_ceramic_smd.png</file>
+    <file>icons/capacitor_tantalum_smd.png</file>
+    <file>icons/capacitor_electrolytic_smd.png</file>
+    <file>icons/capacitor_electrolytic_tht.png</file>
+    <file>icons/capacitor_solid_smd.png</file>
+    <file>icons/capacitor_solid_tht.png</file>
+    <file>icons/diode_smd.png</file>
+    <file>icons/diode_tht.png</file>
+    <file>icons/resistor_smd.png</file>
+    <file>icons/resistor_tht.png</file>
+  </qresource>
 </RCC>
