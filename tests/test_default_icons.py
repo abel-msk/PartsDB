@@ -17,7 +17,8 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import QApplication
 
 from ElDBScheme import DBFactory
-from ElDefaultIcons import DefaultPartIcons, SECTION_ICONS, RESOURCE_TEMPLATE, mountingOf, SMD, THT
+from ElDefaultIcons import DefaultPartIcons, SECTION_ICONS, RESOURCE_TEMPLATE, FALLBACK_ICON, mountingOf, SMD, THT, \
+    availableIcons
 from ElIconDelegate import IconCellDelegate
 
 app = QApplication.instance() or QApplication(sys.argv)
@@ -83,8 +84,8 @@ class TestDefaultPartIcons(unittest.TestCase):
         self.assertEqual(self.icon("Диод", "Шотки", package="SOD-123"), ":/parts/icons/diode_smd.png")
         self.assertEqual(self.icon("Диод", "Зенера", package="DO-41"), ":/parts/icons/diode_tht.png")
 
-    def test_longest_prefix_wins_and_None_disables(self):
-        self.assertEqual(self.icon("Резистор", "переменный", package="3296W"), "")
+    def test_longest_prefix_wins_and_None_gives_fallback(self):
+        self.assertEqual(self.icon("Резистор", "переменный", package="3296W"), FALLBACK_ICON)
 
     def test_capacitors(self):
         self.assertEqual(self.icon("Конденсатор", "Керамический", package="SMD_0603"),
@@ -101,9 +102,14 @@ class TestDefaultPartIcons(unittest.TestCase):
         self.assertEqual(self.icon("Конденсатор", "Керамический", package="THT"),
                          ":/parts/icons/capacitor_ceramic_smd.png")
 
-    def test_section_without_default(self):
-        self.assertEqual(self.icon("Дисплей"), "")
-        self.assertEqual(self.icon("Конденсатор"), "")  # only subsections have pictures
+    def test_section_without_own_icon_gets_fallback(self):
+        self.assertEqual(self.icon("Дисплей"), FALLBACK_ICON)
+        self.assertEqual(self.icon("Транзистр", "MOSFET", "N-Канал", package="SOT-23"), FALLBACK_ICON)
+        self.assertEqual(self.icon("Конденсатор"), FALLBACK_ICON)  # only subsections have family pictures
+
+    def test_fallback_resource_exists(self):
+        self.assertEqual(FALLBACK_ICON, ":/parts/icons/ic_soic8_ep_smd.png")
+        self.assertTrue(QFile.exists(FALLBACK_ICON))
 
     def test_type_added_after_first_lookup(self):
         self.icon("Дисплей")  # loads TYPES
@@ -111,6 +117,58 @@ class TestDefaultPartIcons(unittest.TestCase):
 
     def test_no_part(self):
         self.assertEqual(self.icons.iconPath(None), "")
+
+    # ---------- icon chosen for a section (TYPES.icon) ----------
+
+    def setTypeIcon(self, theType, icon):
+        self.factory.scheme.setTypeIcon(theType.recId, icon)
+        self.icons.reload()
+
+    def test_type_icon_saved_in_db(self):
+        theType = self.section("Дисплей")
+        self.assertEqual(self.factory.scheme.getTypeIcon(theType.recId), "")
+        self.factory.scheme.setTypeIcon(theType.recId, ":/parts/icons/diode_smd.png")
+        self.assertEqual(self.factory.scheme.getTypeIcon(theType.recId), ":/parts/icons/diode_smd.png")
+        self.factory.scheme.setTypeIcon(theType.recId, "")
+        self.assertEqual(self.factory.scheme.getTypeIcon(theType.recId), "")
+
+    def iconOf(self, theType, package=""):
+        return self.icons.iconPath(self.part(theType, package))
+
+    def test_type_icon_overrides_rule_and_fallback(self):
+        display = self.section("Дисплей")
+        self.setTypeIcon(display, ":/parts/icons/resistor_smd.png")
+        self.assertEqual(self.iconOf(display), ":/parts/icons/resistor_smd.png")
+        resistor = self.section("Резистор")
+        self.setTypeIcon(resistor, FALLBACK_ICON)
+        self.assertEqual(self.iconOf(resistor, "SMD"), FALLBACK_ICON)
+
+    def test_type_icon_inherited_by_subsections(self):
+        tr = self.section("Транзистр")
+        mosfet = self.factory.appendType("MOSFET", tr)
+        nch = self.factory.appendType("N-Канал", mosfet)
+        self.setTypeIcon(tr, ":/parts/icons/diode_smd.png")
+        self.assertEqual(self.iconOf(nch, "SOT-23"), ":/parts/icons/diode_smd.png")
+        # own icon of the subsection wins over the parent's
+        self.setTypeIcon(mosfet, FALLBACK_ICON)
+        self.assertEqual(self.iconOf(nch), FALLBACK_ICON)
+
+    def test_type_icon_same_for_any_package(self):
+        resistor = self.section("Резистор")
+        self.setTypeIcon(resistor, ":/parts/icons/diode_tht.png")
+        for package in ("SMD_0805", "THT", "DO-41", ""):
+            self.assertEqual(self.iconOf(resistor, package), ":/parts/icons/diode_tht.png")
+
+    def test_type_icon_cleared_returns_rule(self):
+        theType = self.section("Резистор")
+        self.setTypeIcon(theType, FALLBACK_ICON)
+        self.setTypeIcon(theType, "")
+        self.assertEqual(self.iconOf(theType, "THT"), ":/parts/icons/resistor_tht.png")
+
+    def test_available_icons(self):
+        icons = availableIcons()
+        self.assertIn(FALLBACK_ICON, icons)
+        self.assertIn(":/parts/icons/resistor_tht.png", icons)
 
 
 class TestDelegateDefault(TestDefaultPartIcons):

@@ -4,21 +4,29 @@ The icon is chosen by the part's section (TYPES tree) and mounting type from its
     section  -> icon family  (longest matching section path wins; None = no default icon)
     package  -> "smd" / "tht" (unknown package -> the family's default mounting)
 If the family has no icon for that mounting, its other variant is used.
+Sections without a family icon get FALLBACK_ICON.
+
+An icon chosen for a section (TYPES.icon, set in the header edit dialog) overrides this rule
+for the section and its subsections, for every part without its own picture.
 """
 import re
 
-from PyQt6.QtCore import QFile
+from PyQt6.QtCore import QFile, QDirIterator
 
 import ElLogger
 import resources  # noqa: F401  registers :/ resources. Do not delete
 
 logger = ElLogger.setLogger(__name__)
 
-RESOURCE_TEMPLATE = ":/parts/icons/{family}_{mount}.png"
+RESOURCES_DIR = ":/parts/icons"
+RESOURCE_TEMPLATE = RESOURCES_DIR + "/{family}_{mount}.png"
+# Icon for every section that has no icon of its own in SECTION_ICONS
+FALLBACK_ICON = ":/parts/icons/ic_soic8_ep_smd.png"
 SMD = "smd"
 THT = "tht"
 
-# Section path (names from the root) -> (icon family, default mounting) or None
+# Section path (names from the root) -> (icon family, default mounting),
+# or None = no family icon for this branch (FALLBACK_ICON is used)
 SECTION_ICONS = {
     ("Резистор",): ("resistor", SMD),
     ("Резистор", "переменный"): None,
@@ -37,6 +45,17 @@ _SMD_PACKAGE = re.compile(r"(SMD|SMT|SND|SVD|SO[DTP]?[-_]|SOIC|SSOP|TSSOP|QFN|QF
                           re.IGNORECASE)
 
 
+def availableIcons() -> list:
+    """Resource paths of all built-in part icons, sorted by name."""
+    icons = []
+    it = QDirIterator(RESOURCES_DIR)
+    while it.hasNext():
+        path = it.next()
+        if path.lower().endswith(".png"):
+            icons.append(path)
+    return sorted(icons)
+
+
 def mountingOf(package) -> str:
     """'smd', 'tht' or '' (unknown) for a PARTS.package value."""
     if not package:
@@ -53,12 +72,38 @@ class DefaultPartIcons:
     def __init__(self, factory):
         self.factory = factory
         self._types = None  # type_id -> (name, parent_id)
+        self._typeIcons = {}  # type_id -> icon chosen for the section (TYPES.icon)
         self._sectionCache = {}  # type_id -> section path tuple
 
     def _loadTypes(self):
-        rows = self.factory.scheme.db.select_all("SELECT id, name, parent_id FROM TYPES;")
+        db = self.factory.scheme.db
+        columns = [row[1] for row in db.select_all("PRAGMA table_info(TYPES);")]
+        iconCol = "icon" if "icon" in columns else "NULL"
+        rows = db.select_all("SELECT id, name, parent_id, " + iconCol + " FROM TYPES;")
         self._types = {row[0]: (row[1], row[2]) for row in rows}
+        self._typeIcons = {row[0]: row[3] for row in rows if row[3]}
         self._sectionCache = {}
+
+    def reload(self):
+        """Forget cached sections and icons (after a section or its icon was changed)."""
+        self._types = None
+        self._typeIcons = {}
+        self._sectionCache = {}
+
+    def sectionIcon(self, typeId) -> str:
+        """Icon chosen for the section or its nearest parent section, '' if none."""
+        if typeId in (None, ""):
+            return ""
+        typeId = int(typeId)
+        if self._types is None or typeId not in self._types:
+            self._loadTypes()
+        current, seen = typeId, set()
+        while current in self._types and current not in seen:
+            seen.add(current)
+            if current in self._typeIcons:
+                return self._typeIcons[current]
+            current = self._types[current][1]
+        return ""
 
     def sectionPath(self, typeId) -> tuple:
         """Section names from the root down to typeId, e.g. ('Диод', 'Шотки')."""
@@ -90,17 +135,22 @@ class DefaultPartIcons:
         return None
 
     def iconPath(self, part) -> str:
-        """Resource path of the default icon for the part, or '' if its section has none."""
+        """Resource path of the default icon for the part: its section's family icon, else FALLBACK_ICON."""
         if part is None:
             return ""
+        chosen = self.sectionIcon(part["type_id"])
+        if chosen:
+            # The icon chosen for the section is used as is, whatever the part's package
+            if QFile.exists(chosen):
+                return chosen
+            logger.warning("Section icon %s not found, use the built-in rule", chosen)
         family = self.familyFor(self.sectionPath(part["type_id"]))
-        if family is None:
-            return ""
-        name, defaultMount = family
-        mount = mountingOf(part["package"]) or defaultMount
-        for candidate in (mount, THT if mount == SMD else SMD):
-            path = RESOURCE_TEMPLATE.format(family=name, mount=candidate)
-            if QFile.exists(path):
-                return path
-        logger.warning("No default icon resource for %s", name)
-        return ""
+        if family is not None:
+            name, defaultMount = family
+            mount = mountingOf(part["package"]) or defaultMount
+            for candidate in (mount, THT if mount == SMD else SMD):
+                path = RESOURCE_TEMPLATE.format(family=name, mount=candidate)
+                if QFile.exists(path):
+                    return path
+            logger.warning("No default icon resource for %s", name)
+        return FALLBACK_ICON if QFile.exists(FALLBACK_ICON) else ""

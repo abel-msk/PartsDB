@@ -143,7 +143,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         self.factory: DBFactory = factory
         self.theType: Type = theType
         self.parts: Parts = factory.loadPartsByType(self.theType)
-        self.headers: ElDBScheme.Headers = self.theType.getHeaders()
+        self.headers: ElDBScheme.Headers = self.theType.refreshHeaders()
         self.needReload = False
 
     def data(self, index: QModelIndex, role=None):
@@ -763,7 +763,15 @@ class TableView(QtCore.QObject):
         else:
             return ""
 
+    def onTypeIconChanged(self, typeId: int = None):
+        """A section's default icon was changed: redraw the icons of parts without a picture."""
+        self.iconDelegate.defaultIcons.reload()
+        self.tableView.viewport().update()
+
     def updateHeader(self, hdrObj: ElDBScheme.Header = None):
+        # Headers of another type do not affect the table shown now
+        if hdrObj is None or self.theType is None or int(hdrObj["type_id"]) != int(self.theType.recId):
+            return
 
         #  Get header column count
         fieldList = list(ElDBScheme.ELEMENT_FIELDS.keys())

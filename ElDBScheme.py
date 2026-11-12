@@ -105,7 +105,8 @@ TYPES_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + TYPES_TABLE_NAME + " (" \
                                                                      "id INTEGER PRIMARY KEY AUTOINCREMENT," \
                                                                      "name TEXT NOT NULL," \
                                                                      "path TEXT," \
-                                                                     "parent_id INTEGER DEFAULT 0" \
+                                                                     "parent_id INTEGER DEFAULT 0," \
+                                                                     "icon TEXT" \
                                                                      ");"
 
 HEADER_FIELDS = {
@@ -198,7 +199,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 2
+DB_VERSION = 3
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -363,6 +364,18 @@ class DBScheme:
         recId = self.db.exec_insert(sql, values)
         self.db.commit()
         return recId
+
+    def getTypeIcon(self, type_id) -> str:
+        """TYPES.icon: default icon of the section (Qt resource path), '' if not set."""
+        row = self.db.select_params("SELECT icon FROM " + TYPES_TABLE_NAME + " WHERE id = ?;",
+                                    (int(type_id),)).fetchone()
+        return row[0] if row is not None and row[0] else ""
+
+    def setTypeIcon(self, type_id, icon: str):
+        """Set TYPES.icon; empty icon clears it (the section uses the built-in rule)."""
+        self.db.exec_insert("UPDATE " + TYPES_TABLE_NAME + " SET icon = ? WHERE id = ?;",
+                            (icon if icon else None, int(type_id)))
+        self.db.commit()
 
     def delType(self, recId):
         sql = "DELETE FROM " + TYPES_TABLE_NAME + " WHERE id='" + str(recId) + "';"
@@ -684,8 +697,16 @@ def _migrate_to_2(scheme: DBScheme):
         scheme.setEnvironment(ENV_ICONS_PATH, ENVIRONMENT_DEFAULTS[ENV_ICONS_PATH])
 
 
+def _migrate_to_3(scheme: DBScheme):
+    """v3: TYPES.icon, the default part icon chosen for a section."""
+    columns = [row[1] for row in scheme.db.select_all("PRAGMA table_info(" + TYPES_TABLE_NAME + ");")]
+    if columns and "icon" not in columns:
+        scheme.db.exec("ALTER TABLE " + TYPES_TABLE_NAME + " ADD COLUMN icon TEXT;")
+
+
 MIGRATIONS = {
     2: _migrate_to_2,
+    3: _migrate_to_3,
 }
 
 

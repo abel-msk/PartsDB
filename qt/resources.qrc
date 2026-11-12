@@ -32,5 +32,6 @@
     <file>icons/diode_tht.png</file>
     <file>icons/resistor_smd.png</file>
     <file>icons/resistor_tht.png</file>
+    <file>icons/ic_soic8_ep_smd.png</file>
   </qresource>
 </RCC>

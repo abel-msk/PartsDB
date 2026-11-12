@@ -399,11 +399,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dlg = HeaderEditDialog(self.documentRoot, self.factory)
         # dlg.comm.uriSelected.connect(self.onAddDocSelected)
         index = self.typesTree.getSelectedIndex()
-        theType: Type = index.data(Qt.ItemDataRole.UserRole)
-        dlg.loadData(theType.recId)
+        theType: Type = index.data(Qt.ItemDataRole.UserRole) if index is not None else None
+        dlg.loadData(theType.recId if theType is not None else None)
 
         #  Set listener for header changed
         dlg.comm.tblUpdateRequest.connect(self.updateTableColHeader)
+        dlg.comm.typeIconChanged.connect(self.partsTable.onTypeIconChanged)
         dlg.exec()
 
     def updateTableColHeader(self, hdrObj: ElDBScheme.Header = None):
