@@ -27,7 +27,8 @@ logger = ElLogger.setLogger(__name__)
 DB_COLUMNS = list(ElDBScheme.ELEMENT_FIELDS.keys())
 PARTS_COLUMN_COUNT = len(DB_COLUMNS) - 2
 ICON_COLUMN = DB_COLUMNS.index("icon") - 2  # view column of PARTS.icon (models skip id, type_id)
-ROW_HEIGHT = 48  # px, tall enough for readable part icons
+ROW_HEIGHT = 60  # px, tall enough for readable part icons
+DEFAULT_COLUMN_WIDTH = 100  # px, for a column shown again that has no saved width
 timestamp = {}
 
 CLICK_EVENT_NAME = "on_click"
@@ -517,7 +518,7 @@ class TableView(QtCore.QObject):
         # self.header.sectionResized.disconnect()
         self.tableModel = PartsTableModel(self.factory, self.theType)
         self.tableView.setModel(self.tableModel)  # parts_tbl_view
-        self.headers: ElDBScheme.Headers = self.theType.getHeaders()
+        self.headers: ElDBScheme.Headers = self.tableModel.headers  # fresh from the DB
         self.tableView.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         # headerWidget = self.tableView.horizontalHeader()
 
@@ -778,9 +779,19 @@ class TableView(QtCore.QObject):
         idx = fieldList.index(hdrObj["field_name"]) - 2
         logger.debug("Update Header %s, index=%s", hdrObj["display"], idx)
 
-        self.tableView.setColumnHidden(idx, hdrObj["hidden"])
-        self.tableModel.needReload = True
-        self.tableView.update()
+        # Reload headers from the DB: the cached copies are stale after the dialog saved
+        self.headers = self.theType.refreshHeaders()
+        self.tableModel.headers = self.headers
+        self.tableModel.needReload = False
+        hdr = self.headers[hdrObj["field_name"]]
+        saveResize, self.saveResize = self.saveResize, False  # showing a column is not a user resize
+        self.tableView.setColumnHidden(idx, hdr["hidden"])
+        if not hdr["hidden"]:
+            width = hdr["width"]
+            self.tableView.setColumnWidth(idx, int(width) if width else DEFAULT_COLUMN_WIDTH)
+        self.saveResize = saveResize
+        self.tableView.horizontalHeader().viewport().update()
+        self.tableView.viewport().update()
 
     def selectByID(self, theId):
         parts:Parts = self.tableModel.parts

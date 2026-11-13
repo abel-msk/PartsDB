@@ -724,6 +724,7 @@ class Header:
                     self.__dict__[key] = ""
 
         self.changed = False
+        self.changedFields = set()  # fields set since the last load/save: only they are written by save()
         self.type_id = type_id
         self.field_name = field_name
         self.position = defaultHeaderPosition(field_name)
@@ -754,16 +755,26 @@ class Header:
 
     def __setitem__(self, index, value):
         # def setFiled(self, name, value):
+        if type(index) == int:
+            index = HEADER_FLD_NAMES[index]
         self.__dict__[index] = value
         self.changed = True
+        self.changedFields.add(index)
 
     def save(self):
+        """Write the header. An existing one writes only the fields set since it was loaded,
+        so a stale copy (e.g. the parts table saving a column width) does not overwrite
+        fields changed elsewhere (e.g. 'hidden' in the header edit dialog)."""
         if self.changed:
             if self.id < 0:
                 self.id = self.scheme.addHeader(self.getFields())
             else:
-                self.scheme.updateHeader(self.getFields())
+                fields = {"id": self.id}
+                fields.update({name: self.__dict__[name] for name in self.changedFields if name != "id"})
+                if len(fields) > 1:
+                    self.scheme.updateHeader(fields)
         self.changed = False
+        self.changedFields = set()
 
 
 class Headers:

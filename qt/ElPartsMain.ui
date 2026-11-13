@@ -72,6 +72,76 @@
          <height>0</height>
         </size>
        </property>
+       <property name="palette">
+        <palette>
+         <active>
+          <colorrole role="Base">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Window">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>243</red>
+             <green>242</green>
+             <blue>251</blue>
+            </color>
+           </brush>
+          </colorrole>
+         </active>
+         <inactive>
+          <colorrole role="Base">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>255</red>
+             <green>255</green>
+             <blue>255</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Window">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>243</red>
+             <green>242</green>
+             <blue>251</blue>
+            </color>
+           </brush>
+          </colorrole>
+         </inactive>
+         <disabled>
+          <colorrole role="Base">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>243</red>
+             <green>242</green>
+             <blue>251</blue>
+            </color>
+           </brush>
+          </colorrole>
+          <colorrole role="Window">
+           <brush brushstyle="SolidPattern">
+            <color alpha="255">
+             <red>243</red>
+             <green>242</green>
+             <blue>251</blue>
+            </color>
+           </brush>
+          </colorrole>
+         </disabled>
+        </palette>
+       </property>
+       <property name="autoFillBackground">
+        <bool>true</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
        <property name="inputMethodHints">
         <set>Qt::ImhSensitiveData</set>
        </property>
@@ -86,7 +156,7 @@
          <number>5</number>
         </property>
         <property name="topMargin">
-         <number>5</number>
+         <number>0</number>
         </property>
         <property name="rightMargin">
          <number>5</number>
@@ -114,6 +184,9 @@
             <height>50</height>
            </size>
           </property>
+          <property name="autoFillBackground">
+           <bool>false</bool>
+          </property>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <property name="topMargin">
             <number>5</number>
@@ -122,7 +195,11 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="QLineEdit" name="searchStr"/>
+            <widget class="QLineEdit" name="searchStr">
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
+            </widget>
            </item>
            <item>
             <widget class="QToolButton" name="searchBtn">
@@ -158,9 +235,42 @@
             </spacer>
            </item>
            <item>
+            <widget class="QPushButton" name="EditHdrBtn">
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>Edit Header</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="CloneHdrBtn">
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>Propogate Header</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="addPartBtn">
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>Add Part</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="DelPartBtn">
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>Delete Part</string>
              </property>
             </widget>
            </item>
@@ -174,6 +284,9 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="autoFillBackground">
+           <bool>false</bool>
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -214,6 +327,9 @@
                 <width>200</width>
                 <height>0</height>
                </size>
+              </property>
+              <property name="autoFillBackground">
+               <bool>false</bool>
               </property>
               <property name="showDropIndicator" stdset="0">
                <bool>false</bool>
@@ -313,7 +429,7 @@
                </size>
               </property>
               <property name="autoFillBackground">
-               <bool>true</bool>
+               <bool>false</bool>
               </property>
               <property name="frameShape">
                <enum>QFrame::StyledPanel</enum>
@@ -368,6 +484,9 @@
                   <width>16777215</width>
                   <height>130</height>
                  </size>
+                </property>
+                <property name="autoFillBackground">
+                 <bool>false</bool>
                 </property>
                 <property name="verticalScrollBarPolicy">
                  <enum>Qt::ScrollBarAlwaysOff</enum>
@@ -488,7 +607,7 @@
      <x>0</x>
      <y>0</y>
      <width>892</width>
-     <height>24</height>
+     <height>30</height>
     </rect>
    </property>
   </widget>
