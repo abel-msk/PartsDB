@@ -39,6 +39,7 @@ class IconCellDelegate(QStyledItemDelegate):
         self.iconsDir = iconsDir  # base folder for relative icon paths
         self.defaultIcons = defaultIcons  # ElDefaultIcons.DefaultPartIcons: icon for parts without a picture
         self._cache: dict = {}  # (path, mtime, w, h, dpr) -> QPixmap
+        self.dropRow = -1  # row under a picture being dragged onto the table: its frame is highlighted
 
     # ---------- image loading ----------
 
@@ -118,6 +119,11 @@ class IconCellDelegate(QStyledItemDelegate):
             path = self.defaultIconPath(index)  # part has no picture: icon for its section
             isDefault = True
             if not path:
+                if index.row() == self.dropRow:
+                    side = min(opt.rect.width(), opt.rect.height()) - 2 * self.PADDING
+                    square = QRect(0, 0, side, side)
+                    square.moveCenter(opt.rect.center())
+                    self.paintDropMark(painter, square, opt)
                 return
 
         rect = opt.rect.adjusted(self.PADDING, self.PADDING, -self.PADDING, -self.PADDING)
@@ -147,6 +153,17 @@ class IconCellDelegate(QStyledItemDelegate):
             target = QRect(0, 0, w, h)
             target.moveCenter(inner.center())
         self.paintFramed(painter, square, pm, target, opt)
+        painter.restore()
+        if index.row() == self.dropRow:
+            self.paintDropMark(painter, square, opt)
+
+    def paintDropMark(self, painter: QPainter, square: QRect, opt: QStyleOptionViewItem):
+        """Highlighted frame: a dropped picture will become this part's icon."""
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setPen(QPen(opt.palette.color(opt.palette.ColorRole.Highlight), 3))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(square).adjusted(1.5, 1.5, -1.5, -1.5), self.FRAME_RADIUS, self.FRAME_RADIUS)
         painter.restore()
 
     def paintFramed(self, painter: QPainter, square: QRect, pm: QPixmap | None, target: QRect | None,

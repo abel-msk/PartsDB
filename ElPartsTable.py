@@ -3,7 +3,7 @@ import sys
 import time
 
 from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal, QSize, QTimer, QVariant, QObject, QMimeData
+from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal, QSize, QTimer, QVariant, QObject, QMimeData, QEvent
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor, QAction, QFont, QMouseEvent, QDrag, QDragEnterEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QHeaderView, QMenu, QInputDialog, QAbstractItemView, QMessageBox, \
     QListWidget
@@ -15,6 +15,7 @@ from ElHdrEditDialog import HeaderEditDialog
 from ElIconListWidget import IconsListWidget
 from ElIconDelegate import IconCellDelegate
 from ElDefaultIcons import DefaultPartIcons
+import ElIconDrop
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -362,6 +363,9 @@ class TableView(QtCore.QObject):
                                              defaultIcons=DefaultPartIcons(self.factory))
         self.tableView.setItemDelegateForColumn(ICON_COLUMN, self.iconDelegate)
         self.tableView.verticalHeader().setDefaultSectionSize(ROW_HEIGHT)
+        # Pictures dropped from the desktop or a browser onto the icon cell become the part's icon
+        self.tableView.viewport().setAcceptDrops(True)
+        self.tableView.viewport().installEventFilter(self)
 
         self.tableModel: PartsTableModel = None
         self.header: QHeaderView = self.tableView.horizontalHeader()
@@ -406,6 +410,105 @@ class TableView(QtCore.QObject):
 
     def setFocus(self):
         self.tableView.setFocus()
+
+    # ---------- drop a picture onto the icon cell ----------
+
+    def _isPictureDrag(self, event) -> bool:
+        """An external drag carrying a picture (drags started inside the program are not ours)."""
+        return (event.source() is None and self.tableModel is not None
+                and ElIconDrop.canProvideImage(event.mimeData()))
+
+    def _iconDropIndex(self, event) -> QModelIndex | None:
+        """Icon cell under the cursor for an external drag carrying a picture, else None."""
+        if not self._isPictureDrag(event):
+            return None
+        index = self.tableView.indexAt(event.position().toPoint())
+        if not index.isValid() or index.column() != ICON_COLUMN:
+            return None
+        return index
+
+    def _setDropRow(self, row: int):
+        if self.iconDelegate.dropRow != row:
+            self.iconDelegate.dropRow = row
+            self.tableView.viewport().update()
+
+    def eventFilter(self, obj, event) -> bool:
+        try:
+            if obj is not self.tableView.viewport():
+                return False
+        except RuntimeError:  # the view is already destroyed (program exit)
+            return False
+        etype = event.type()
+        if etype == QEvent.Type.DragEnter and self._isPictureDrag(event) and self._iconDropIndex(event) is None:
+            # A picture enters the table over another column. Accept the enter anyway: Qt sends no DragMove
+            # to a widget that ignored DragEnter, so moving on to the icon cell would never be noticed.
+            # The cursor still shows "no drop" (proposed action ignored) until the icon column is reached.
+            event.setDropAction(Qt.DropAction.IgnoreAction)
+            event.accept()
+            self._setDropRow(-1)
+            return True
+        if etype in (QEvent.Type.DragEnter, QEvent.Type.DragMove):
+            index = self._iconDropIndex(event)
+            if index is None:
+                self._setDropRow(-1)
+                event.ignore()  # not ours: an ignored drag event goes on to the main window, as before
+                return True
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            self._setDropRow(index.row())
+            return True
+        if etype == QEvent.Type.DragLeave:
+            self._setDropRow(-1)
+            return False
+        if etype == QEvent.Type.Drop:
+            self._setDropRow(-1)
+            index = self._iconDropIndex(event)
+            if index is None:
+                event.ignore()
+                return True
+            event.setDropAction(Qt.DropAction.CopyAction)
+            event.accept()
+            logger.info("Picture dropped on row %s: %s", index.row(), ElIconDrop.describeMime(event.mimeData()))
+            # The drag's data (and on macOS the image memory) is gone once the event returns: deep copy now
+            mime = ElIconDrop.copyMimeData(event.mimeData())
+            row = index.row()
+            QTimer.singleShot(0, lambda: self.setIconFromMime(row, mime))
+            return True
+        return False
+
+    def setIconFromMime(self, row: int, mime: QMimeData) -> bool:
+        """Save the dropped picture as PNG in the icons folder and make it the icon of the part in `row`."""
+        index = self.tableModel.index(row, ICON_COLUMN)
+        thePart: Part = index.data(Qt.ItemDataRole.UserRole)
+        if thePart is None:
+            return False
+        QtWidgets.QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            img = ElIconDrop.imageFromMime(mime)
+            if img is None:
+                QtWidgets.QApplication.restoreOverrideCursor()
+                ErrorDialog(self.tableView, "The dropped object is not a picture or it can't be downloaded.")
+                return False
+            fileName = ElIconDrop.saveIcon(img, self.factory.getIconsDir(), thePart["part_num"])
+            oldIcon = thePart["icon"]
+            thePart["icon"] = fileName
+            thePart.save()
+            logger.info("Part %s(%s): icon '%s' -> '%s'", thePart["part_num"], thePart.id, oldIcon, fileName)
+        except Exception as e:
+            logger.exception("Can't set the dropped icon")
+            QtWidgets.QApplication.restoreOverrideCursor()
+            ErrorDialog(self.tableView, "Can't save the icon: {}".format(e))
+            return False
+        QtWidgets.QApplication.restoreOverrideCursor()
+        self.tableModel.dataChanged.emit(index, index)
+        # Make the row active and bring the program to the front (the drag came from another app)
+        self.tableView.selectRow(row)
+        self.tableView.setCurrentIndex(index)
+        self.tableView.scrollTo(index)
+        self.tableView.window().raise_()
+        self.tableView.window().activateWindow()
+        self.tableView.setFocus()
+        return True
 
     def getCurrentType(self):
         return self.theType

@@ -1,3 +1,4 @@
+import faulthandler
 import getopt
 import logging
 import os
@@ -190,6 +191,14 @@ def main():
 
 
     ElDBScheme.DB_FACTORY = factory
+
+    # A crash inside Qt (SIGSEGV etc.) kills the process without a Python traceback: dump it to the log
+    global faultLog
+    try:
+        faultLog = open(log_file, "a", encoding="utf-8")
+        faulthandler.enable(file=faultLog, all_threads=True)
+    except OSError as e:
+        logger.warning("Can't enable crash traceback in %s: %s", log_file, e)
 
     try:
         MainWindowOpen(factory, startupMode)
