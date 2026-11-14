@@ -1117,13 +1117,18 @@ class DBFactory:
         self.scheme: DBScheme = DBScheme(self.db_file)
         self.idPos = ELEMENT_FLD_NAMES.index("id")
 
-        if not self.isDB():
-            self.scheme.connect()
-            self.scheme.createTables()
-            self.scheme.db.conn.commit()
-        else:
-            self.scheme.connect()
-            self.scheme.migrate()
+        try:
+            if not self.isDB():
+                self.scheme.connect()
+                self.scheme.createTables()
+                self.scheme.db.conn.commit()
+            else:
+                self.scheme.connect()
+                self.scheme.migrate()
+        except Exception:
+            if self.scheme.db.isConnect():
+                self.scheme.disconnect()
+            raise
 
     def isDB(self) -> bool:
         return True if os.path.exists(self.db_file) else False

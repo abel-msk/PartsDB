@@ -485,20 +485,78 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         :param docRoot:
         :return:
         """
-        if type != ElDBScheme.DOC_TYPE_URL:
-            self.factory = DBFactory(uri)
-            ElDBScheme.DB_FACTORY = self.factory
-            self.typesTree = TypesTree(self.factory, self.types_tree_view)
-            # self.typesTree.addEventListener(ElTypesTree.CLICK_EVENT_NAME, self.onTreeSelect)
-
-            self.typesTree.comm.typeSelect.connect(self.onTreeSelect)
-
-            self.config.set_value(constants.CONFIG_DB_FILE, self.factory.db_file)
-        else:
+        if type == ElDBScheme.DOC_TYPE_URL:
             logger.warning("Selected file '%s' not local.", uri)
+            return False
+
+        factory = None
+        try:
+            factory = DBFactory(os.path.abspath(os.path.expanduser(uri)))
+            # Validate and prepare paths before replacing the current UI.
+            factory.getRootTypes()
+            iconsDir = factory.getIconsDir()
+        except Exception as err:
+            if factory is not None:
+                factory.disconnect()
+            logger.exception("Can't open database %s", uri)
+            QMessageBox.critical(self, "Open database", "Can't open database:\n{}\n\n{}".format(uri, err))
+            return False
+
+        previous = self.factory
+        self.partsTable.setFactory(factory, iconsDir)
+        self.factory = factory
+        ElDBScheme.DB_FACTORY = factory
+        self.documentRoot = None
+        self.searchStr.clear()
+        self.savedTreeSelection = None
+        self.typesTree.lastClickedItem = None
+        self.typesTree.dbFactory = factory
+        self.typesTree.load()
+        self.savedTreeSelection = self.typesTree.getSelectedIndex()
+        self.config.set_value(constants.CONFIG_DB_FILE, factory.db_file)
+        self.config.set_value(constants.CONFIG_DATA_PATH, factory.dataPath)
+        previous.disconnect()
+        self.statusbar.showMessage("Database opened: {}".format(factory.db_file), 5000)
+        return True
 
     def newDB(self):
-        pass
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Create new database", os.path.join(self.factory.dataPath, "new.sqlite"),
+            "SQLite databases (*.sqlite *.sqlite3 *.db);;All files (*)",
+            options=QFileDialog.Option.DontConfirmOverwrite)
+        if not path:
+            return
+        path = os.path.abspath(os.path.expanduser(path))
+        if not os.path.splitext(path)[1]:
+            path += ".sqlite"
+
+        scheme = None
+        created = False
+        try:
+            # Reserve the name exclusively, including against concurrent file creation.
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            created = True
+            os.close(fd)
+            scheme = ElDBScheme.DBScheme(path)
+            scheme.connect()
+            scheme.createTables()
+        except FileExistsError:
+            QMessageBox.warning(self, "Create new database", "The file already exists. Choose a new file name.")
+            return
+        except Exception as err:
+            logger.exception("Can't create database %s", path)
+            if scheme is not None and scheme.db.isConnect():
+                scheme.disconnect()
+                scheme = None
+            if created:
+                os.unlink(path)
+            QMessageBox.critical(self, "Create new database", "Can't create database:\n{}\n\n{}".format(path, err))
+            return
+        finally:
+            if scheme is not None and scheme.db.isConnect():
+                scheme.disconnect()
+
+        self.loadDB(path, ElDBScheme.DOC_TYPE_DEFAULT)
 
     def ConfigureAppsExe(self):
         """

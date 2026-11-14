@@ -411,6 +411,27 @@ class TableView(QtCore.QObject):
     def setFocus(self):
         self.tableView.setFocus()
 
+    def setFactory(self, factory: DBFactory, iconsDir: str):
+        """Switch databases without retaining old models, documents or icon caches."""
+        self.saveResize = False
+        self.timestamp = {}
+        self.headers = None
+        self.theType = None
+        self.tableModel = None
+        self.searchMode = False
+        self.menuColumnSelected = None
+        self.menuRowSelected = None
+        self.factory = factory
+        self.tableView.setModel(QStandardItemModel(self.tableView))
+        self.iconsListWidget.clear()
+        self.iconsListWidget.factory = factory
+        self.iconsListWidget.currentPart = None
+        self.iconsListWidget.documents = None
+        self.iconDelegate.iconsDir = iconsDir
+        self.iconDelegate.defaultIcons = DefaultPartIcons(factory)
+        self.iconDelegate._cache.clear()
+        self._setDropRow(-1)
+
     # ---------- drop a picture onto the icon cell ----------
 
     def _isPictureDrag(self, event) -> bool:
@@ -714,6 +735,8 @@ class TableView(QtCore.QObject):
         self.comm.documentSelect.emit(theDoc)
 
     def headerMenuEvent(self, point):
+        if self.headers is None:
+            return
         column = self.header.logicalIndexAt(point.x())
         hdr = self.headers[ElDBScheme.ELEMENT_FLD_NAMES[column + 2]]
         self.menuColumnSelected = column

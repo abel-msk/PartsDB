@@ -38,6 +38,8 @@ in a single SQLite file.
   the document area. Double-click opens a document in the application configured for its file extension
   (**Setup → Docs open exe**).
 - **Several databases.** **File → Open DB** (`Ctrl+O`) and **File → Create new DB** (`Ctrl+N`).
+  Creating a database opens a file chooser, creates an empty SQLite database and switches to it.
+  Existing files are never overwritten. Add sections and parts to start filling the new inventory.
 
 ![Catalog: resistors with default SMD icons](docs/images/catalog-resistors.png)
 

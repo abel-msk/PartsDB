@@ -38,7 +38,7 @@ class ElConfig:
         if self.filename != "":
             logger.debug("Load config file %s", self.filename)
             with open(self.filename) as f:
-                self.data = yaml.load(f, Loader=yaml.FullLoader)
+                self.data = yaml.load(f, Loader=yaml.FullLoader) or {}
                 self.is_loaded = True
 
     def has_value(self, name: str, section: str = "main"):

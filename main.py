@@ -158,6 +158,11 @@ def main():
                 factory = DBFactory(db_file, data_path)
                 config.set_value(constants.CONFIG_DB_FILE, factory.db_file)
                 break
+        else:
+            # First start with an empty config and no existing database.
+            db_file = os.path.join(data_path, prog_name + ".sqlite")
+            factory = DBFactory(db_file, data_path)
+            config.set_value(constants.CONFIG_DB_FILE, factory.db_file)
 
     # Icons folder: ENVIRONMENT.icons_path relative to the data folder; created if missing
     logger.info("Icons folder: %s", factory.getIconsDir())
