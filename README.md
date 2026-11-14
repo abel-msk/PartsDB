@@ -31,6 +31,8 @@ in a single SQLite file.
   (part number, body marking, value, units, current/power, voltage, package, description, quantity, in stock, …).
   Columns are configured per section: they can be renamed, hidden, shown again and aligned from the
   column header context menu or in **Setup → Edit headers**.
+  Columns without saved settings inherit them from the nearest ancestor with settings for that column,
+  falling back to built-in defaults. Editing an inherited column saves an override for the current section.
 - **Part pictures.** The *Icon Link* column shows a picture of the part with a larger preview in the tooltip.
   Parts without their own picture get a default icon chosen by section and package (SMD or through-hole).
 - **Search** across all parts from the search field above the table. A found part can be opened in its own section.

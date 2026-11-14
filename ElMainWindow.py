@@ -104,6 +104,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.delDocBtn.clicked.connect(self.onDelDoc)
         self.searchBtn.clicked.connect(self.onSearch)
         self.EditHdrBtn.clicked.connect(self.onEditHeader)
+        self.CloneHdrBtn.clicked.connect(self.onPropagateHeaders)
         self.DelPartBtn.clicked.connect(self.partsTable.deleteRow)
 
         self._defineMenu_()
@@ -439,6 +440,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             dlg.exec()
         else:
             showWarn(self, translate("PartsDB", 'Please select part first.'))
+
+    def onPropagateHeaders(self):
+        index = self.typesTree.getSelectedIndex()
+        theType = index.data(Qt.ItemDataRole.UserRole) if index is not None else None
+        if theType is not None:
+            theType.propagateHeaders()
 
     def onEditHeader(self):
         dlg = HeaderEditDialog(self.documentRoot, self.factory)

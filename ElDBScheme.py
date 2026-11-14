@@ -606,6 +606,32 @@ class Type:
         self.headers = Headers(self.scheme, self.recId)
         return self.headers
 
+    def propagateHeaders(self):
+        """Replace every descendant's column settings with this type's settings."""
+        headers = self.refreshHeaders()
+        fields = [name for name in HEADER_FLD_NAMES if name not in ("id", "type_id")]
+        # Include lazy defaults, so missing source rows also overwrite child overrides.
+        settings = [tuple(headers[name][field] for field in fields)
+                    for name in ELEMENT_FLD_NAMES[2:]]
+        descendants = []
+        pending = list(self.getChildren())
+        while pending:
+            child = pending.pop()
+            descendants.append(child)
+            pending.extend(child.getChildren())
+
+        conn = self.scheme.db.conn
+        with conn:
+            for child in descendants:
+                conn.execute("DELETE FROM HEADERS WHERE type_id = ?", (child.recId,))
+                conn.executemany(
+                    "INSERT INTO HEADERS (type_id, {}) VALUES ({})".format(
+                        ", ".join(fields), ", ".join("?" for _ in range(len(fields) + 1))),
+                    [(child.recId,) + values for values in settings])
+        for child in descendants:
+            child.refreshHeaders()
+        return len(descendants)
+
     def rename(self, new_name):
         self.scheme.updateType(self.recId, new_name, self.path)
         self.name = new_name
@@ -804,14 +830,26 @@ class Headers:
         self.index = 0
         self.IterAr = []
 
-        for row in self.scheme.loadHeaders(str(self.type_id)):
-            # id, type_id, field_name, name, align, hidden, sort, display
-            count = 0
-            fldList: list = list(HEADER_FIELDS.keys())
-            fldName = row[int(HEADER_FLD_NAMES.index("field_name"))]
-            hdr = Header(self.scheme, type_id, fldName)
-            hdr.setFields(list(row))
-            self.headersAr[fldName] = hdr
+        # Resolve each missing column from its nearest configured ancestor.
+        # Inherited headers belong to the requested type: editing one inserts a
+        # local override instead of updating the ancestor's database row.
+        current_id = self.type_id
+        visited = set()
+        while current_id is not None and current_id not in visited:
+            visited.add(current_id)
+            for row in self.scheme.loadHeaders(current_id):
+                fldName = row[HEADER_FLD_NAMES.index("field_name")]
+                if fldName in self.headersAr:
+                    continue
+                hdr = Header(self.scheme, type_id, fldName)
+                hdr.setFields(list(row))
+                if current_id != self.type_id:
+                    hdr.id = -1
+                    hdr.type_id = self.type_id
+                self.headersAr[fldName] = hdr
+            parent = self.scheme.db.select_params(
+                "SELECT parent_id FROM TYPES WHERE id = ?;", (current_id,)).fetchone()
+            current_id = parent[0] if parent and parent[0] else None
 
     def __len__(self):
         return len(self.headersAr.keys())
