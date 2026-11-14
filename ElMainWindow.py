@@ -171,8 +171,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #  Drop file to the Part document list
         #
         else:
-            pos: QPoint = self.docListWidget.mapFromGlobal(self.mapToGlobal(event.position()))
-            if pos.x() > 0 and pos.y() > 0:
+            pos: QPoint = self.docListWidget.mapFrom(self, event.position().toPoint())
+            if self.docListWidget.rect().contains(pos):
                 dataList = event.mimeData().urls()
                 mimeData: QtCore.QByteArray = event.mimeData().data("text/plain")
                 # data = event.mimeData().data("text/csv")
