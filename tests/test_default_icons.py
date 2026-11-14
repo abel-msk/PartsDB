@@ -21,7 +21,9 @@ from ElDefaultIcons import DefaultPartIcons, SECTION_ICONS, RESOURCE_TEMPLATE, F
     availableIcons
 from ElIconDelegate import IconCellDelegate
 
-app = QApplication.instance() or QApplication(sys.argv)
+from tests.qt_support import application
+
+app = application()
 
 
 class TestMountingOf(unittest.TestCase):

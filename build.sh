@@ -50,6 +50,7 @@ if [ $RUN_TESTS -eq 1 ]; then
         echo "=== Unit tests FAILED ===" >&2
         exit $status
     fi
+    rm -f -- test_db.sqlite || exit $?
     echo "=== Unit tests passed ==="
 fi
 

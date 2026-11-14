@@ -16,7 +16,9 @@ from ElDBScheme import DBFactory, DOC_TYPE_PDF, PartInProjectsError
 from ElMainWindow import MainWindow
 from ElTranslations import translate
 
-app = QApplication.instance() or QApplication([])
+from tests.qt_support import application
+
+app = application()
 
 
 class TestDeletePart(unittest.TestCase):

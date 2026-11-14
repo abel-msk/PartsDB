@@ -14,6 +14,7 @@ import os
 import ctypes
 import shutil
 import sqlite3
+from contextlib import closing
 import sys
 import tempfile
 import unittest
@@ -29,7 +30,9 @@ from PyQt6.QtGui import QImage, QColor, QCursor, QDragEnterEvent, QDragMoveEvent
     QMouseEvent
 from PyQt6.QtWidgets import QApplication
 
-app = QApplication.instance() or QApplication(sys.argv)
+from tests.qt_support import application
+
+app = application()
 
 import ElDBScheme
 import ElMainWindow
@@ -95,6 +98,7 @@ class DBTestCase(unittest.TestCase):
         self.src = os.path.join(self.tmp, "src")
         os.makedirs(self.src)
         self.factory = DBFactory(self.dbFile)
+        self.addCleanup(self.factory.disconnect)
         self.window = MainWindow(self.factory, ElConfig())
         self.window.resize(1400, 900)
         self.window.setStartupMode(None)  # loads the types tree
@@ -107,7 +111,7 @@ class DBTestCase(unittest.TestCase):
     # ----- DB helpers (read straight from the file, not through the program's caches) -----
 
     def sql(self, query: str, params=()):
-        with sqlite3.connect(self.dbFile) as db:
+        with closing(sqlite3.connect(self.dbFile)) as db:
             return db.execute(query, params).fetchall()
 
     def typeWithParts(self, minParts: int = 3, exclude=()) -> int:

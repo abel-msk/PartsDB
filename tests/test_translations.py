@@ -25,7 +25,9 @@ from ElMainWindow import MainWindow
 from ElOpenFileDialog import OpenFileDialog
 from ElTranslations import CATALOG_DIR, LanguageManager, translate
 
-app = QApplication.instance() or QApplication([])
+from tests.qt_support import application
+
+app = application()
 
 
 def processEvents():

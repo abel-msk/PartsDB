@@ -26,7 +26,9 @@ TYPE_NAME = "NewType"
 PART1 = "AAA-001"
 PART2 = "BBB-002"
 
-app = QApplication.instance() or QApplication(sys.argv)
+from tests.qt_support import application
+
+app = application()
 
 
 class NewTypeTestCase(unittest.TestCase):

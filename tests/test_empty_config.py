@@ -19,7 +19,9 @@ import main
 from ElConfig import ElConfig
 from ElMainWindow import MainWindow
 
-app = QApplication.instance() or QApplication([])
+from tests.qt_support import application
+
+app = application()
 
 
 class TestEmptyConfigStartup(unittest.TestCase):
@@ -42,6 +44,7 @@ class TestEmptyConfigStartup(unittest.TestCase):
                        if isinstance(w, MainWindow) and w.config is self.config]
             self.assertEqual(len(windows), 1)
             window = windows[0]
+            self.addCleanup(window.factory.disconnect)
             self.addCleanup(window.close)
             self.assertTrue(window.isVisible())
             self.assertEqual(window.typesTree.treeModel.rowCount(), 0)

@@ -1,6 +1,7 @@
 """Create/open database UI integration tests, using only temporary databases."""
 import os
 import sqlite3
+from contextlib import closing
 import sys
 import tempfile
 import unittest
@@ -18,7 +19,9 @@ from ElConfig import ElConfig
 from ElDBScheme import DBFactory
 from ElMainWindow import MainWindow
 
-app = QApplication.instance() or QApplication([])
+from tests.qt_support import application
+
+app = application()
 
 
 class TestNewDatabase(unittest.TestCase):
@@ -72,7 +75,7 @@ class TestNewDatabase(unittest.TestCase):
         self.assertEqual(self.config.get_value(constants.CONFIG_DATA_PATH), str(folder))
         with self.assertRaises(sqlite3.ProgrammingError):
             self.old.scheme.db.conn.execute("SELECT 1")
-        with sqlite3.connect(path) as db:
+        with closing(sqlite3.connect(path)) as db:
             tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             self.assertTrue({"TYPES", "HEADERS", "PARTS", "DATASHEETS", "PROJECTS", "EL_BY_PROJECT",
                              "ENVIRONMENT"}.issubset(tables))

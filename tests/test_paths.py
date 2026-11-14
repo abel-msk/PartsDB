@@ -22,7 +22,9 @@ from ElDBScheme import DBFactory, ENV_ICONS_PATH, DEFAULT_ICONS_DIR
 from ElIconDelegate import IconCellDelegate
 from main import checkDataPath
 
-app = QApplication.instance() or QApplication(sys.argv)
+from tests.qt_support import application
+
+app = application()
 
 
 class TmpDirTestCase(unittest.TestCase):

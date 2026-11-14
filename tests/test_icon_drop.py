@@ -25,7 +25,9 @@ from PyQt6.QtWidgets import QApplication
 
 import ElIconDrop
 
-app = QApplication.instance() or QApplication(sys.argv)
+from tests.qt_support import application
+
+app = application()
 
 
 def makeImage(w=40, h=20, color="red") -> QImage:
@@ -189,7 +191,8 @@ class TestIconDrop(unittest.TestCase):
         handler = partial(SimpleHTTPRequestHandler, directory=self.src)
         handler.log_message = lambda *a: None
         server = HTTPServer(("127.0.0.1", 0), handler)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
         try:
             url = "http://127.0.0.1:{}/photo.jpg".format(server.server_port)
             mime = QMimeData()
@@ -202,6 +205,8 @@ class TestIconDrop(unittest.TestCase):
             self.assertEqual(ElIconDrop.imageFromMime(mime).height(), 20)
         finally:
             server.shutdown()
+            thread.join()
+            server.server_close()
 
     def test_save_png_unique_and_scaled(self):
         big = makeImage(2000, 1000)
