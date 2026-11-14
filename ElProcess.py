@@ -1,3 +1,5 @@
+from ElTranslations import translate
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
 import logging
 import sys
 from PyQt6.QtCore import QProcess, QObject, pyqtSignal
@@ -93,7 +95,7 @@ class Process(QObject):
         logger.debug("Error(%s)>>> %s,", rc, stderr)
 
         msgBox = QMessageBox()
-        msgBox.setText("Got Error.")
+        msgBox.setText(translate("PartsDB", 'Got Error.'))
         msgBox.setInformativeText(stderr)
         # msgBox.setStandardButtons(QMessageBox.StandardButton.Save)
         # msgBox.setDefaultButton(QMessageBox.StandardButton.Save.Discard)

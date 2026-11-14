@@ -1,8 +1,11 @@
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
+
 import logging
 import sqlite3
 import sys
 import os
 import bisect
+import urllib.parse
 from sqlite3 import Cursor
 
 import ElLogger
@@ -10,6 +13,11 @@ import ElLogger
 # from numpy import *
 
 DB_FACTORY = None
+
+
+class PartInProjectsError(RuntimeError):
+    """Deleting a part referenced by a project is not allowed."""
+
 
 from connector import SQLiteConnector, DBError
 
@@ -49,27 +57,27 @@ ELEMENT_FIELDS = {
 }
 
 ELEMENT_FIELDS_DISPLAY = {
-    "id": "id",
-    "type_id": "type_id",
-    "part_num": "PartNum",
-    "device_code": "Code",
-    "value": "Nominal",
-    "units": "Unit",
-    "reduced_val": "Reduced Value",
-    "reduced_val_units": "Reduced Unit",
-    "chip_code": "Chip code",
-    "max_current": "Current",
-    "max_voltage": "Voltage",
-    "max_desumption": "Dissipation",
-    "description": "Description",
-    "package": "Package",
-    "present": "Is Present",
-    "quantity": "Quantity",
-    "price": "Price",
-    "currency": "Currency",
-    "shop": "Shop link",
-    "local_location": "Location",
-    "icon": "Icon Link"
+    "id": QT_TRANSLATE_NOOP("PartsDB", 'id'),
+    "type_id": QT_TRANSLATE_NOOP("PartsDB", 'type_id'),
+    "part_num": QT_TRANSLATE_NOOP("PartsDB", 'PartNum'),
+    "device_code": QT_TRANSLATE_NOOP("PartsDB", 'Code'),
+    "value": QT_TRANSLATE_NOOP("PartsDB", 'Nominal'),
+    "units": QT_TRANSLATE_NOOP("PartsDB", 'Unit'),
+    "reduced_val": QT_TRANSLATE_NOOP("PartsDB", 'Reduced Value'),
+    "reduced_val_units": QT_TRANSLATE_NOOP("PartsDB", 'Reduced Unit'),
+    "chip_code": QT_TRANSLATE_NOOP("PartsDB", 'Chip code'),
+    "max_current": QT_TRANSLATE_NOOP("PartsDB", 'Current'),
+    "max_voltage": QT_TRANSLATE_NOOP("PartsDB", 'Voltage'),
+    "max_desumption": QT_TRANSLATE_NOOP("PartsDB", 'Dissipation'),
+    "description": QT_TRANSLATE_NOOP("PartsDB", 'Description'),
+    "package": QT_TRANSLATE_NOOP("PartsDB", 'Package'),
+    "present": QT_TRANSLATE_NOOP("PartsDB", 'Is Present'),
+    "quantity": QT_TRANSLATE_NOOP("PartsDB", 'Quantity'),
+    "price": QT_TRANSLATE_NOOP("PartsDB", 'Price'),
+    "currency": QT_TRANSLATE_NOOP("PartsDB", 'Currency'),
+    "shop": QT_TRANSLATE_NOOP("PartsDB", 'Shop link'),
+    "local_location": QT_TRANSLATE_NOOP("PartsDB", 'Location'),
+    "icon": QT_TRANSLATE_NOOP("PartsDB", 'Icon Link')
 }
 
 
@@ -446,10 +454,21 @@ class DBScheme:
         self.db.commit()
         return recId
 
+    def ensurePartNotInProjects(self, partId):
+        row = self.db.conn.execute(
+            "SELECT 1 FROM EL_BY_PROJECT WHERE part_id = ? LIMIT 1;", (partId,)).fetchone()
+        if row is not None:
+            raise PartInProjectsError(QT_TRANSLATE_NOOP("PartsDB", 'This part is used in projects and cannot be deleted.'))
+
     def delPart(self, partId):
-        sql = "DELETE FROM " + PARTS_TABLE_NAME + " WHERE id='" + str(partId) + "';"
-        self.db.exec(sql)
-        self.db.commit()
+        # Foreign-key enforcement may be disabled on older databases. Explicitly remove
+        # dependent records in one transaction; linked files are never deleted.
+        with self.db.conn:
+            if not self.db.conn.in_transaction:
+                self.db.conn.execute("BEGIN IMMEDIATE;")
+            self.ensurePartNotInProjects(partId)
+            self.db.conn.execute("DELETE FROM DATASHEETS WHERE part_id = ?;", (partId,))
+            self.db.conn.execute("DELETE FROM PARTS WHERE id = ?;", (partId,))
 
     def addDocument(self, parentId, type, link ):
         values = []
@@ -1273,7 +1292,42 @@ class DBFactory:
 
     def deletePart(self, thePart: Part):
         logger.debug("Delete part : {}".format(', '.join(map(str, thePart.__dict__.values()))))
+        self.scheme.ensurePartNotInProjects(thePart.id)
+        icon = self._partIconToDelete(thePart)
         self.scheme.delPart(thePart.id)
+        if icon is not None:
+            try:
+                os.remove(icon)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                logger.exception("Part deleted, but couldn't remove icon %s", icon)
+                return icon
+        return None
+
+    def _partIconToDelete(self, part: Part):
+        """Program-created icons have unique names; remove this part's icon, never a document."""
+        iconsDir = os.path.realpath(self.getIconsDir(create=False))
+
+        def localPath(value, base):
+            if not value:
+                return None
+            value = str(value)
+            url = urllib.parse.urlsplit(value)
+            if url.scheme == "file" and url.netloc in ("", "localhost"):
+                value = urllib.parse.unquote(url.path)
+            elif url.scheme or value.startswith(":"):
+                return None
+            return os.path.realpath(os.path.join(base, os.path.expanduser(value)))
+
+        icon = localPath(part["icon"], iconsDir)
+        if icon is None or os.path.commonpath([iconsDir, icon]) != iconsDir or icon == iconsDir:
+            return None
+        # A file used as a document must survive, even when it is also this part's icon.
+        rows = self.scheme.db.conn.execute("SELECT uri FROM DATASHEETS;")
+        if any(localPath(row[0], self.dataPath) == icon for row in rows):
+            return None
+        return icon
 
     def getSearch(self, searchStr):
         self.scheme.partSearch(searchStr)

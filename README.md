@@ -21,6 +21,9 @@ in a single SQLite file.
 
 ## Features
 
+- **Interface language.** **Setup → Language → English / Русский / System** switches the interface
+  without restarting, including open dialogs. The choice is saved in the config. Custom section names,
+  part data and renamed column titles are not translated.
 - **Section tree.** Parts are grouped into a tree of types and subtypes of any depth,
   for example `Транзистор / MOSFET / N-Канал` or `Диод / Шоттки`.
   Sections are added, renamed and deleted with the buttons under the tree and its context menu.
@@ -32,6 +35,9 @@ in a single SQLite file.
   Parts without their own picture get a default icon chosen by section and package (SMD or through-hole).
 - **Search** across all parts from the search field above the table. A found part can be opened in its own section.
 - **Adding, deleting and moving parts.** *Add Part* and the table context menu add and delete parts.
+  *Delete Part* asks for confirmation, removes the selected part and its document links,
+  and deletes its icon from the icons folder. Document files remain on disk.
+  Parts referenced in projects cannot be deleted; a warning is shown without changing the part or its files.
   Drag selected rows onto another section in the tree to move them there.
 - **Documents.** Every part has a list of linked documents: datasheets, schematics, images, KiCad files or
   web links. Add them with *Attach Document* or by dragging a file from Finder or a URL from the browser onto
@@ -113,6 +119,7 @@ ElPartsDB [-c CONFIG] [-d DBFILE] [-l LOGFILE] [-v]
   `elworks.sqlite` in the data folder and in `~/.elworks`.
 - Part pictures are stored in the icons folder inside the data folder. It is created if missing.
 - `main.log_level` is `err` or `debug`, `main.log_file` is the log path (default `/tmp/elworks.log`).
+- `main.language` is `system` (default), `en` or `ru`. Unsupported system languages fall back to English.
 - Window size and position and the applications used to open documents are saved to the same file on exit.
 
 Example:
@@ -122,6 +129,7 @@ main:
   data_path: ~/.elworks
   db_file: elworks.sqlite
   log_level: err
+  language: system
 application_PDF_View:
   ext: pdf
   exec: /System/Applications/Preview.app
@@ -174,3 +182,20 @@ python -m unittest discover -s tests -v
 ```
 
 The tests use the test database in `tests/` and the offscreen Qt platform.
+
+### Translations
+
+Qt translation catalogs live in `translations/partsdb_en.ts` and `translations/partsdb_ru.ts`.
+Source strings are English; `.qm` files are included for running from source. Translate Python strings
+with `translate("PartsDB", "Source text")`; mark action captions and default column titles with
+`QT_TRANSLATE_NOOP("PartsDB", "Source text")`. Designer strings remain in the `.ui` forms.
+
+```bash
+python tools/translations.py --update
+# Edit the .ts files with Qt Linguist, then:
+python tools/translations.py --check --compile
+```
+
+Compilation requires Qt Linguist's `lrelease` (or `pyside6-lrelease`) on PATH or in Qt's binary folder.
+`build.sh -b` checks and compiles the catalogs and bundles them together with Qt's Russian standard-dialog
+translations. The extractor supports Python 3.14, where pylupdate6 6.10.0 still relies on removed AST APIs.

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Electronic parts workbench</string>
   </property>
   <property name="inputMethodHints">
    <set>Qt::ImhUppercaseOnly</set>
@@ -250,7 +250,7 @@
               <bool>false</bool>
              </property>
              <property name="text">
-              <string>Propogate Header</string>
+              <string>Propagate Header</string>
              </property>
             </widget>
            </item>

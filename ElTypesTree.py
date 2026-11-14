@@ -1,10 +1,13 @@
+from ElTranslations import translate
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
+from ElTranslations import TranslatedAction as QAction
 import logging
 import sys
 from typing import Any
 
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction, QDropEvent
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QDropEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QMenu, QInputDialog, QMessageBox
 
 import ElLogger
@@ -73,20 +76,20 @@ class TypesTree(QtCore.QObject):
         event.accept()
 
     def _defineMenu(self):
-        addAct = QAction("Add Type", self.treeWidget)
-        addAct.setStatusTip("Add new type object at the current level.")
+        addAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Type'), self.treeWidget)
+        addAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Add new type object at the current level.'))
         addAct.triggered.connect(self.add)
 
-        addChildAct = QAction("Add Child Type", self.treeWidget)
-        addChildAct.setStatusTip("Add new 'Type' object as child of selected.")
+        addChildAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Child Type'), self.treeWidget)
+        addChildAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", "Add new 'Type' object as child of selected."))
         addChildAct.triggered.connect(self.addChild)
 
-        RenAct = QAction("Rename Type", self.treeWidget)
-        RenAct.setStatusTip("Rename selected 'Type' object.")
+        RenAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Rename Type'), self.treeWidget)
+        RenAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", "Rename selected 'Type' object."))
         RenAct.triggered.connect(self.rename)
 
-        delAct = QAction("Delete Child", self.treeWidget)
-        delAct.setStatusTip("Delete selected 'Type' object with all included Parts.")
+        delAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Delete Child'), self.treeWidget)
+        delAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", "Delete selected 'Type' object with all included Parts."))
         delAct.triggered.connect(self.delete)
 
         # # show menu about the column
@@ -260,8 +263,8 @@ class TypesTree(QtCore.QObject):
         if theType is None:
             logger.warning("Empty object in type %s", index.data(Qt.ItemDataRole.DisplayRole))
             return
-        button = QMessageBox.question(self.treeWidget,"Delete type",
-                                   "Are you shure want to delete Type {} ?".format(theType.name))
+        button = QMessageBox.question(self.treeWidget,translate("PartsDB", 'Delete type'),
+                                   translate("PartsDB", 'Are you sure you want to delete section "{}"?').format(theType.name))
         if button == QMessageBox.StandardButton.Yes:
             self._delete(index)
 
@@ -302,8 +305,8 @@ class TypesTree(QtCore.QObject):
 
     def getInput(self, prompt = "") -> str:
         if prompt == "":
-            prompt = 'Enter Type Object Name:'
-        value, ok = QInputDialog.getText(self.treeWidget, 'Enter Name', prompt)
+            prompt = translate("PartsDB", "Enter section name:")
+        value, ok = QInputDialog.getText(self.treeWidget, translate("PartsDB", 'Enter Name'), prompt)
         if ok and value:
             return value
         else:

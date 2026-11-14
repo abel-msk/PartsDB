@@ -1,3 +1,6 @@
+from ElTranslations import translate
+from ElTranslations import TranslatedDialogMixin
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from PyQt6.QtCore import Qt, QDir, QModelIndex, QObject, pyqtSignal
 from PyQt6.QtGui import QFileSystemModel, QKeyEvent
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog
@@ -24,7 +27,7 @@ class Communicate(QObject):
     uriSelected = pyqtSignal(str, int, str)
 
 
-class OpenFileDialog(QDialog):
+class OpenFileDialog(TranslatedDialogMixin, QDialog):
     """Employee dialog."""
     def __init__(self, parent, userRoot = None):
         super().__init__(parent)

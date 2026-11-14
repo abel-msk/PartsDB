@@ -1,10 +1,14 @@
+from ElTranslations import translate
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
+from ElTranslations import TranslatedAction as QAction
+from ElTranslations import defaultHeaderText
 import logging
 import sys
 import time
 
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import Qt, QModelIndex, pyqtSignal, QSize, QTimer, QVariant, QObject, QMimeData, QEvent
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor, QAction, QFont, QMouseEvent, QDrag, QDragEnterEvent
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor, QFont, QMouseEvent, QDrag, QDragEnterEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QHeaderView, QMenu, QInputDialog, QAbstractItemView, QMessageBox, \
     QListWidget
 
@@ -48,10 +52,33 @@ class Communicate(QObject):
 def ErrorDialog(parent, message):
     button = QMessageBox.critical(
         parent,
-        "Error!",
+        translate("PartsDB", 'Error'),
         message,
         buttons=QMessageBox.StandardButton.Ok,
         defaultButton=QMessageBox.StandardButton.Ok)
+
+
+def _removePartRow(model, row):
+    """Delete from the DB before notifying Qt; a failed transaction leaves the model intact."""
+    if row < 0 or row >= len(model.parts):
+        return False
+    part = model.parts[row]
+    try:
+        iconError = model.factory.deletePart(part)
+    except ElDBScheme.PartInProjectsError as err:
+        QMessageBox.warning(None, translate("PartsDB", 'Delete part'), translate("PartsDB", str(err)))
+        return False
+    except Exception:
+        logger.exception("Can't delete part %s", part.id)
+        ErrorDialog(None, translate("PartsDB", "Can't delete part {}.").format(part["part_num"]))
+        return False
+    model.beginRemoveRows(QModelIndex(), row, row)
+    model.parts.partsAr.pop(row)
+    model.endRemoveRows()
+    if iconError:
+        QMessageBox.warning(None, translate("PartsDB", 'Delete icon'),
+                            translate("PartsDB", 'The part was deleted, but its icon file could not be removed:\n{}').format(iconError))
+    return True
 
 
 class SearchTableModel(QtCore.QAbstractTableModel):
@@ -62,6 +89,9 @@ class SearchTableModel(QtCore.QAbstractTableModel):
         self.parts: Parts = parts
         self.theType = None
         self.headers = None
+
+    def removeRow(self, row: int, parent=QModelIndex()) -> bool:
+        return _removePartRow(self, row)
 
     def flags(self, index):
         column = index.column()
@@ -122,7 +152,8 @@ class SearchTableModel(QtCore.QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:
                 column = section + 2
-                result = list(ElDBScheme.ELEMENT_FIELDS.keys())[column]
+                field = list(ElDBScheme.ELEMENT_FIELDS.keys())[column]
+                result = translate("PartsDB", ElDBScheme.ELEMENT_FIELDS_DISPLAY.get(field, field))
                 return result
 
         elif role == Qt.ItemDataRole.FontRole:
@@ -215,7 +246,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
             if orientation == Qt.Orientation.Horizontal:
                 column = section + 2
                 fldName = list(ElDBScheme.ELEMENT_FIELDS.keys())[column]
-                result = self.headers[fldName].display
+                result = defaultHeaderText(self.headers[fldName], fldName)
                 # logger.debug("Header %s, value %s",fldName, result)
                 # result = self.headers[fldName].display
                 return result
@@ -256,7 +287,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
             except ValueError as e:
                 # logger.error(e)
                 logging.exception("ValueError")
-                ErrorDialog(None, "Incorrect value type for column {}".format(columnName))
+                ErrorDialog(None, translate("PartsDB", 'Incorrect value type for column {}').format(columnName))
             return True
 
         elif role == Qt.ItemDataRole.CheckStateRole and ElDBScheme.ELEMENT_FIELDS[columnName].strip() == "BOOLEAN":
@@ -272,22 +303,7 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         return super().setData(index, value, role)
 
     def removeRow(self, row: int, parent: QModelIndex = ...) -> bool:
-        # index = self.selectionModel().currentIndex()
-        # super(PartsTableModel, self).selectionModel().currentIndex()
-        # thePart: Part = index.sibling(row, 1).data(Qt.ItemDataRole.UserRole)
-
-        self.beginRemoveRows(QModelIndex(), row, row)
-        thePart: Part = self.parts.partsAr.pop(row)
-        try:
-            logger.debug("Remove part=%s(%s), row=%s", thePart["part_num"], thePart.id, row)
-            self.factory.deletePart(thePart)
-        except BaseException as e:
-            logger.error(e)
-            self.parts.partsAr.append(thePart)
-            ErrorDialog(self, "DB error when removing part {}".format(thePart["part_num"]))
-            return False
-        self.endRemoveRows()
-        return True
+        return _removePartRow(self, row)
 
     def appendRow(self, thePart: Part):
         newRow = len(self.parts.partsAr)  # rows are 0-based: the appended row goes at index rowCount()
@@ -508,7 +524,7 @@ class TableView(QtCore.QObject):
             img = ElIconDrop.imageFromMime(mime)
             if img is None:
                 QtWidgets.QApplication.restoreOverrideCursor()
-                ErrorDialog(self.tableView, "The dropped object is not a picture or it can't be downloaded.")
+                ErrorDialog(self.tableView, translate("PartsDB", "The dropped object is not a picture or it can't be downloaded."))
                 return False
             fileName = ElIconDrop.saveIcon(img, self.factory.getIconsDir(), thePart["part_num"])
             oldIcon = thePart["icon"]
@@ -518,7 +534,7 @@ class TableView(QtCore.QObject):
         except Exception as e:
             logger.exception("Can't set the dropped icon")
             QtWidgets.QApplication.restoreOverrideCursor()
-            ErrorDialog(self.tableView, "Can't save the icon: {}".format(e))
+            ErrorDialog(self.tableView, translate("PartsDB", "Can't save the icon: {}").format(e))
             return False
         QtWidgets.QApplication.restoreOverrideCursor()
         self.tableModel.dataChanged.emit(index, index)
@@ -548,28 +564,28 @@ class TableView(QtCore.QObject):
             dropAction = drag.exec(Qt.DropAction.MoveAction)
 
     def _defineHeaderMenu(self):
-        hideAct = QAction("Hide Column", self.tableView)
-        hideAct.setStatusTip("Hide selected Column")
+        hideAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Hide Column'), self.tableView)
+        hideAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Hide selected Column'))
         hideAct.triggered.connect(self.hideColumn)
 
-        showAct = QAction("Show Column on right if any", self.tableView)
-        showAct.setStatusTip("Hide selected Column")
+        showAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Show Column on right if any'), self.tableView)
+        showAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Hide selected Column'))
         showAct.triggered.connect(self.showColumn)
 
-        renameAct = QAction("Rename selected Header", self.tableView)
-        renameAct.setStatusTip("Add new 'Type' object as child of selected.")
+        renameAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Rename selected Header'), self.tableView)
+        renameAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", "Add new 'Type' object as child of selected."))
         renameAct.triggered.connect(self.renameHeader)
 
-        alRightAct = QAction("Align Right", self.tableView)
-        alRightAct.setStatusTip("Align to the right selected column contents")
+        alRightAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Align Right'), self.tableView)
+        alRightAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Align to the right selected column contents'))
         alRightAct.triggered.connect(self.alignRight)
 
-        alLeftAct = QAction("Align Left", self.tableView)
-        alLeftAct.setStatusTip("Align to the left selected column contents")
+        alLeftAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Align Left'), self.tableView)
+        alLeftAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Align to the left selected column contents'))
         alLeftAct.triggered.connect(self.alignLeft)
 
-        editHdr = QAction("Edit Headers", self.tableView)
-        editHdr.setStatusTip("Open headers edit dialog")
+        editHdr = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Edit Headers'), self.tableView)
+        editHdr.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Open headers edit dialog'))
         editHdr.triggered.connect(self.editHeader)
 
         # # show menu about the column
@@ -588,8 +604,8 @@ class TableView(QtCore.QObject):
         Define popup menu for Parts Table body
         :return:
         """
-        ldOrig = QAction("Load Original", self.tableView)
-        ldOrig.setStatusTip("Load corresponding parts type.")
+        ldOrig = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Load Original'), self.tableView)
+        ldOrig.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Load corresponding parts type.'))
         ldOrig.triggered.connect(self.loadPartsType)
 
         menu = QMenu(self.tableView)
@@ -601,16 +617,16 @@ class TableView(QtCore.QObject):
         Define popup menu for Parts Table body
         :return:
         """
-        tglAct = QAction("Switch Selection", self.tableView)
-        tglAct.setStatusTip("Toggle multiline / singleline selection.")
+        tglAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Switch Selection'), self.tableView)
+        tglAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Toggle multiline / singleline selection.'))
         tglAct.triggered.connect(self.toggleSelection)
 
-        addAct = QAction("Add Part", self.tableView)
-        addAct.setStatusTip("Add new part.")
+        addAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Part'), self.tableView)
+        addAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Add new part.'))
         addAct.triggered.connect(self.addRow)
 
-        delAct = QAction("Delete Part", self.tableView)
-        delAct.setStatusTip("Delete selected part.")
+        delAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Delete Part'), self.tableView)
+        delAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Delete selected part.'))
         delAct.triggered.connect(self.deleteRow)
 
         menu = QMenu(self.tableView)
@@ -747,6 +763,8 @@ class TableView(QtCore.QObject):
 
     def tableMenuEvent(self, point):
         idx: QModelIndex = self.tableView.indexAt(point)
+        if idx.isValid():
+            self.tableView.setCurrentIndex(idx)
         logger.debug("Menu event for tables cells row=%s, column=%s", idx.row(), idx.column())
         self.menuColumnSelected = idx.column()
         self.menuRowSelected = idx.row()
@@ -840,7 +858,7 @@ class TableView(QtCore.QObject):
     def addRow(self):
         theType = self.tableModel.theType
         logger.debug("Add new part for Type=%s(%s)", theType.name, theType.recId)
-        value, ok = QInputDialog.getText(self.tableView, 'Add part', "Enter Part number")
+        value, ok = QInputDialog.getText(self.tableView, translate("PartsDB", 'Add part'), translate("PartsDB", 'Enter Part number'))
         if ok and value:
             el = {}
             el["part_num"] = value
@@ -848,17 +866,40 @@ class TableView(QtCore.QObject):
             self.tableModel.appendRow(thePart)
 
     def deleteRow(self):
-        index = (self.tableView.selectionModel().currentIndex())
-        thePart: Part = index.sibling(self.menuRowSelected, 1).data(Qt.ItemDataRole.UserRole)
-
-        theType = self.factory.getTypeByID(thePart["type_id"])
-        button = QMessageBox.question(self.tableView, "Deleting part",
-                                      "Are you sure want to delete the part: {} {} ?".format(theType.path,
-                                                                                             thePart["part_num"]))
-        if button == QMessageBox.StandardButton.Yes:
-            # self._delete(index)
-            self.tableModel.removeRow(self.menuRowSelected)
-            logger.debug("Menu Clicked on row %s", thePart["part_num"])
+        selection = self.tableView.selectionModel()
+        if self.tableModel is None or selection is None or not selection.hasSelection():
+            QMessageBox.information(self.tableView, translate("PartsDB", 'Delete part'), translate("PartsDB", 'Please select a part first.'))
+            return
+        index = selection.currentIndex()
+        if not index.isValid() or not selection.isSelected(index):
+            index = selection.selectedIndexes()[0]
+        part = index.data(Qt.ItemDataRole.UserRole)
+        if part is None:
+            QMessageBox.information(self.tableView, translate("PartsDB", 'Delete part'), translate("PartsDB", 'Please select a part first.'))
+            return
+        try:
+            self.factory.scheme.ensurePartNotInProjects(part.id)
+        except ElDBScheme.PartInProjectsError as err:
+            QMessageBox.warning(self.tableView, translate("PartsDB", 'Delete part'), translate("PartsDB", str(err)))
+            return
+        answer = QMessageBox.question(
+            self.tableView, translate("PartsDB", 'Delete part'),
+            translate("PartsDB", 'Delete part "{}" and all its document links?\nDocument files will remain on disk. The icon file in the icons folder will be deleted (unless attached as a document).').format(part["part_num"]),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        if self.tableModel.removeRow(index.row()):
+            self.iconDelegate._cache.clear()
+            self.iconsListWidget.clear()
+            self.iconsListWidget.currentPart = None
+            self.iconsListWidget.documents = None
+            if self.tableModel.rowCount():
+                row = min(index.row(), self.tableModel.rowCount() - 1)
+                self.tableView.selectRow(row)
+                self.tableView.setCurrentIndex(self.tableModel.index(row, 0))
+                # A surviving row can already be selected after Qt's removal notifications.
+                self.onSelectionChanged(None, None)
 
     def addDocument(self, file, type: int = ElDBScheme.DOC_TYPE_DEFAULT):
         index = (self.tableView.selectionModel().currentIndex())
@@ -884,7 +925,7 @@ class TableView(QtCore.QObject):
         return index.data(Qt.ItemDataRole.UserRole)
 
     def _getInput(self, oldValue) -> str:
-        value, ok = QInputDialog.getText(self.tableView, 'Enter name', "Enter new name column")
+        value, ok = QInputDialog.getText(self.tableView, translate("PartsDB", 'Enter name'), translate("PartsDB", 'Enter new name column'))
         if ok and value:
             return value
         else:

@@ -55,12 +55,13 @@ fi
 
 if [ $RUN_BUILD -eq 1 ]; then
     echo "=== Build ==="
+    "$PYTHON" tools/translations.py --check --compile || exit $?
     # PyInstaller from the same Python as the app, so it bundles the venv's PyQt6 and other packages
     if ! "$PYTHON" -m PyInstaller --version >/dev/null 2>&1; then
         echo "PyInstaller is not installed for $PYTHON. Install it: $PYTHON -m pip install pyinstaller" >&2
         exit 1
     fi
-    "$PYTHON" -m PyInstaller  -F --onefile --windowed  -y  --clean --name="ElPartsDB" --icon="icons/ElPartsCatalog.icns" main.py || exit $?
+    "$PYTHON" -m PyInstaller  -F --onefile --windowed  -y  --clean --name="ElPartsDB" --icon="icons/ElPartsCatalog.icns" --add-data="translations:translations" main.py || exit $?
 fi
 
 #pyinstaller --windowed --name="Hello World" --iconpwd="Hello World.icns" --add-data="icons/hand.png:icons" --add-data="icons/lightning.png:icons" app.py

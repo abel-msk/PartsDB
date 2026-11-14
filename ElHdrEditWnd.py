@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file './qt/ElHdrEditWnd.ui'
+# Form implementation generated from reading ui file 'qt/ElHdrEditWnd.ui'
 #
 # Created by: PyQt6 UI code generator 6.10.0
 #
@@ -76,6 +76,6 @@ class Ui_HdrEditDialog(object):
 
     def retranslateUi(self, HdrEditDialog):
         _translate = QtCore.QCoreApplication.translate
-        HdrEditDialog.setWindowTitle(_translate("HdrEditDialog", "Dialog"))
-        self.label.setText(_translate("HdrEditDialog", "Select Type:"))
-        self.label_2.setText(_translate("HdrEditDialog", "Select defaul icon for this type"))
+        HdrEditDialog.setWindowTitle(_translate("HdrEditDialog", "Edit headers"))
+        self.label.setText(_translate("HdrEditDialog", "Section:"))
+        self.label_2.setText(_translate("HdrEditDialog", "Default part icon:"))

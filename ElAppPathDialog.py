@@ -1,3 +1,6 @@
+from ElTranslations import translate
+from ElTranslations import TranslatedDialogMixin
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog, QWidget
 
@@ -20,7 +23,7 @@ logger = ElLogger.setLogger(__name__)
 # logger.addHandler(handler)
 
 
-class AppPathConfig(QDialog):
+class AppPathConfig(TranslatedDialogMixin, QDialog):
     """Employee dialog."""
     def __init__(self, parent, app_list: AppList):
         super().__init__(parent)
@@ -28,7 +31,7 @@ class AppPathConfig(QDialog):
 
         self.ui.setupUi(self)
         self.ui.buttonBox.accepted.connect(self.onAccepted)
-        self.ui.widget.window().setWindowTitle("View application select")
+        self.ui.widget.window().setWindowTitle(translate("PartsDB", 'Document applications'))
 
         self.appList: AppList = app_list
         logger.debug("Load config %s", )
@@ -56,7 +59,7 @@ class AppPathConfig(QDialog):
             logger.error("Incorrect selection")
 
     def onAddApp(self):
-        value, ok = QInputDialog.getText(self, 'Add application', "Enter application name")
+        value, ok = QInputDialog.getText(self, translate("PartsDB", 'Add application'), translate("PartsDB", 'Enter application name'))
         if ok and value:
             app = self.appList.add(value)
             item = QListWidgetItem(value)

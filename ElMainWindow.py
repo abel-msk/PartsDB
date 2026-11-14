@@ -1,10 +1,15 @@
+from ElTranslations import translate
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
+from ElTranslations import TranslatedAction as QAction
+from ElTranslations import LanguageManager
+from PyQt6.QtGui import QActionGroup
 import logging
 import os
 import sys
 
 from PyQt6 import QtWidgets, QtGui, QtCore
 from PyQt6.QtCore import Qt, QItemSelectionModel, QPoint, QPointF, QModelIndex
-from PyQt6.QtGui import QIcon, QAction, QDragEnterEvent, QDropEvent, QDragMoveEvent
+from PyQt6.QtGui import QIcon, QDragEnterEvent, QDropEvent, QDragMoveEvent
 from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QMessageBox, QFileDialog, QDialog
 
 import urllib.parse
@@ -52,7 +57,7 @@ def showWarn(parent, text):
     """
     button = QMessageBox.warning(
         parent,
-        "Warning",
+        translate("PartsDB", 'Warning'),
         text,
         buttons=QMessageBox.StandardButton.Ok,
         defaultButton=QMessageBox.StandardButton.Ok,
@@ -63,10 +68,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def __init__(self, dbFactory: DBFactory, config: ElConfig, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
+        self.languageManager = LanguageManager.forApplication(config)
         self.setupUi(self)
         self.documentRoot = None
         self.setObjectName("Electronic parts workbench")
-        self.setWindowTitle("Electronic parts workbench")
+        self.setWindowTitle(translate("PartsDB", 'Electronic parts workbench'))
         self.config: ElConfig = config
         self.factory: DBFactory = dbFactory
 
@@ -97,9 +103,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.addDocBtn.clicked.connect(self.onAddDoc)
         self.delDocBtn.clicked.connect(self.onDelDoc)
         self.searchBtn.clicked.connect(self.onSearch)
+        self.EditHdrBtn.clicked.connect(self.onEditHeader)
+        self.DelPartBtn.clicked.connect(self.partsTable.deleteRow)
 
         self._defineMenu_()
+        self.languageManager.languageChanged.connect(self.retranslate)
+        self.retranslate()
         self.savedTreeSelection = self.typesTree.getSelectedIndex()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QtCore.QEvent.Type.LanguageChange and hasattr(self, "languageMenu"):
+            self.retranslate()
+
+    def retranslate(self):
+        self.retranslateUi(self)
+        self.setWindowTitle(translate("PartsDB", "Electronic parts workbench"))
+        self.fileMenu.setTitle(translate("PartsDB", "File"))
+        self.setupMenu.setTitle(translate("PartsDB", "Setup"))
+        self.languageMenu.setTitle(translate("PartsDB", "Language"))
+        for language, action in self.languageActions.items():
+            action.setChecked(language == self.languageManager.preference)
+        for action in self.findChildren(QAction):
+            action.retranslate()
+        if self.partsTable.tableModel is not None:
+            model = self.partsTable.tableModel
+            model.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, model.columnCount() - 1)
+        self.statusbar.clearMessage()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         """
@@ -115,7 +145,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # self.types_tree_view.setEnabled(True)
             # self.docListWidget.setEnabled(False)
             # self.parts_tbl_view.setEnabled(True)
-            self.statusbar.showMessage("Drag Records to types tree area.", 2000)
+            self.statusbar.showMessage(translate("PartsDB", 'Drag Records to types tree area.'), 2000)
             event.accept()
 
         elif event.source() is None:
@@ -123,7 +153,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # self.types_tree_view.setEnabled(False)
             # self.parts_tbl_view.setEnabled(False)
             # self.docListWidget.setEnabled(True)
-            self.statusbar.showMessage("Drag file to Document view area.", 2000)
+            self.statusbar.showMessage(translate("PartsDB", 'Drag file to Document view area.'), 2000)
             event.accept()
 
     def dragLeaveEvent(self, event):
@@ -140,7 +170,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.docListWidget.setEnabled(True)
         event.accept()
         super().dragLeaveEvent(event)
-        self.statusbar.showMessage("Drag cancel.", 1000)
+        self.statusbar.showMessage(translate("PartsDB", 'Drag cancel.'), 1000)
 
     def dropEvent(self, event: QDropEvent):
         """
@@ -165,7 +195,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         thePart: Part = partIndex.data(Qt.ItemDataRole.UserRole)
                         theType.appendExistChild(thePart.id)
                     self.onTreeSelect(theType)
-                    self.statusbar.showMessage("Drop records to the `{}` type.".format(theType.name), 2000)
+                    self.statusbar.showMessage(translate("PartsDB", 'Drop records to the `{}` type.').format(theType.name), 2000)
                     success = True
         #
         #  Drop file to the Part document list
@@ -187,11 +217,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                             self.onAddDocSelected(fname, type)
                         except KeyError as er:
                             pass
-                        self.statusbar.showMessage("Add link to Document : `{}`.".format(fname), 2000)
+                        self.statusbar.showMessage(translate("PartsDB", 'Add link to Document : `{}`.').format(fname), 2000)
                     elif str(data).startswith("http:") or str(data).startswith("https:"):
                         self.onAddDocSelected(data, ElDBScheme.DOC_TYPE_URL)
                         logger.debug("Add URL %s", data)
-                        self.statusbar.showMessage("Add link to URL : `{}`.".format(data), 2000)
+                        self.statusbar.showMessage(translate("PartsDB", 'Add link to URL : `{}`.').format(data), 2000)
 
                 success = True
 
@@ -222,9 +252,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if index.data(Qt.ItemDataRole.UserRole) is not None:
                     self.types_tree_view.selectionModel().select(index,
                         QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect)
-            self.statusbar.showMessage("Drag Records to types tree area.", 2000)
+            self.statusbar.showMessage(translate("PartsDB", 'Drag Records to types tree area.'), 2000)
         else:
-            self.statusbar.showMessage("Drag file to Document view area.", 2000)
+            self.statusbar.showMessage(translate("PartsDB", 'Drag file to Document view area.'), 2000)
         super().dragMoveEvent(event)
 
     def _defineMenu_(self):
@@ -235,29 +265,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         bar = self.menuBar()
         bar.setNativeMenuBar(True)
 
-        file = bar.addMenu("File")
-        setup = bar.addMenu("Setup")
+        file = self.fileMenu = bar.addMenu(translate("PartsDB", 'File'))
+        setup = self.setupMenu = bar.addMenu(translate("PartsDB", 'Setup'))
 
-        open_act = QAction("Open DB", self)
-        open_act.setStatusTip("Open an existing DB")
+        open_act = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Open DB'), self)
+        open_act.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Open an existing DB'))
         open_act.setShortcut("Ctrl+O")
         open_act.triggered.connect(self.onOpenDB)
         file.addAction(open_act)
 
-        save_act = QAction("Create new DB", self)
+        save_act = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Create new DB'), self)
         save_act.setShortcut("Ctrl+N")
         save_act.triggered.connect(self.newDB)
         file.addAction(save_act)
 
-        open_act = QAction("Docs open exe", self)
-        open_act.setStatusTip("Configure applications for opening documents")
+        open_act = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Docs open exe'), self)
+        open_act.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Configure applications for opening documents'))
         open_act.triggered.connect(self.ConfigureAppsExe)
         setup.addAction(open_act)
 
-        header_act = QAction("Edit headers", self)
-        header_act.setStatusTip("Edit parts tbl header property for each type")
+        header_act = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Edit headers'), self)
+        header_act.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Edit parts tbl header property for each type'))
         header_act.triggered.connect(self.onEditHeader)
         setup.addAction(header_act)
+
+        self.languageMenu = setup.addMenu(translate("PartsDB", "Language"))
+        self.languageActions = {}
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        for language, label in (("system", QT_TRANSLATE_NOOP("PartsDB", "System")),
+                                ("en", QT_TRANSLATE_NOOP("PartsDB", "English")),
+                                ("ru", QT_TRANSLATE_NOOP("PartsDB", "Русский"))):
+            action = QAction(label, self)
+            action.setCheckable(True)
+            action.setData(language)
+            action.triggered.connect(lambda checked=False, choice=language: self.languageManager.setLanguage(choice))
+            group.addAction(action)
+            self.languageMenu.addAction(action)
+            self.languageActions[language] = action
 
     def onTreeSelect(self, theType: Type, thePart:Part=None):
         """
@@ -284,10 +329,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         :return:
         """
         # logger.debug("Got Event onClick. Type %s", thePart["part_num"])
-        self.statusbar.showMessage("Part selected.", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Part selected.'), 2000)
 
     def onLoadPartsType(self, thePart:Part):
-        self.statusbar.showMessage("Part selected.", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Part selected.'), 2000)
         theType:Type = self.factory.getTypeByID(thePart["type_id"])
         logger.debug("Matched Types path = %s, name= %s", theType.path, theType.name)
 
@@ -348,37 +393,37 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             process.run(argsAr)
             #TODO: Clenup finished jobs
 
-            self.statusbar.showMessage("Open Document.", 4000)
+            self.statusbar.showMessage(translate("PartsDB", 'Open Document.'), 4000)
         else:
-            self.statusbar.showMessage("No application for open document", 4000)
+            self.statusbar.showMessage(translate("PartsDB", 'No application configured to open this document'), 4000)
 
     def onTypeAddBtn(self):
         """
         Got event when Add type btn pressed
         :return:
         """
-        self.statusbar.showMessage("Add type", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Add type'), 2000)
         self.typesTree.add()
 
     def onTypeRenBtn(self):
         """
         Got event when rename
         """
-        self.statusbar.showMessage("Rename type", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Rename type'), 2000)
         self.typesTree.rename()
 
     def onTypeDelBtn(self):
         """
         Got event when delete btn pressed
         """
-        self.statusbar.showMessage("Delete type", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Delete type'), 2000)
         self.typesTree.delete()
 
     def onAddPart(self):
         """
         Got event when add part pressed
         """
-        self.statusbar.showMessage("Add part", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Add part'), 2000)
         self.partsTable.addRow()
 
     def onAddDoc(self):
@@ -386,14 +431,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Got event when add Document pressed
         :return:
         """
-        self.statusbar.showMessage("Select Document", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Select Document'), 2000)
         sel = self.partsTable.getSelected()
         if sel is not None:
             dlg = OpenFileDialog(self, self.documentRoot)
             dlg.comm.uriSelected.connect(self.onAddDocSelected)
             dlg.exec()
         else:
-            showWarn(self, "Please select part first.")
+            showWarn(self, translate("PartsDB", 'Please select part first.'))
 
     def onEditHeader(self):
         dlg = HeaderEditDialog(self.documentRoot, self.factory)
@@ -428,11 +473,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             self.partsTable.addDocument(uri, type)
         except KeyError as er:
-            er = "Incorrect file extension {}".format(er)
+            er = translate("PartsDB", "Incorrect file extension {}").format(er)
             logger.error(er)
             showWarn(self, er)
             # raise er
-        self.statusbar.showMessage("Add Document link {}".format(uri), 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Add Document link {}').format(uri), 2000)
 
     def onDelDoc(self):
         """
@@ -440,7 +485,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         :return:
         """
         self.partsTable.deleteSelectedDocument()
-        self.statusbar.showMessage("Delete Document link", 2000)
+        self.statusbar.showMessage(translate("PartsDB", 'Delete Document link'), 2000)
 
     def onSearch(self):
         searchStr = str(self.searchStr.text()).strip()
@@ -448,7 +493,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             parts: ElDBScheme.Parts = self.factory.search(searchStr)
             self.partsTable.loadSearchData(parts)
         # self.types_tree_view.setEnabled(False)
-        self.statusbar.showMessage("Looking for parts with '{}'".format(searchStr))
+        self.statusbar.showMessage(translate("PartsDB", "Looking for parts with '{}'").format(searchStr))
 
     def closeEvent(self, event):
         """
@@ -499,7 +544,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if factory is not None:
                 factory.disconnect()
             logger.exception("Can't open database %s", uri)
-            QMessageBox.critical(self, "Open database", "Can't open database:\n{}\n\n{}".format(uri, err))
+            QMessageBox.critical(self, translate("PartsDB", 'Open database'), translate("PartsDB", "Can't open database:\n{}\n\n{}").format(uri, err))
             return False
 
         previous = self.factory
@@ -516,13 +561,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.config.set_value(constants.CONFIG_DB_FILE, factory.db_file)
         self.config.set_value(constants.CONFIG_DATA_PATH, factory.dataPath)
         previous.disconnect()
-        self.statusbar.showMessage("Database opened: {}".format(factory.db_file), 5000)
+        self.statusbar.showMessage(translate("PartsDB", 'Database opened: {}').format(factory.db_file), 5000)
         return True
 
     def newDB(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Create new database", os.path.join(self.factory.dataPath, "new.sqlite"),
-            "SQLite databases (*.sqlite *.sqlite3 *.db);;All files (*)",
+            self, translate("PartsDB", 'Create new database'), os.path.join(self.factory.dataPath, "new.sqlite"),
+            translate("PartsDB", 'SQLite databases (*.sqlite *.sqlite3 *.db);;All files (*)'),
             options=QFileDialog.Option.DontConfirmOverwrite)
         if not path:
             return
@@ -541,7 +586,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             scheme.connect()
             scheme.createTables()
         except FileExistsError:
-            QMessageBox.warning(self, "Create new database", "The file already exists. Choose a new file name.")
+            QMessageBox.warning(self, translate("PartsDB", 'Create new database'), translate("PartsDB", 'The file already exists. Choose a new file name.'))
             return
         except Exception as err:
             logger.exception("Can't create database %s", path)
@@ -550,7 +595,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 scheme = None
             if created:
                 os.unlink(path)
-            QMessageBox.critical(self, "Create new database", "Can't create database:\n{}\n\n{}".format(path, err))
+            QMessageBox.critical(self, translate("PartsDB", 'Create new database'), translate("PartsDB", "Can't create database:\n{}\n\n{}").format(path, err))
             return
         finally:
             if scheme is not None and scheme.db.isConnect():
@@ -565,7 +610,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """
         dlg = AppPathConfig(self, self.appList)
         dlg.exec()
-        self.statusbar.showMessage("Configure applications for opening documents")
+        self.statusbar.showMessage(translate("PartsDB", 'Configure applications for opening documents'))
 
     def resize_contents(self):
         self.selector_split.setSizes([int(self.selector_split.size().width() * 0.2),

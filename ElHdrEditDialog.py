@@ -1,3 +1,6 @@
+from ElTranslations import translate
+from ElTranslations import TranslatedDialogMixin, defaultHeaderText
+from PyQt6.QtCore import QT_TRANSLATE_NOOP
 # from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QModelIndex, QVariant, QObject, QSize, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon
@@ -109,6 +112,10 @@ class HeaderTableModel(QtCore.QAbstractTableModel):
         column = index.column()
         if (role == Qt.ItemDataRole.DisplayRole) or (role == Qt.ItemDataRole.EditRole):  # Display Cell Context
             if self._column_type_(column) != "BOOL":
+                if role == Qt.ItemDataRole.DisplayRole and self.columnsList[column] == "display":
+                    cell = self.dataAr[row][column]
+                    if not cell[TBL_CHNG]:
+                        return defaultHeaderText(cell[TBL_FLD_OBJ], self.rowsList[row])
                 return self.dataAr[row][column].get(TBL_VAL)
 
         elif role == Qt.ItemDataRole.UserRole:
@@ -138,7 +145,12 @@ class HeaderTableModel(QtCore.QAbstractTableModel):
     def headerData(self, section, orientation, role=None):
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:
-                return self.columnsList[section]
+                labels = {"field_name": QT_TRANSLATE_NOOP("PartsDB", "Field"),
+                          "display": QT_TRANSLATE_NOOP("PartsDB", "Title"),
+                          "hidden": QT_TRANSLATE_NOOP("PartsDB", "Hidden"),
+                          "sort": QT_TRANSLATE_NOOP("PartsDB", "Sortable"),
+                          "align": QT_TRANSLATE_NOOP("PartsDB", "Alignment")}
+                return translate("PartsDB", labels[self.columnsList[section]])
         elif role == Qt.ItemDataRole.FontRole:
             font = QFont()
             font.setBold(True)
@@ -169,7 +181,7 @@ class HeaderTableModel(QtCore.QAbstractTableModel):
         return super().setData(index, value, role)
 
 
-class HeaderEditDialog(QDialog):
+class HeaderEditDialog(TranslatedDialogMixin, QDialog):
     """Header edit dialog."""
     def __init__(self, parent, factory: ElDBScheme.DBFactory):
         super().__init__(parent)
@@ -197,6 +209,15 @@ class HeaderEditDialog(QDialog):
         self._fillIconSelector()
         self.ui.icon_selector.currentIndexChanged.connect(self.onIconSelected)
 
+    def retranslateExtra(self):
+        if not hasattr(self, "tableModel"):
+            return
+        self.ui.icon_selector.setItemText(0, translate("PartsDB", "Auto (from parent section / built-in rule)"))
+        model = self.tableModel
+        model.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, model.columnCount() - 1)
+        if model.rows:
+            model.dataChanged.emit(model.index(0, 0), model.index(model.rows - 1, model.columnCount() - 1))
+
     def _fillIconSelector(self):
         """Built-in part icons. The first item is 'auto': the icon comes from the parent section or the built-in rule."""
         combo: QtWidgets.QComboBox = self.ui.icon_selector
@@ -214,7 +235,7 @@ class HeaderEditDialog(QDialog):
             "QComboBox#icon_selector {{ min-height: {h}px; padding: 2px 8px;"
             " border: 1px solid palette(mid); border-radius: 6px; background: palette(base); }}"
             .format(h=ICON_SELECTOR_SIZE + 4))
-        combo.addItem("Auto (from parent section / built-in rule)", "")
+        combo.addItem(translate("PartsDB", 'Auto (from parent section / built-in rule)'), "")
         for path in ElDefaultIcons.availableIcons():
             name = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
             combo.addItem(QIcon(path), name, path)
@@ -266,8 +287,8 @@ class HeaderEditDialog(QDialog):
             return
         if self.isChanged():
             answer = QMessageBox.question(
-                self, "Unsaved changes",
-                "Save header and icon changes for the current type?",
+                self, translate("PartsDB", 'Unsaved changes'),
+                translate("PartsDB", 'Save header and icon changes for the current type?'),
                 QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard
                 | QMessageBox.StandardButton.Cancel)
             if answer == QMessageBox.StandardButton.Cancel:

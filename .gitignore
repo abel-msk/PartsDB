@@ -14,3 +14,6 @@ tests/**/*.sqlite
 tests/**/*.sqlite.bak-*
 tests/icons/
 /test_db.sqlite
+
+# Copied from the installed Qt distribution by tools/translations.py --compile.
+/translations/qtbase_*.qm
