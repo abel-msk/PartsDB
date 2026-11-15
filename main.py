@@ -50,7 +50,6 @@ def MainWindowOpen(factory, startupMode):
     app.setWindowIcon(QIcon(os.path.join(basedir, "icons", "main1.png")))
     window = MainWindow(factory, config)
     window.resize(win_width, win_height)
-    window.resize_contents()
     logger.debug("Window position x=%s, y=%s", x, y)
     window.move(x, y)
     # window.config = config
@@ -58,6 +57,7 @@ def MainWindowOpen(factory, startupMode):
     window.setStartupMode(startupMode)
 
     window.show()
+    window.resize_contents()
     app.exec()
 
 

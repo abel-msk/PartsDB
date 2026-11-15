@@ -512,6 +512,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.config is not None:
             self.config.set_value("width", super(MainWindow, self).width(), "window")
             self.config.set_value("height", super(MainWindow, self).height(), "window")
+            self.config.set_value("tree_width", self.selector_split.sizes()[0], "window")
 
             # (x, y) = self.location_on_the_screen()
             self.config.set_value("x", self.pos().x(), "window")
@@ -620,8 +621,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusbar.showMessage(translate("PartsDB", 'Configure applications for opening documents'))
 
     def resize_contents(self):
-        self.selector_split.setSizes([int(self.selector_split.size().width() * 0.2),
-                                     int(self.selector_split.size().width() * 0.8) + 1])
+        available_width = self.selector_split.width() - self.selector_split.handleWidth()
+        tree_width = self.config.get_value("tree_width", "window") if self.config is not None else None
+        if type(tree_width) is not int or tree_width < 0:
+            tree_width = int(available_width * 0.2)
+        tree_width = min(tree_width, available_width)
+        self.selector_split.setStretchFactor(0, 0)
+        self.selector_split.setStretchFactor(1, 1)
+        self.selector_split.setSizes([tree_width, available_width - tree_width])
 
     def setStartupMode(self, startupMode):
         ###  Load Tree
