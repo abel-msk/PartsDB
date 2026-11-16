@@ -25,6 +25,7 @@ from ElDBScheme import DBFactory, Type, Part, Document
 from ElFileDialog import FileListW
 from ElHdrEditDialog import HeaderEditDialog
 from ElOpenFileDialog import OpenFileDialog
+from ElProjWindow import ProjWindow
 from ElPluginsDialog import PluginsDialog
 from ElParts import Ui_MainWindow
 from ElPartsTable import PartsTableModel, TableView
@@ -75,6 +76,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.documentRoot = None
         self.setObjectName("Electronic parts workbench")
         self.config: ElConfig = config
+        self._project_width_restored = False
         self.factory: DBFactory = dbFactory
 
         self.procFactory: ProcessFactory = ProcessFactory()
@@ -108,6 +110,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.CloneHdrBtn.clicked.connect(self.onPropagateHeaders)
         self.DelPartBtn.clicked.connect(self.partsTable.deleteRow)
 
+        self.projWindow = ProjWindow(self.factory, self)
+
         self._defineMenu_()
         self.languageManager.languageChanged.connect(self.retranslate)
         self.retranslate()
@@ -115,6 +119,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         active_tab = self.config.get_value("active_tab", "window") if self.config is not None else None
         if type(active_tab) is int and 0 <= active_tab < self.view.count():
             self.view.setCurrentIndex(active_tab)
+        self.view.currentChanged.connect(self.restoreProjectWidth)
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -123,6 +128,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def retranslate(self):
         mainWindowTexts(self)
+        self.projWindow.retranslate()
         for language, action in self.languageActions.items():
             action.setChecked(language == self.languageManager.preference)
         for action in self.findChildren(QAction):
@@ -525,6 +531,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.config.set_value("width", super(MainWindow, self).width(), "window")
             self.config.set_value("height", super(MainWindow, self).height(), "window")
             self.config.set_value("tree_width", self.selector_split.sizes()[0], "window")
+            if self._project_width_restored:
+                self.config.set_value("project_list_width", self.project_split.sizes()[0], "window")
             self.config.set_value("active_tab", self.view.currentIndex(), "window")
 
             # (x, y) = self.location_on_the_screen()
@@ -571,6 +579,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         previous = self.factory
         self.partsTable.setFactory(factory, iconsDir)
         self.factory = factory
+        self.projWindow.setFactory(factory)
         ElDBScheme.DB_FACTORY = factory
         self.documentRoot = None
         self.searchStr.clear()
@@ -642,6 +651,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.selector_split.setStretchFactor(0, 0)
         self.selector_split.setStretchFactor(1, 1)
         self.selector_split.setSizes([tree_width, available_width - tree_width])
+        self.restoreProjectWidth()
+
+    def restoreProjectWidth(self, index=None):
+        # Hidden tabs have not received their final geometry yet.
+        if self._project_width_restored or not self.project_tab.isVisible():
+            return
+        available_width = max(0, self.project_split.width() - self.project_split.handleWidth())
+        width = self.config.get_value("project_list_width", "window") if self.config is not None else None
+        if type(width) is not int or width < 0:
+            width = int(available_width * 0.25)
+        width = min(width, available_width)
+        self.project_split.setStretchFactor(0, 0)
+        self.project_split.setStretchFactor(1, 1)
+        self.project_split.setSizes([width, available_width - width])
+        self._project_width_restored = True
 
     def setStartupMode(self, startupMode):
         ###  Load Tree

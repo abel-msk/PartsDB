@@ -124,16 +124,20 @@ p, li { white-space: pre-wrap; }
   <context>
     <name>MainWindow</name>
     <message>
+      <source>-</source>
+      <translation>-</translation>
+    </message>
+    <message>
       <source>Add</source>
       <translation>Добавить</translation>
     </message>
     <message>
-      <source>Add Folder</source>
-      <translation>Добавить папку</translation>
-    </message>
-    <message>
       <source>Add Part</source>
       <translation>Добавить деталь</translation>
+    </message>
+    <message>
+      <source>Add Project</source>
+      <translation>Добавить проект</translation>
     </message>
     <message>
       <source>Attach Document</source>
@@ -158,6 +162,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Electronic parts workbench</source>
       <translation>Склад электронных компонентов</translation>
+    </message>
+    <message>
+      <source>Last Import</source>
+      <translation>Последний импорт</translation>
     </message>
     <message>
       <source>Parts not in store</source>
@@ -188,20 +196,20 @@ p, li { white-space: pre-wrap; }
       <translation>Открепить документ</translation>
     </message>
     <message>
-      <source>Remove Folder</source>
-      <translation>Удалить папку</translation>
+      <source>Remove project</source>
+      <translation>Удалить проект</translation>
     </message>
     <message>
       <source>Search</source>
       <translation>Поиск</translation>
     </message>
     <message>
-      <source>TextLabel</source>
-      <translation>Текстовая метка</translation>
-    </message>
-    <message>
       <source>Used Parts</source>
       <translation>Используемые детали</translation>
+    </message>
+    <message>
+      <source>_</source>
+      <translation>_</translation>
     </message>
   </context>
   <context>

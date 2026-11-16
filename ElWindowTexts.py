@@ -19,18 +19,21 @@ def mainWindowTexts(window):
     ui.addDocBtn.setText(translate("MainWindow", "Attach Document"))
     ui.delDocBtn.setText(translate("MainWindow", "Remove Document"))
     ui.view.setTabText(ui.view.indexOf(ui.catalog_tab), translate("MainWindow", "Catalog"))
+    window.fileMenu.setTitle(translate("PartsDB", "File"))
+    window.setupMenu.setTitle(translate("PartsDB", "Setup"))
+    window.languageMenu.setTitle(translate("PartsDB", "Language"))
+
+
+def projWindowTexts(window):
+    ui = window
     ui.label.setText(translate("MainWindow", "Projects Folders"))
-    ui.toolButton_2.setText(translate("MainWindow", "Remove Folder"))
-    ui.toolButton.setText(translate("MainWindow", "Add Folder"))
-    ui.label_3.setText(translate("MainWindow", "TextLabel"))
-    ui.d_prj_name.setText(translate("MainWindow", "Project Name"))
+    ui.proj_remove_cmd.setText(translate("MainWindow", "Remove project"))
+    ui.proj_add_cmd.setText(translate("MainWindow", "Add Project"))
     ui.d_prj_reload_cmd.setText(translate("MainWindow", "Reload Data"))
     ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt1), translate("MainWindow", "Used Parts"))
     ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt2), translate("MainWindow", "Parts not in store"))
     ui.view.setTabText(ui.view.indexOf(ui.project_tab), translate("MainWindow", "Projects"))
-    window.fileMenu.setTitle(translate("PartsDB", "File"))
-    window.setupMenu.setTitle(translate("PartsDB", "Setup"))
-    window.languageMenu.setTitle(translate("PartsDB", "Language"))
+    ui.label_2.setText(translate("MainWindow", "Last Import"))
 
 
 def pluginsDialogTexts(window):

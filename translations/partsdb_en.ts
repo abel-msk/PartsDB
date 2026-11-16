@@ -131,16 +131,20 @@ p, li { white-space: pre-wrap; }
   <context>
     <name>MainWindow</name>
     <message>
+      <source>-</source>
+      <translation>-</translation>
+    </message>
+    <message>
       <source>Add</source>
       <translation>Add</translation>
     </message>
     <message>
-      <source>Add Folder</source>
-      <translation>Add Folder</translation>
-    </message>
-    <message>
       <source>Add Part</source>
       <translation>Add Part</translation>
+    </message>
+    <message>
+      <source>Add Project</source>
+      <translation>Add Project</translation>
     </message>
     <message>
       <source>Attach Document</source>
@@ -165,6 +169,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Electronic parts workbench</source>
       <translation>Electronic parts workbench</translation>
+    </message>
+    <message>
+      <source>Last Import</source>
+      <translation>Last Import</translation>
     </message>
     <message>
       <source>Parts not in store</source>
@@ -195,20 +203,20 @@ p, li { white-space: pre-wrap; }
       <translation>Remove Document</translation>
     </message>
     <message>
-      <source>Remove Folder</source>
-      <translation>Remove Folder</translation>
+      <source>Remove project</source>
+      <translation>Remove project</translation>
     </message>
     <message>
       <source>Search</source>
       <translation>Search</translation>
     </message>
     <message>
-      <source>TextLabel</source>
-      <translation>TextLabel</translation>
-    </message>
-    <message>
       <source>Used Parts</source>
       <translation>Used Parts</translation>
+    </message>
+    <message>
+      <source>_</source>
+      <translation>_</translation>
     </message>
   </context>
   <context>

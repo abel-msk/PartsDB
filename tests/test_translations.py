@@ -188,7 +188,7 @@ class TestLiveTranslations(unittest.TestCase):
                 self.addCleanup(dialog.close)
             self.assertEqual(window.searchBtn.text(), "Поиск")
             self.assertEqual(window.label.text(), "Папки проектов")
-            self.assertEqual(window.toolButton.text(), "Добавить папку")
+            self.assertEqual(window.proj_add_cmd.text(), "Добавить проект")
             self.assertEqual(window.d_prj_reload_cmd.text(), "Обновить данные")
             self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
                              "Детали не на складе")
@@ -200,7 +200,7 @@ class TestLiveTranslations(unittest.TestCase):
             self.switch("en")
             self.assertEqual(window.searchBtn.text(), "Search")
             self.assertEqual(window.label.text(), "Projects Folders")
-            self.assertEqual(window.toolButton.text(), "Add Folder")
+            self.assertEqual(window.proj_add_cmd.text(), "Add Project")
             self.assertEqual(window.d_prj_reload_cmd.text(), "Reload Data")
             self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
                              "Parts not in store")

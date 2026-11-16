@@ -100,6 +100,7 @@ class DBTestCase(unittest.TestCase):
         self.factory = DBFactory(self.dbFile)
         self.addCleanup(self.factory.disconnect)
         self.window = MainWindow(self.factory, ElConfig())
+        self.window.view.setCurrentWidget(self.window.catalog_tab)
         self.window.resize(1400, 900)
         self.window.setStartupMode(None)  # loads the types tree
         self.window.show()
