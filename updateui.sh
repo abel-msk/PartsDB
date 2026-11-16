@@ -5,6 +5,7 @@ pyuic6  ./qt/ElPartsMain.ui -o ElParts.py
 pyuic6  ./qt/AppsPathSetup.ui -o ElAppPathWnd.py
 pyuic6  ./qt/ElOpenFileWnd.ui -o ElOpenFileWnd.py
 pyuic6  ./qt/ElHdrEditWnd.ui -o ElHdrEditWnd.py
+pyuic6  ./qt/ElPluginsWnd.ui -o ElPluginsWnd.py
 #pyuic5  qt/ElPartAddDialog.ui -o ElPartAddDialog.py
 #pyuic5  qt/ElPartHeaders.ui -o ElPartHeaders.py
 #pyuic5  qt/ElAddTypeDlg.ui -o ElAddTypeDlg.py

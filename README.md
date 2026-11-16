@@ -75,7 +75,9 @@ pip install PyQt6 PyYAML pyinstaller
 | PyYAML       | configuration file                                             |
 | pyinstaller  | building the standalone application                            |
 | openpyxl     | only for `ELImport.py` (one-off import from an Excel list)     |
-| PySide6      | only for `updateui.sh` (it uses `pyside6-rcc` to compile resources) |
+| PySide6      | optional: needed only to regenerate UI/resources (`./build.sh -u`); skip it if you do not plan to edit or regenerate the UI |
+
+UI forms are edited in **Qt Designer**. PySide6 is a Python package and is not required to open or edit forms in Qt Designer; install it only when regenerating the Python UI/resource files.
 
 ### Building the application
 
@@ -83,8 +85,10 @@ pip install PyQt6 PyYAML pyinstaller
 ./build.sh -b
 ```
 
-Use `./build.sh -t` to run all unit tests, or `./build.sh -tb` to test and then build.
-The build stops if any test fails.
+Use `./build.sh -u` to regenerate the UI and Qt resources, `./build.sh -t` to run
+all unit tests, or `./build.sh -tb` to test and then build. `./build.sh -a` runs
+the full pipeline: regenerate UI, run tests, then build. The build stops if any
+test fails.
 
 PyInstaller creates `dist/ElPartsDB` and, on macOS, `dist/ElPartsDB.app`.
 Copy the `.app` to `/Applications`.
@@ -179,7 +183,10 @@ The tests use the test database in `tests/` and the offscreen Qt platform.
 Qt translation catalogs live in `translations/partsdb_en.ts` and `translations/partsdb_ru.ts`.
 Source strings are English; `.qm` files are included for running from source. Translate Python strings
 with `translate("PartsDB", "Source text")`; mark action captions and default column titles with
-`QT_TRANSLATE_NOOP("PartsDB", "Source text")`. Designer strings remain in the `.ui` forms.
+`QT_TRANSLATE_NOOP("PartsDB", "Source text")`. Window captions and labels are applied in
+`ElWindowTexts.py`, with a separate function for each window called during initialization and on
+language changes. Edit this module for bilingual window texts; never edit Python files generated
+by `updateui.sh`. Designer layout sources remain in the `.ui` forms.
 
 ```bash
 python tools/translations.py --update

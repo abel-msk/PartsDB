@@ -108,6 +108,7 @@ class TestMigrate(unittest.TestCase):
         conn = sqlite3.connect(self.dbFile)
         conn.execute(ElDBScheme.TYPES_TABLE_SQL)
         conn.execute(OLD_HEADER_TABLE_SQL)
+        conn.execute(ElDBScheme.GET_PARTS_TABLE_SQL())
         conn.execute("INSERT INTO TYPES (id, name, path, parent_id) VALUES (1, 'R', 'R', 0);")
         conn.execute("INSERT INTO TYPES (id, name, path, parent_id) VALUES (2, 'C', 'C', 0);")
         for typeId in (1, 2):

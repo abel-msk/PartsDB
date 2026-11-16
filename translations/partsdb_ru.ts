@@ -52,6 +52,61 @@ p, li { white-space: pre-wrap; }
     </message>
   </context>
   <context>
+    <name>Dialog</name>
+    <message>
+      <source>Author</source>
+      <translation>Автор</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Закрыть</translation>
+    </message>
+    <message>
+      <source>Dialog</source>
+      <translation>Диалог</translation>
+    </message>
+    <message>
+      <source>Enable</source>
+      <translation>Включить</translation>
+    </message>
+    <message>
+      <source>Instaled plugins</source>
+      <translation>Установленные плагины</translation>
+    </message>
+    <message>
+      <source>Logs</source>
+      <translation>Журнал</translation>
+    </message>
+    <message>
+      <source>Plugin Name</source>
+      <translation>Название плагина</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
+    </message>
+    <message>
+      <source>Type</source>
+      <translation>Тип</translation>
+    </message>
+    <message>
+      <source>Version</source>
+      <translation>Версия</translation>
+    </message>
+    <message>
+      <source>_</source>
+      <translation>_</translation>
+    </message>
+    <message>
+      <source>Удалить</source>
+      <translation>Удалить</translation>
+    </message>
+    <message>
+      <source>Установить из файла</source>
+      <translation>Установить из файла</translation>
+    </message>
+  </context>
+  <context>
     <name>HdrEditDialog</name>
     <message>
       <source>Default part icon:</source>
@@ -71,6 +126,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Add</source>
       <translation>Добавить</translation>
+    </message>
+    <message>
+      <source>Add Folder</source>
+      <translation>Добавить папку</translation>
     </message>
     <message>
       <source>Add Part</source>
@@ -101,20 +160,48 @@ p, li { white-space: pre-wrap; }
       <translation>Склад электронных компонентов</translation>
     </message>
     <message>
+      <source>Parts not in store</source>
+      <translation>Детали не на складе</translation>
+    </message>
+    <message>
+      <source>Project Name</source>
+      <translation>Название проекта</translation>
+    </message>
+    <message>
       <source>Projects</source>
       <translation>Проекты</translation>
+    </message>
+    <message>
+      <source>Projects Folders</source>
+      <translation>Папки проектов</translation>
     </message>
     <message>
       <source>Propagate Header</source>
       <translation>Копировать колонки</translation>
     </message>
     <message>
+      <source>Reload Data</source>
+      <translation>Обновить данные</translation>
+    </message>
+    <message>
       <source>Remove Document</source>
       <translation>Открепить документ</translation>
     </message>
     <message>
+      <source>Remove Folder</source>
+      <translation>Удалить папку</translation>
+    </message>
+    <message>
       <source>Search</source>
       <translation>Поиск</translation>
+    </message>
+    <message>
+      <source>TextLabel</source>
+      <translation>Текстовая метка</translation>
+    </message>
+    <message>
+      <source>Used Parts</source>
+      <translation>Используемые детали</translation>
     </message>
   </context>
   <context>
@@ -465,6 +552,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Поиск деталей: «{}»</translation>
     </message>
     <message>
+      <source>Manage plugins</source>
+      <translation>Управление плагинами</translation>
+    </message>
+    <message>
       <source>No application configured to open this document</source>
       <translation>Не настроено приложение для открытия документа</translation>
     </message>
@@ -511,6 +602,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Please select part first.</source>
       <translation>Сначала выберите деталь.</translation>
+    </message>
+    <message>
+      <source>Plugins...</source>
+      <translation>Плагины…</translation>
     </message>
     <message>
       <source>Price</source>
@@ -623,6 +718,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Предупреждение</translation>
     </message>
     <message>
+      <source>Warning: this will remove {} stock matches from imported project components. The project components will remain and will need to be matched again.</source>
+      <translation>Внимание: будут удалены сопоставления со складом для {} позиций импортированных проектов. Позиции проектов сохранятся, и для них потребуется повторный подбор деталей.</translation>
+    </message>
+    <message>
       <source>id</source>
       <translation>id</translation>
     </message>
@@ -633,6 +732,61 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Русский</source>
       <translation>Русский</translation>
+    </message>
+  </context>
+  <context>
+    <name>PluginsDialog</name>
+    <message>
+      <source>Author</source>
+      <translation>Автор</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Закрыть</translation>
+    </message>
+    <message>
+      <source>Enabled</source>
+      <translation>Включён</translation>
+    </message>
+    <message>
+      <source>Install from file...</source>
+      <translation>Установить из файла…</translation>
+    </message>
+    <message>
+      <source>Installed plugins</source>
+      <translation>Установленные плагины</translation>
+    </message>
+    <message>
+      <source>Logs</source>
+      <translation>Журнал</translation>
+    </message>
+    <message>
+      <source>Plugin management is not available yet.</source>
+      <translation>Управление плагинами пока недоступно.</translation>
+    </message>
+    <message>
+      <source>Plugins</source>
+      <translation>Плагины</translation>
+    </message>
+    <message>
+      <source>Remove</source>
+      <translation>Удалить</translation>
+    </message>
+    <message>
+      <source>Select a plugin</source>
+      <translation>Выберите плагин</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
+    </message>
+    <message>
+      <source>Type</source>
+      <translation>Тип</translation>
+    </message>
+    <message>
+      <source>Version</source>
+      <translation>Версия</translation>
     </message>
   </context>
 </TS>

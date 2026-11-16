@@ -176,6 +176,32 @@ class TestDeletePart(unittest.TestCase):
         self.assertEqual(self.icon.read_bytes(), b"icon file")
         self.assertEqual(self.doc.read_bytes(), b"document must survive")
 
+    def linkImportedProject(self):
+        self.db.execute("INSERT INTO PROJECTS(id, name, plugin_id, source_uri) "
+                        "VALUES (1, 'Imported', 'org.partsdb.kicad', 'https://example.org/project')")
+        self.db.execute("INSERT INTO PROJECT_COMPONENTS(id, project_id, external_id, reference) "
+                        "VALUES (1, 1, 'uuid-1', 'R1')")
+        self.db.execute("INSERT INTO PROJECT_COMPONENT_MATCHES(component_id, part_id) VALUES (1, ?)",
+                        (self.part.id,))
+        self.db.commit()
+
+    def test_imported_match_warns_before_delete_and_preserves_position(self):
+        self.linkImportedProject()
+        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.StandardButton.Yes) as question:
+            self.window.DelPartBtn.click()
+        warning = translate('PartsDB', 'Warning: this will remove {} stock matches from imported project components. The project components will remain and will need to be matched again.').format(1)
+        self.assertIn(warning, question.call_args.args[2])
+        self.assertEqual(self.exists('PARTS', 'id'), 0)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM PROJECT_COMPONENT_MATCHES').fetchone()[0], 0)
+        self.assertEqual(self.db.execute('SELECT reference FROM PROJECT_COMPONENTS').fetchall(), [('R1',)])
+
+    def test_cancel_imported_match_deletion_changes_nothing(self):
+        self.linkImportedProject()
+        before = list(self.db.iterdump())
+        with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.StandardButton.No):
+            self.window.DelPartBtn.click()
+        self.assertEqual(list(self.db.iterdump()), before)
+
     def test_project_usage_blocks_button_before_confirmation(self):
         self.linkProject()
         before = list(self.db.iterdump())

@@ -1,5 +1,6 @@
 from ElTranslations import translate
 from ElTranslations import TranslatedDialogMixin
+from ElWindowTexts import openFileDialogTexts
 from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from PyQt6.QtCore import Qt, QDir, QModelIndex, QObject, pyqtSignal
 from PyQt6.QtGui import QFileSystemModel, QKeyEvent
@@ -34,6 +35,7 @@ class OpenFileDialog(TranslatedDialogMixin, QDialog):
         self.comm = Communicate()
         self.ui = Ui_OpenFileWnd()
         self.ui.setupUi(self)
+        self.retranslate()
         self.ui.buttonBox.accepted.connect(self.onAccepted)
 
         path = QDir.rootPath()
@@ -66,6 +68,9 @@ class OpenFileDialog(TranslatedDialogMixin, QDialog):
 
         self.ui.treeView.clicked.connect(self.on_clicked)
         self.ui.isFilesOnly.stateChanged.connect(self.onFilesOnlyChanged)
+
+    def retranslate(self):
+        openFileDialogTexts(self)
 
     def keyPressEvent(self, event: QKeyEvent):
         if self.ui.pathInput.hasFocus():

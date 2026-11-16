@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'qt/ElOpenFileWnd.ui'
+# Form implementation generated from reading ui file './qt/ElOpenFileWnd.ui'
 #
 # Created by: PyQt6 UI code generator 6.10.0
 #

@@ -1,5 +1,6 @@
 from ElTranslations import translate
 from ElTranslations import TranslatedDialogMixin, defaultHeaderText
+from ElWindowTexts import headerEditDialogTexts
 from PyQt6.QtCore import QT_TRANSLATE_NOOP
 # from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QModelIndex, QVariant, QObject, QSize, pyqtSignal
@@ -208,11 +209,12 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
         self.ui.typesList.currentIndexChanged.connect(self.onTypeSelected)
         self._fillIconSelector()
         self.ui.icon_selector.currentIndexChanged.connect(self.onIconSelected)
+        self.retranslate()
 
-    def retranslateExtra(self):
+    def retranslate(self):
+        headerEditDialogTexts(self)
         if not hasattr(self, "tableModel"):
             return
-        self.ui.icon_selector.setItemText(0, translate("PartsDB", "Auto (from parent section / built-in rule)"))
         model = self.tableModel
         model.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, model.columnCount() - 1)
         if model.rows:
@@ -235,7 +237,7 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
             "QComboBox#icon_selector {{ min-height: {h}px; padding: 2px 8px;"
             " border: 1px solid palette(mid); border-radius: 6px; background: palette(base); }}"
             .format(h=ICON_SELECTOR_SIZE + 4))
-        combo.addItem(translate("PartsDB", 'Auto (from parent section / built-in rule)'), "")
+        combo.addItem("", "")  # The window texts function supplies the translated label.
         for path in ElDefaultIcons.availableIcons():
             name = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
             combo.addItem(QIcon(path), name, path)

@@ -14,15 +14,14 @@ LANGUAGES = ("system", "en", "ru")
 
 
 class TranslatedDialogMixin:
-    """Retranslate a Designer form without rebuilding its models or clearing edited values."""
+    """Apply window texts on language changes without rebuilding models or clearing edits."""
     def changeEvent(self, event):
         super().changeEvent(event)
         if event.type() == QEvent.Type.LanguageChange and hasattr(self, "ui"):
-            self.ui.retranslateUi(self)
-            self.retranslateExtra()
+            self.retranslate()
 
-    def retranslateExtra(self):
-        pass
+    def retranslate(self):
+        raise NotImplementedError("Dialogs must apply their window texts")
 
 
 class TranslatedAction(QAction):

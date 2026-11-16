@@ -882,9 +882,12 @@ class TableView(QtCore.QObject):
         except ElDBScheme.PartInProjectsError as err:
             QMessageBox.warning(self.tableView, translate("PartsDB", 'Delete part'), translate("PartsDB", str(err)))
             return
+        message = translate("PartsDB", 'Delete part "{}" and all its document links?\nDocument files will remain on disk. The icon file in the icons folder will be deleted (unless attached as a document).').format(part["part_num"])
+        matchCount = self.factory.scheme.countProjectComponentMatches(part.id)
+        if matchCount:
+            message += "\n\n" + translate("PartsDB", 'Warning: this will remove {} stock matches from imported project components. The project components will remain and will need to be matched again.').format(matchCount)
         answer = QMessageBox.question(
-            self.tableView, translate("PartsDB", 'Delete part'),
-            translate("PartsDB", 'Delete part "{}" and all its document links?\nDocument files will remain on disk. The icon file in the icons folder will be deleted (unless attached as a document).').format(part["part_num"]),
+            self.tableView, translate("PartsDB", 'Delete part'), message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:

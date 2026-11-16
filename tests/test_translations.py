@@ -1,5 +1,6 @@
 """Real Qt catalogs, live language changes and preservation of user data and pending edits."""
 import os
+from contextlib import ExitStack
 import subprocess
 import sys
 import tempfile
@@ -170,6 +171,42 @@ class TestLiveTranslations(unittest.TestCase):
         self.assertEqual(apps.windowTitle(), "Приложения для документов")
         self.assertEqual(apps.ui.appNameInput.text(), "My application")
         self.assertEqual(apps.ui.saveBtn.text(), "Сохранить")
+
+    def test_window_texts_do_not_depend_on_generated_retranslation(self):
+        # Regenerating forms must not replace the runtime bilingual texts.
+        self.switch("ru")
+        with ExitStack() as stack:
+            for target in ("ElParts.Ui_MainWindow", "ElAppPathWnd.Ui_AppPathDialog",
+                           "ElOpenFileWnd.Ui_OpenFileWnd", "ElHdrEditWnd.Ui_HdrEditDialog"):
+                stack.enter_context(mock.patch(target + ".retranslateUi"))
+            window = MainWindow(self.factory, self.config)
+            self.addCleanup(window.close)
+            files = OpenFileDialog(window, str(self.root))
+            apps = AppPathConfig(window, window.appList)
+            headers = HeaderEditDialog(window, self.factory)
+            for dialog in (files, apps, headers):
+                self.addCleanup(dialog.close)
+            self.assertEqual(window.searchBtn.text(), "Поиск")
+            self.assertEqual(window.label.text(), "Папки проектов")
+            self.assertEqual(window.toolButton.text(), "Добавить папку")
+            self.assertEqual(window.d_prj_reload_cmd.text(), "Обновить данные")
+            self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
+                             "Детали не на складе")
+            self.assertEqual(files.windowTitle(), "Выберите файл или ссылку")
+            self.assertEqual(apps.ui.saveBtn.text(), "Сохранить")
+            self.assertEqual(headers.ui.label.text(), "Раздел:")
+            self.assertEqual(headers.ui.icon_selector.itemText(0),
+                             translate("PartsDB", "Auto (from parent section / built-in rule)"))
+            self.switch("en")
+            self.assertEqual(window.searchBtn.text(), "Search")
+            self.assertEqual(window.label.text(), "Projects Folders")
+            self.assertEqual(window.toolButton.text(), "Add Folder")
+            self.assertEqual(window.d_prj_reload_cmd.text(), "Reload Data")
+            self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
+                             "Parts not in store")
+            self.assertEqual(files.windowTitle(), "Select file or URL")
+            self.assertEqual(apps.ui.saveBtn.text(), "Save")
+            self.assertEqual(headers.ui.label.text(), "Section:")
 
     def test_qt_standard_buttons_are_translated(self):
         self.switch("ru")

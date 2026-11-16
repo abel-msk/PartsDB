@@ -2,10 +2,12 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP
 
 import logging
 import sqlite3
+import re
 import sys
 import os
 import bisect
 import urllib.parse
+from pathlib import Path
 from sqlite3 import Cursor
 
 import ElLogger
@@ -50,7 +52,7 @@ ELEMENT_FIELDS = {
     "present": "BOOLEAN",   # В наличии
     "quantity": "INTEGER",  # Количество
     "price": "REAL",        # Цена за единицу
-    "currency": "TXT",      # Валюта
+    "currency": "TEXT",      # Валюта
     "shop": "TEXT",  # URL Магазина
     "local_location": "TEXT",  # Где лежит у меня
     "icon": "TEXT"  # Иконка
@@ -106,6 +108,8 @@ HEADER_TABLE_NAME = "HEADERS"
 PARTS_TABLE_NAME = "PARTS"
 DATASHEETS_TABLE_NAME = "DATASHEETS"
 PROJECTS_TABLE = "PROJECTS"
+PROJECT_COMPONENTS_TABLE = "PROJECT_COMPONENTS"
+PROJECT_COMPONENT_MATCHES_TABLE = "PROJECT_COMPONENT_MATCHES"
 EL_BY_PROJECT_TABLE = "EL_BY_PROJECT"
 ENVIRONMENT_TABLE = "ENVIRONMENT"
 
@@ -184,12 +188,61 @@ DOC_TYPE_PNG = 4
 DOC_TYPE_TEXT = 5
 DOC_TYPE_DEFAULT = 6
 
-PROJECTS_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + PROJECTS_TABLE + " (" \
-                  "id INTEGER PRIMARY KEY AUTOINCREMENT," \
-                  "name  TEXT," \
-                  "descr TEXT," \
-                  "schematic_path TEXT" \
-                  ");"
+PROJECTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS PROJECTS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    descr TEXT,
+    plugin_id TEXT,
+    external_id TEXT,
+    source_uri TEXT,
+    last_imported_at TEXT,
+    needs_reload INTEGER NOT NULL DEFAULT 1 CHECK (needs_reload IN (0, 1)),
+    properties_json TEXT NOT NULL DEFAULT '{}'
+);
+"""
+
+PROJECT_COMPONENTS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS PROJECT_COMPONENTS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES PROJECTS(id) ON DELETE CASCADE,
+    external_id TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'unknown',
+    value_raw TEXT NOT NULL DEFAULT '',
+    nominal_value TEXT,
+    nominal_unit TEXT,
+    model TEXT,
+    symbol_id TEXT,
+    footprint TEXT,
+    description TEXT,
+    in_bom INTEGER NOT NULL DEFAULT 1 CHECK (in_bom IN (0, 1)),
+    on_board INTEGER NOT NULL DEFAULT 1 CHECK (on_board IN (0, 1)),
+    dnp INTEGER NOT NULL DEFAULT 0 CHECK (dnp IN (0, 1)),
+    properties_json TEXT NOT NULL DEFAULT '{}',
+    UNIQUE (project_id, external_id)
+);
+"""
+
+PROJECT_COMPONENT_MATCHES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS PROJECT_COMPONENT_MATCHES (
+    component_id INTEGER PRIMARY KEY REFERENCES PROJECT_COMPONENTS(id) ON DELETE CASCADE,
+    part_id INTEGER NOT NULL REFERENCES PARTS(id) ON DELETE CASCADE,
+    needs_review INTEGER NOT NULL DEFAULT 0 CHECK (needs_review IN (0, 1)),
+    matched_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+"""
+
+PROJECT_IMPORT_SCHEMA_SQL = (
+    PROJECT_COMPONENTS_TABLE_SQL,
+    PROJECT_COMPONENT_MATCHES_TABLE_SQL,
+    "CREATE INDEX IF NOT EXISTS idx_project_component_matches_part ON PROJECT_COMPONENT_MATCHES(part_id);",
+)
+
+
+def _createProjectImportTables(conn):
+    for sql in PROJECT_IMPORT_SCHEMA_SQL:
+        conn.execute(sql)
 
 EL_BY_PROJECT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + EL_BY_PROJECT_TABLE + " (" \
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," \
@@ -207,7 +260,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 3
+DB_VERSION = 5
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -240,6 +293,7 @@ class DBScheme:
             self.db.exec(GET_PARTS_TABLE_SQL())
             self.db.exec(DATASHEETS_TABLE_SQL)
             self.db.exec(PROJECTS_TABLE_SQL)
+            _createProjectImportTables(self.db.conn)
             self.db.exec(EL_BY_PROJECT_TABLE_SQL)
             self.db.exec(ENVIRONMENT_TABLE_SQL)
             self.db.commit()
@@ -460,6 +514,10 @@ class DBScheme:
         if row is not None:
             raise PartInProjectsError(QT_TRANSLATE_NOOP("PartsDB", 'This part is used in projects and cannot be deleted.'))
 
+    def countProjectComponentMatches(self, partId):
+        return self.db.conn.execute(
+            "SELECT count(*) FROM PROJECT_COMPONENT_MATCHES WHERE part_id = ?;", (partId,)).fetchone()[0]
+
     def delPart(self, partId):
         # Foreign-key enforcement may be disabled on older databases. Explicitly remove
         # dependent records in one transaction; linked files are never deleted.
@@ -467,6 +525,7 @@ class DBScheme:
             if not self.db.conn.in_transaction:
                 self.db.conn.execute("BEGIN IMMEDIATE;")
             self.ensurePartNotInProjects(partId)
+            self.db.conn.execute("DELETE FROM PROJECT_COMPONENT_MATCHES WHERE part_id = ?;", (partId,))
             self.db.conn.execute("DELETE FROM DATASHEETS WHERE part_id = ?;", (partId,))
             self.db.conn.execute("DELETE FROM PARTS WHERE id = ?;", (partId,))
 
@@ -749,9 +808,102 @@ def _migrate_to_3(scheme: DBScheme):
         scheme.db.exec("ALTER TABLE " + TYPES_TABLE_NAME + " ADD COLUMN icon TEXT;")
 
 
+def _migrate_to_4(scheme: DBScheme):
+    """v4: currency has TEXT affinity; preserve NULL and cast existing values."""
+    conn = scheme.db.conn
+    columns = conn.execute('PRAGMA table_info(PARTS)').fetchall()
+    currency = next(row for row in columns if row[1] == 'currency')
+    if currency[2].upper() == 'TEXT':
+        return
+    sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='PARTS'").fetchone()[0]
+    sql, count = re.subn(r'\bcurrency\s+TXT\b', 'currency TEXT', sql, flags=re.IGNORECASE)
+    if count != 1:
+        raise RuntimeError('Unexpected PARTS.currency declaration')
+    create_sql = re.sub(r'^(CREATE\s+TABLE\s+)(?:"PARTS"|PARTS)\b',
+                        r'\1PARTS_currency_v4', sql, count=1, flags=re.IGNORECASE)
+    objects = conn.execute("SELECT sql FROM sqlite_master WHERE tbl_name='PARTS' "
+                           "AND type IN ('index', 'trigger') AND sql IS NOT NULL").fetchall()
+    sequence = conn.execute("SELECT seq FROM sqlite_sequence WHERE name='PARTS'").fetchone()
+    names = ', '.join('"' + row[1].replace('"', '""') + '"' for row in columns)
+    values = ', '.join('CAST(currency AS TEXT)' if row[1] == 'currency' else
+                       '"' + row[1].replace('"', '""') + '"' for row in columns)
+    foreign_keys = conn.execute('PRAGMA foreign_keys').fetchone()[0]
+    conn.commit()
+    conn.execute('PRAGMA foreign_keys=OFF')
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        existing_violations = set(conn.execute('PRAGMA foreign_key_check').fetchall())
+        conn.execute(create_sql)
+        conn.execute('INSERT INTO PARTS_currency_v4 (' + names + ') SELECT ' + values + ' FROM PARTS')
+        conn.execute('DROP TABLE PARTS')
+        conn.execute('ALTER TABLE PARTS_currency_v4 RENAME TO PARTS')
+        for (object_sql,) in objects:
+            conn.execute(object_sql)
+        if sequence is not None:
+            conn.execute("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name='PARTS'", sequence)
+        if set(conn.execute('PRAGMA foreign_key_check').fetchall()) - existing_violations:
+            raise RuntimeError('Foreign key violations after currency migration')
+        conn.execute("UPDATE ENVIRONMENT SET value='4' WHERE name=?", (ENV_DB_VERSION,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute('PRAGMA foreign_keys=' + str(foreign_keys))
+
+
+def _legacyProjectUri(value, db_file):
+    """Retain existing URIs; resolve old relative paths against the database folder."""
+    if not value or urllib.parse.urlsplit(value).scheme:
+        return value
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = Path(db_file).absolute().parent / path
+    return path.absolute().as_uri()
+
+
+def _migrate_to_5(scheme: DBScheme):
+    """v5: URI-based projects, imported positions, and removable stock matches."""
+    conn = scheme.db.conn
+    conn.commit()
+    foreign_keys = conn.execute("PRAGMA foreign_keys;").fetchone()[0]
+    conn.execute("PRAGMA foreign_keys=OFF;")
+    try:
+        with conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            violations = set(conn.execute("PRAGMA foreign_key_check;").fetchall())
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(PROJECTS);")}
+            if "schematic_path" in columns:
+                objects = conn.execute("SELECT sql FROM sqlite_master WHERE tbl_name='PROJECTS' "
+                                       "AND type IN ('index', 'trigger') AND sql IS NOT NULL;").fetchall()
+                sequence = conn.execute("SELECT seq FROM sqlite_sequence WHERE name='PROJECTS';").fetchone()
+                conn.execute(PROJECTS_TABLE_SQL.replace("PROJECTS (", "PROJECTS_v5 (", 1))
+                for project_id, name, description, path in conn.execute(
+                        "SELECT id, name, descr, schematic_path FROM PROJECTS;").fetchall():
+                    conn.execute("INSERT INTO PROJECTS_v5(id, name, descr, source_uri) VALUES (?, ?, ?, ?);",
+                                 (project_id, name, description, _legacyProjectUri(path, scheme.db.dbPath)))
+                conn.execute("DROP TABLE PROJECTS;")
+                conn.execute("ALTER TABLE PROJECTS_v5 RENAME TO PROJECTS;")
+                if sequence is not None:
+                    conn.execute("UPDATE sqlite_sequence SET seq=MAX(seq, ?) WHERE name='PROJECTS';", sequence)
+                for (sql,) in objects:
+                    conn.execute(sql)
+            else:
+                conn.execute(PROJECTS_TABLE_SQL)
+            _createProjectImportTables(conn)
+            if set(conn.execute("PRAGMA foreign_key_check;").fetchall()) - violations:
+                raise RuntimeError("Foreign key violations after project import migration")
+            # The schema and version must commit together, without connector helpers.
+            conn.execute("UPDATE ENVIRONMENT SET value='5' WHERE name=?;", (ENV_DB_VERSION,))
+    finally:
+        conn.execute("PRAGMA foreign_keys=" + str(foreign_keys))
+
+
 MIGRATIONS = {
     2: _migrate_to_2,
     3: _migrate_to_3,
+    4: _migrate_to_4,
+    5: _migrate_to_5,
 }
 
 

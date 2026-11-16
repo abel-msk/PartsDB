@@ -133,6 +133,7 @@ class TestIconsDir(TmpDirTestCase):
         import sqlite3
         conn = sqlite3.connect(self.dbFile)
         conn.execute(ElDBScheme.TYPES_TABLE_SQL)
+        conn.execute(ElDBScheme.GET_PARTS_TABLE_SQL())
         conn.commit()
         conn.close()
         self.assertEqual(self.factory().scheme.getEnvironment(ENV_ICONS_PATH), DEFAULT_ICONS_DIR)

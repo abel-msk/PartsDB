@@ -1,5 +1,6 @@
 from ElTranslations import translate
 from ElTranslations import TranslatedDialogMixin
+from ElWindowTexts import appPathDialogTexts
 from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog, QWidget
@@ -30,8 +31,8 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
         self.ui = Ui_AppPathDialog()
 
         self.ui.setupUi(self)
+        self.retranslate()
         self.ui.buttonBox.accepted.connect(self.onAccepted)
-        self.ui.widget.window().setWindowTitle(translate("PartsDB", 'Document applications'))
 
         self.appList: AppList = app_list
         logger.debug("Load config %s", )
@@ -45,6 +46,9 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
         self.ui.addBtn.clicked.connect(self.onAddApp)
         self.ui.delBtn.clicked.connect(self.onDelApp)
         self.ui.saveBtn.clicked.connect(self.onSave)
+
+    def retranslate(self):
+        appPathDialogTexts(self)
 
     def onAppSelect(self, index):
         logger.debug("App Selected")

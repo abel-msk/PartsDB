@@ -2,6 +2,7 @@ from ElTranslations import translate
 from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from ElTranslations import TranslatedAction as QAction
 from ElTranslations import LanguageManager
+from ElWindowTexts import mainWindowTexts
 from PyQt6.QtGui import QActionGroup
 import logging
 import os
@@ -24,6 +25,7 @@ from ElDBScheme import DBFactory, Type, Part, Document
 from ElFileDialog import FileListW
 from ElHdrEditDialog import HeaderEditDialog
 from ElOpenFileDialog import OpenFileDialog
+from ElPluginsDialog import PluginsDialog
 from ElParts import Ui_MainWindow
 from ElPartsTable import PartsTableModel, TableView
 from ElProcess import ProcessFactory, Process
@@ -72,7 +74,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.documentRoot = None
         self.setObjectName("Electronic parts workbench")
-        self.setWindowTitle(translate("PartsDB", 'Electronic parts workbench'))
         self.config: ElConfig = config
         self.factory: DBFactory = dbFactory
 
@@ -111,6 +112,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.languageManager.languageChanged.connect(self.retranslate)
         self.retranslate()
         self.savedTreeSelection = self.typesTree.getSelectedIndex()
+        active_tab = self.config.get_value("active_tab", "window") if self.config is not None else None
+        if type(active_tab) is int and 0 <= active_tab < self.view.count():
+            self.view.setCurrentIndex(active_tab)
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -118,11 +122,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.retranslate()
 
     def retranslate(self):
-        self.retranslateUi(self)
-        self.setWindowTitle(translate("PartsDB", "Electronic parts workbench"))
-        self.fileMenu.setTitle(translate("PartsDB", "File"))
-        self.setupMenu.setTitle(translate("PartsDB", "Setup"))
-        self.languageMenu.setTitle(translate("PartsDB", "Language"))
+        mainWindowTexts(self)
         for language, action in self.languageActions.items():
             action.setChecked(language == self.languageManager.preference)
         for action in self.findChildren(QAction):
@@ -266,8 +266,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         bar = self.menuBar()
         bar.setNativeMenuBar(True)
 
-        file = self.fileMenu = bar.addMenu(translate("PartsDB", 'File'))
-        setup = self.setupMenu = bar.addMenu(translate("PartsDB", 'Setup'))
+        file = self.fileMenu = bar.addMenu("")
+        setup = self.setupMenu = bar.addMenu("")
 
         open_act = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Open DB'), self)
         open_act.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Open an existing DB'))
@@ -290,7 +290,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         header_act.triggered.connect(self.onEditHeader)
         setup.addAction(header_act)
 
-        self.languageMenu = setup.addMenu(translate("PartsDB", "Language"))
+        self.pluginsAction = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Plugins...'), self)
+        self.pluginsAction.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Manage plugins'))
+        self.pluginsAction.triggered.connect(self.onPlugins)
+        setup.addAction(self.pluginsAction)
+
+        self.languageMenu = setup.addMenu("")
         self.languageActions = {}
         group = QActionGroup(self)
         group.setExclusive(True)
@@ -304,6 +309,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             group.addAction(action)
             self.languageMenu.addAction(action)
             self.languageActions[language] = action
+
+    def onPlugins(self):
+        dialog = PluginsDialog(self)
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def onTreeSelect(self, theType: Type, thePart:Part=None):
         """
@@ -513,6 +525,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.config.set_value("width", super(MainWindow, self).width(), "window")
             self.config.set_value("height", super(MainWindow, self).height(), "window")
             self.config.set_value("tree_width", self.selector_split.sizes()[0], "window")
+            self.config.set_value("active_tab", self.view.currentIndex(), "window")
 
             # (x, y) = self.location_on_the_screen()
             self.config.set_value("x", self.pos().x(), "window")

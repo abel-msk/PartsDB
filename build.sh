@@ -1,27 +1,34 @@
 #!/bin/bash
 #
 # Build script.
+#   -u   regenerate UI and Qt resources (updateui.sh)
 #   -t   run all unit tests (tests/test_*.py)
 #   -b   build the application with PyInstaller (dist/ElPartsDB)
+#   -a   regenerate UI, run tests, and build
 #   -h   help
-# Options can be combined: ./build.sh -t -b (or -tb) runs the tests first and builds only if they pass.
+# Options can be combined: ./build.sh -tb runs tests then builds; -a runs the full pipeline.
 
 cd "$(dirname "$0")" || exit 1
 
 usage() {
-    echo "Usage: $0 [-t] [-b] [-h]"
+    echo "Usage: $0 [-u] [-t] [-b] [-a] [-h]"
+    echo "  -u   regenerate UI and Qt resources (updateui.sh)"
     echo "  -t   run all unit tests"
     echo "  -b   build the application (PyInstaller)"
+    echo "  -a   regenerate UI, run tests, then build"
     echo "  -h   show this help"
     echo "With -t and -b together the tests run first; the build starts only if all tests pass."
 }
 
+RUN_UI=0
 RUN_TESTS=0
 RUN_BUILD=0
-while getopts ":tbh" opt; do
+while getopts ":utbah" opt; do
     case "$opt" in
+        u) RUN_UI=1 ;;
         t) RUN_TESTS=1 ;;
         b) RUN_BUILD=1 ;;
+        a) RUN_UI=1; RUN_TESTS=1; RUN_BUILD=1 ;;
         h) usage; exit 0 ;;
         \?) echo "Unknown option: -$OPTARG" >&2; usage >&2; exit 2 ;;
     esac
@@ -30,7 +37,7 @@ shift $((OPTIND - 1))
 if [ $# -gt 0 ]; then
     echo "Unexpected argument: $1" >&2; usage >&2; exit 2
 fi
-if [ $RUN_TESTS -eq 0 ] && [ $RUN_BUILD -eq 0 ]; then
+if [ $RUN_UI -eq 0 ] && [ $RUN_TESTS -eq 0 ] && [ $RUN_BUILD -eq 0 ]; then
     usage >&2; exit 2
 fi
 
@@ -39,6 +46,11 @@ if [ -x venv/bin/python ]; then
     PYTHON=venv/bin/python
 else
     PYTHON=python3
+fi
+
+if [ $RUN_UI -eq 1 ]; then
+    echo "=== Generate UI and Qt resources ==="
+    ./updateui.sh || exit $?
 fi
 
 if [ $RUN_TESTS -eq 1 ]; then

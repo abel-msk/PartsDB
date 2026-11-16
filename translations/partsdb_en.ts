@@ -59,6 +59,61 @@ p, li { white-space: pre-wrap; }
     </message>
   </context>
   <context>
+    <name>Dialog</name>
+    <message>
+      <source>Author</source>
+      <translation>Author</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Close</translation>
+    </message>
+    <message>
+      <source>Dialog</source>
+      <translation>Dialog</translation>
+    </message>
+    <message>
+      <source>Enable</source>
+      <translation>Enable</translation>
+    </message>
+    <message>
+      <source>Instaled plugins</source>
+      <translation>Instaled plugins</translation>
+    </message>
+    <message>
+      <source>Logs</source>
+      <translation>Logs</translation>
+    </message>
+    <message>
+      <source>Plugin Name</source>
+      <translation>Plugin Name</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Settings</translation>
+    </message>
+    <message>
+      <source>Type</source>
+      <translation>Type</translation>
+    </message>
+    <message>
+      <source>Version</source>
+      <translation>Version</translation>
+    </message>
+    <message>
+      <source>_</source>
+      <translation>_</translation>
+    </message>
+    <message>
+      <source>Удалить</source>
+      <translation>Удалить</translation>
+    </message>
+    <message>
+      <source>Установить из файла</source>
+      <translation>Установить из файла</translation>
+    </message>
+  </context>
+  <context>
     <name>HdrEditDialog</name>
     <message>
       <source>Default part icon:</source>
@@ -78,6 +133,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Add</source>
       <translation>Add</translation>
+    </message>
+    <message>
+      <source>Add Folder</source>
+      <translation>Add Folder</translation>
     </message>
     <message>
       <source>Add Part</source>
@@ -108,20 +167,48 @@ p, li { white-space: pre-wrap; }
       <translation>Electronic parts workbench</translation>
     </message>
     <message>
+      <source>Parts not in store</source>
+      <translation>Parts not in store</translation>
+    </message>
+    <message>
+      <source>Project Name</source>
+      <translation>Project Name</translation>
+    </message>
+    <message>
       <source>Projects</source>
       <translation>Projects</translation>
+    </message>
+    <message>
+      <source>Projects Folders</source>
+      <translation>Projects Folders</translation>
     </message>
     <message>
       <source>Propagate Header</source>
       <translation>Propagate Header</translation>
     </message>
     <message>
+      <source>Reload Data</source>
+      <translation>Reload Data</translation>
+    </message>
+    <message>
       <source>Remove Document</source>
       <translation>Remove Document</translation>
     </message>
     <message>
+      <source>Remove Folder</source>
+      <translation>Remove Folder</translation>
+    </message>
+    <message>
       <source>Search</source>
       <translation>Search</translation>
+    </message>
+    <message>
+      <source>TextLabel</source>
+      <translation>TextLabel</translation>
+    </message>
+    <message>
+      <source>Used Parts</source>
+      <translation>Used Parts</translation>
     </message>
   </context>
   <context>
@@ -472,6 +559,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Looking for parts with '{}'</translation>
     </message>
     <message>
+      <source>Manage plugins</source>
+      <translation>Manage plugins</translation>
+    </message>
+    <message>
       <source>No application configured to open this document</source>
       <translation>No application configured to open this document</translation>
     </message>
@@ -518,6 +609,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Please select part first.</source>
       <translation>Please select part first.</translation>
+    </message>
+    <message>
+      <source>Plugins...</source>
+      <translation>Plugins...</translation>
     </message>
     <message>
       <source>Price</source>
@@ -630,6 +725,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Warning</translation>
     </message>
     <message>
+      <source>Warning: this will remove {} stock matches from imported project components. The project components will remain and will need to be matched again.</source>
+      <translation>Warning: this will remove {} stock matches from imported project components. The project components will remain and will need to be matched again.</translation>
+    </message>
+    <message>
       <source>id</source>
       <translation>id</translation>
     </message>
@@ -640,6 +739,61 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Русский</source>
       <translation>Русский</translation>
+    </message>
+  </context>
+  <context>
+    <name>PluginsDialog</name>
+    <message>
+      <source>Author</source>
+      <translation>Author</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Close</translation>
+    </message>
+    <message>
+      <source>Enabled</source>
+      <translation>Enabled</translation>
+    </message>
+    <message>
+      <source>Install from file...</source>
+      <translation>Install from file...</translation>
+    </message>
+    <message>
+      <source>Installed plugins</source>
+      <translation>Installed plugins</translation>
+    </message>
+    <message>
+      <source>Logs</source>
+      <translation>Logs</translation>
+    </message>
+    <message>
+      <source>Plugin management is not available yet.</source>
+      <translation>Plugin management is not available yet.</translation>
+    </message>
+    <message>
+      <source>Plugins</source>
+      <translation>Plugins</translation>
+    </message>
+    <message>
+      <source>Remove</source>
+      <translation>Remove</translation>
+    </message>
+    <message>
+      <source>Select a plugin</source>
+      <translation>Select a plugin</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Settings</translation>
+    </message>
+    <message>
+      <source>Type</source>
+      <translation>Type</translation>
+    </message>
+    <message>
+      <source>Version</source>
+      <translation>Version</translation>
     </message>
   </context>
 </TS>
