@@ -191,7 +191,7 @@ class TestLiveTranslations(unittest.TestCase):
             self.assertEqual(window.proj_add_cmd.text(), "Добавить проект")
             self.assertEqual(window.d_prj_reload_cmd.text(), "Обновить данные")
             self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
-                             "Детали не на складе")
+                             "Несопоставленные детали")
             self.assertEqual(files.windowTitle(), "Выберите файл или ссылку")
             self.assertEqual(apps.ui.saveBtn.text(), "Сохранить")
             self.assertEqual(headers.ui.label.text(), "Раздел:")
@@ -203,7 +203,7 @@ class TestLiveTranslations(unittest.TestCase):
             self.assertEqual(window.proj_add_cmd.text(), "Add Project")
             self.assertEqual(window.d_prj_reload_cmd.text(), "Reload Data")
             self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
-                             "Parts not in store")
+                             "Unmatched parts")
             self.assertEqual(files.windowTitle(), "Select file or URL")
             self.assertEqual(apps.ui.saveBtn.text(), "Save")
             self.assertEqual(headers.ui.label.text(), "Section:")

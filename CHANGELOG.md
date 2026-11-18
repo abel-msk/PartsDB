@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — 2026-11-19
+
+- Added the KiCad importer and API 1: local project/schematic reading, recursive sheets,
+  one record per physical position, R/C/L nominal normalization and BOM/DNP flags.
+- Added wheel installation and updates, same-system replacement, enabled state,
+  removal and logs. Imports run in private environments and separate processes
+  with progress, cancellation and timeouts.
+- Connected the Projects tab to import preview, atomic database persistence,
+  repeat import, component tables and confirmed stock matches. Schema 5 stores
+  projects, positions and matches while preserving legacy project links on migration.
+- Moved plugin sources to `ElPartsPluginSrc`; `./build.sh -p` builds the KiCad wheel
+  in `dist/plugins/`. `-tp` tests before building; `-tpb` also builds the application.
+- Added the local 49-position KiCad fixture in `tests/input` and plugin tests in
+  `tests/kikad_plugin`, independent of the original project directory.
+- Successful full test runs remove the scratch DB and test backups; failed runs
+  retain the scratch DB and the three newest backups per database. Input fixtures
+  and archived databases are preserved.
+- Updated Russian/English workflow texts and documentation. The full check on
+  2026-11-19 passed 317 tests, including test cleanup and backup rotation.
+
 ## 1.3 — 2026-11-15
 
 - Column settings inherit from the nearest ancestor that defines them, falling back to built-in defaults. Editing an inherited setting creates an override for the current section.

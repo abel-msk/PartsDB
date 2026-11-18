@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('translations', 'translations')],
+    datas=[('translations', 'translations'), ('ElPartsPluginApi', 'ElPartsPluginApi'), ('ElPartsImport', 'ElPartsImport')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

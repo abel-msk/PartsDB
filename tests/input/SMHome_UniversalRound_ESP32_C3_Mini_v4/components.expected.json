@@ -1,0 +1,198 @@
+{
+  "D5": {
+    "value": "PESD3V3L1BA",
+    "footprint": "Diode_SMD:D_SOD-323_HandSoldering"
+  },
+  "D9": {
+    "value": "PESD3V3L1BA",
+    "footprint": "Diode_SMD:D_SOD-323_HandSoldering"
+  },
+  "J3": {
+    "value": "Disp",
+    "footprint": "Connector_JST:JST_PH_S9B-PH-SM4-TB_1x09-1MP_P2.00mm_Horizontal"
+  },
+  "J6": {
+    "value": "JST SH",
+    "footprint": "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal"
+  },
+  "R6": {
+    "value": "4.7K",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "R7": {
+    "value": "4.7K",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "TP2": {
+    "value": "TestPoint",
+    "footprint": "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
+  },
+  "TP3": {
+    "value": "TestPoint",
+    "footprint": "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
+  },
+  "TP4": {
+    "value": "TestPoint",
+    "footprint": "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
+  },
+  "TP5": {
+    "value": "TestPoint",
+    "footprint": "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm"
+  },
+  "U1": {
+    "value": "ESP32 C3 Pro Mini",
+    "footprint": "WIFI_Module:ESP32-C3_Pro_mini_no_keepout"
+  },
+  "C2": {
+    "value": "4,7uF",
+    "footprint": "Capacitor_THT:CP_Radial_D8.0mm_P3.80mm"
+  },
+  "C3": {
+    "value": "1uF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
+  },
+  "C4": {
+    "value": "10uF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
+  },
+  "C5": {
+    "value": "680uF",
+    "footprint": "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
+  },
+  "C6": {
+    "value": "10uF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
+  },
+  "C9": {
+    "value": "4.7uF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder"
+  },
+  "D6": {
+    "value": "1N4007W (A7)",
+    "footprint": "Diode_SMD:D_SOD-123F"
+  },
+  "D7": {
+    "value": "ES1J",
+    "footprint": "Diode_SMD:D_SMA"
+  },
+  "D8": {
+    "value": "E1J/FR107",
+    "footprint": "Diode_SMD:D_SOD-123F"
+  },
+  "DB1": {
+    "value": "MB8S",
+    "footprint": "Diode_local:MBS"
+  },
+  "F1": {
+    "value": "250v/0.12A",
+    "footprint": "Fuse_Local:RF145_D6.5mm_W4mm"
+  },
+  "J4": {
+    "value": "220V",
+    "footprint": "TerminalBlock_Degson:DG301-5.0-03P"
+  },
+  "J7": {
+    "value": "USB_C_Receptacle_PowerOnly_6P",
+    "footprint": "Connector_USB:USB_C_Receptacle_GCT_USB4125-xx-x_6P_TopMnt_Horizontal"
+  },
+  "L1": {
+    "value": "320uH",
+    "footprint": "Inductor_THT:L_Radial_D10.0mm_P5.00mm_Fastron_07P"
+  },
+  "R5": {
+    "value": "10",
+    "footprint": "Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P5.08mm_Vertical"
+  },
+  "R14": {
+    "value": "0,3",
+    "footprint": "Resistor_SMD:R_1206_3216Metric_Pad1.30x1.75mm_HandSolder"
+  },
+  "R19": {
+    "value": "100R",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "U2": {
+    "value": "BP2525F",
+    "footprint": "Package_SO_Local:SOT33-5"
+  },
+  "U3": {
+    "value": "AMS1117-3.3",
+    "footprint": "Package_SO_Local:SOT-223-3_TabPin1"
+  },
+  "VR1": {
+    "value": "07D471K",
+    "footprint": "Varistor:RV_Disc_D9mm_W3.3mm_P5mm"
+  },
+  "C1": {
+    "value": "100nF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric"
+  },
+  "C11": {
+    "value": "100nF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric"
+  },
+  "C12": {
+    "value": "100nF",
+    "footprint": "Capacitor_SMD:C_0805_2012Metric"
+  },
+  "D1": {
+    "value": "PESD3V3L1BA",
+    "footprint": "Diode_SMD:D_SOD-323_HandSoldering"
+  },
+  "D11": {
+    "value": "PESD3V3L1BA",
+    "footprint": "Diode_SMD:D_SOD-323_HandSoldering"
+  },
+  "D12": {
+    "value": "PESD3V3L1BA",
+    "footprint": "Diode_SMD:D_SOD-323_HandSoldering"
+  },
+  "J1": {
+    "value": "pin header",
+    "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+  },
+  "J2": {
+    "value": "K128_P4",
+    "footprint": "Connector_Phoenix_MPT:Phoenix Contact_MPT-0,5_4_2,54_P4"
+  },
+  "J5": {
+    "value": "pin header",
+    "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
+  },
+  "JP1": {
+    "value": "to ADC",
+    "footprint": "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm"
+  },
+  "JP2": {
+    "value": "to ADC",
+    "footprint": "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm"
+  },
+  "JP3": {
+    "value": "to ADC",
+    "footprint": "Jumper:SolderJumper-2_P1.3mm_Open_TrianglePad1.0x1.5mm"
+  },
+  "R1": {
+    "value": "1K",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "R2": {
+    "value": "600R",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "R11": {
+    "value": "600R",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "R12": {
+    "value": "600R",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "R20": {
+    "value": "1K",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  },
+  "R21": {
+    "value": "1K",
+    "footprint": "Resistor_SMD:R_0603_1608Metric_Pad0.98x0.95mm_HandSolder"
+  }
+}

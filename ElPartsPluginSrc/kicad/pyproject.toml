@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "partsdb-kicad"
+version = "0.1.0"
+description = "KiCad project importer for PartsDB"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["partsdb_kicad*"]
+
+[tool.setuptools.data-files]
+"share/partsdb/plugins/org.partsdb.kicad" = ["partsdb-plugin.json"]

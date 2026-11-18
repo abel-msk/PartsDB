@@ -27,6 +27,7 @@ from ElHdrEditDialog import HeaderEditDialog
 from ElOpenFileDialog import OpenFileDialog
 from ElProjWindow import ProjWindow
 from ElPluginsDialog import PluginsDialog
+from ElProjectImports import ProjectImports
 from ElParts import Ui_MainWindow
 from ElPartsTable import PartsTableModel, TableView
 from ElProcess import ProcessFactory, Process
@@ -111,6 +112,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.DelPartBtn.clicked.connect(self.partsTable.deleteRow)
 
         self.projWindow = ProjWindow(self.factory, self)
+        self.projectImports = ProjectImports(self)
 
         self._defineMenu_()
         self.languageManager.languageChanged.connect(self.retranslate)
@@ -317,11 +319,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.languageActions[language] = action
 
     def onPlugins(self):
-        dialog = PluginsDialog(self)
+        dialog = PluginsDialog(self, manager=self.projectImports.manager, conn=self.factory.scheme.db.conn)
         try:
             dialog.exec()
         finally:
             dialog.deleteLater()
+            self.projectImports.refresh_plugins()
+            self.projWindow.refresh()
 
     def onTreeSelect(self, theType: Type, thePart:Part=None):
         """

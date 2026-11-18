@@ -750,6 +750,189 @@ Document files will remain on disk. The icon file in the icons folder will be de
     </message>
   </context>
   <context>
+    <name>PluginWorkflow</name>
+    <message>
+      <source>Added</source>
+      <translation>Added</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Cancel</translation>
+    </message>
+    <message>
+      <source>Change</source>
+      <translation>Change</translation>
+    </message>
+    <message>
+      <source>Changed</source>
+      <translation>Changed</translation>
+    </message>
+    <message>
+      <source>Clear stock match</source>
+      <translation>Clear stock match</translation>
+    </message>
+    <message>
+      <source>DNP</source>
+      <translation>DNP</translation>
+    </message>
+    <message>
+      <source>Footprint</source>
+      <translation>Footprint</translation>
+    </message>
+    <message>
+      <source>Import cancelled</source>
+      <translation>Import cancelled</translation>
+    </message>
+    <message>
+      <source>Import error</source>
+      <translation>Import error</translation>
+    </message>
+    <message>
+      <source>Import preview</source>
+      <translation>Import preview</translation>
+    </message>
+    <message>
+      <source>Import project</source>
+      <translation>Import project</translation>
+    </message>
+    <message>
+      <source>Imported {} components</source>
+      <translation>Imported {} components</translation>
+    </message>
+    <message>
+      <source>Importer</source>
+      <translation>Importer</translation>
+    </message>
+    <message>
+      <source>In BOM</source>
+      <translation>In BOM</translation>
+    </message>
+    <message>
+      <source>Install alongside existing plugins</source>
+      <translation>Install alongside existing plugins</translation>
+    </message>
+    <message>
+      <source>Install and enable an importer in Settings → Plugins first.</source>
+      <translation>Install and enable an importer in Settings → Plugins first.</translation>
+    </message>
+    <message>
+      <source>Install plugin</source>
+      <translation>Install plugin</translation>
+    </message>
+    <message>
+      <source>Kind</source>
+      <translation>Kind</translation>
+    </message>
+    <message>
+      <source>Link selected stock part</source>
+      <translation>Link selected stock part</translation>
+    </message>
+    <message>
+      <source>Link {} to stock part #{}?</source>
+      <translation>Link {} to stock part #{}?</translation>
+    </message>
+    <message>
+      <source>No log entries</source>
+      <translation>No log entries</translation>
+    </message>
+    <message>
+      <source>On board</source>
+      <translation>On board</translation>
+    </message>
+    <message>
+      <source>Plugin error</source>
+      <translation>Plugin error</translation>
+    </message>
+    <message>
+      <source>Plugin installed</source>
+      <translation>Plugin installed</translation>
+    </message>
+    <message>
+      <source>Plugin logs</source>
+      <translation>Plugin logs</translation>
+    </message>
+    <message>
+      <source>Plugin removed</source>
+      <translation>Plugin removed</translation>
+    </message>
+    <message>
+      <source>Plugin to replace</source>
+      <translation>Plugin to replace</translation>
+    </message>
+    <message>
+      <source>Plugin wheels (*.whl)</source>
+      <translation>Plugin wheels (*.whl)</translation>
+    </message>
+    <message>
+      <source>Preparing plugin environment...</source>
+      <translation>Preparing plugin environment...</translation>
+    </message>
+    <message>
+      <source>Reading project...</source>
+      <translation>Reading project...</translation>
+    </message>
+    <message>
+      <source>Reference</source>
+      <translation>Reference</translation>
+    </message>
+    <message>
+      <source>Remove plugin</source>
+      <translation>Remove plugin</translation>
+    </message>
+    <message>
+      <source>Remove project</source>
+      <translation>Remove project</translation>
+    </message>
+    <message>
+      <source>Remove project {}? Stock parts will be kept.</source>
+      <translation>Remove project {}? Stock parts will be kept.</translation>
+    </message>
+    <message>
+      <source>Remove {}? Imported projects will be kept.</source>
+      <translation>Remove {}? Imported projects will be kept.</translation>
+    </message>
+    <message>
+      <source>Removed</source>
+      <translation>Removed</translation>
+    </message>
+    <message>
+      <source>Review needed</source>
+      <translation>Review needed</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Save</translation>
+    </message>
+    <message>
+      <source>Stock match</source>
+      <translation>Stock match</translation>
+    </message>
+    <message>
+      <source>Stock part</source>
+      <translation>Stock part</translation>
+    </message>
+    <message>
+      <source>This plugin has no configurable settings</source>
+      <translation>This plugin has no configurable settings</translation>
+    </message>
+    <message>
+      <source>Unchanged</source>
+      <translation>Unchanged</translation>
+    </message>
+    <message>
+      <source>Unmatched parts</source>
+      <translation>Unmatched parts</translation>
+    </message>
+    <message>
+      <source>Value</source>
+      <translation>Value</translation>
+    </message>
+    <message>
+      <source>{}: {} components. Added: {}; changed: {}; removed: {}.</source>
+      <translation>{}: {} components. Added: {}; changed: {}; removed: {}.</translation>
+    </message>
+  </context>
+  <context>
     <name>PluginsDialog</name>
     <message>
       <source>Author</source>
@@ -774,10 +957,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Logs</source>
       <translation>Logs</translation>
-    </message>
-    <message>
-      <source>Plugin management is not available yet.</source>
-      <translation>Plugin management is not available yet.</translation>
     </message>
     <message>
       <source>Plugins</source>

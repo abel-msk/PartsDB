@@ -7,6 +7,7 @@ venv/
 dist/
 dist/main
 build/
+*.egg-info/
 db/
 
 # Local test databases and their backups

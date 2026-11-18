@@ -31,7 +31,7 @@ def projWindowTexts(window):
     ui.proj_add_cmd.setText(translate("MainWindow", "Add Project"))
     ui.d_prj_reload_cmd.setText(translate("MainWindow", "Reload Data"))
     ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt1), translate("MainWindow", "Used Parts"))
-    ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt2), translate("MainWindow", "Parts not in store"))
+    ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt2), translate("PluginWorkflow", "Unmatched parts"))
     ui.view.setTabText(ui.view.indexOf(ui.project_tab), translate("MainWindow", "Projects"))
     ui.label_2.setText(translate("MainWindow", "Last Import"))
 
@@ -54,7 +54,8 @@ def pluginsDialogTexts(window):
     ui.pushButton_3.setText(translate("PluginsDialog", "Settings"))
     ui.pushButton_2.setText(translate("PluginsDialog", "Logs"))
     ui.pushButton.setText(translate("PluginsDialog", "Close"))
-    ui.pl_status.setText(translate("PluginsDialog", "Plugin management is not available yet."))
+    ui.pl_status.clear()
+    ui.pushButton_3.setToolTip(translate("PluginWorkflow", "This plugin has no configurable settings"))
 
 
 def appPathDialogTexts(window):
@@ -95,3 +96,50 @@ def headerEditDialogTexts(window):
     ui.label.setText(translate("HdrEditDialog", "Section:"))
     ui.label_2.setText(translate("HdrEditDialog", "Default part icon:"))
     ui.icon_selector.setItemText(0, translate("PartsDB", "Auto (from parent section / built-in rule)"))
+
+
+def importProgressTexts(window, installing=False):
+    window.setWindowTitle(translate('PluginWorkflow', 'Install plugin') if installing
+                          else translate('PluginWorkflow', 'Import project'))
+    window.setLabelText(translate('PluginWorkflow', 'Preparing plugin environment...') if installing
+                        else translate('PluginWorkflow', 'Reading project...'))
+    window.setCancelButtonText(translate('PluginWorkflow', 'Cancel'))
+
+
+def componentHeaders():
+    return [translate('PluginWorkflow', 'Reference'), translate('PluginWorkflow', 'Kind'),
+            translate('PluginWorkflow', 'Value'), translate('PluginWorkflow', 'Footprint'),
+            translate('PluginWorkflow', 'In BOM'), translate('PluginWorkflow', 'On board'),
+            translate('PluginWorkflow', 'DNP')]
+
+
+def importPreviewTexts(window):
+    from PyQt6.QtWidgets import QDialogButtonBox, QTableWidgetItem
+    ui, project, changes = window.ui, window.project, window.changes
+    window.setWindowTitle(translate('PluginWorkflow', 'Import preview'))
+    ui.summary.setText(translate('PluginWorkflow', '{}: {} components. Added: {}; changed: {}; removed: {}.').format(
+        project.name, len(project.components), len(changes.added), len(changes.changed), len(changes.removed)))
+    ui.table.setHorizontalHeaderLabels([translate('PluginWorkflow', 'Change'), *componentHeaders()[:4],
+                                       translate('PluginWorkflow', 'In BOM'), translate('PluginWorkflow', 'DNP')])
+    for row, component in enumerate(project.components):
+        state = (translate('PluginWorkflow', 'Added') if component.reference in changes.added else
+                 translate('PluginWorkflow', 'Changed') if component.reference in changes.changed else
+                 translate('PluginWorkflow', 'Unchanged'))
+        values = [state, component.reference, component.kind, component.value_raw, component.footprint or '',
+                  str(int(component.in_bom)), str(int(component.dnp))]
+        for column, value in enumerate(values):
+            ui.table.setItem(row, column, QTableWidgetItem(value))
+    for row, reference in enumerate(changes.removed, start=len(project.components)):
+        for column, value in enumerate([translate('PluginWorkflow', 'Removed'), reference, '', '', '', '', '']):
+            ui.table.setItem(row, column, QTableWidgetItem(value))
+    ui.buttons.button(QDialogButtonBox.StandardButton.Save).setText(translate('PluginWorkflow', 'Save'))
+    ui.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(translate('PluginWorkflow', 'Cancel'))
+
+
+def projectMatchTexts(link, clear):
+    link.setText(translate('PluginWorkflow', 'Link selected stock part'))
+    clear.setText(translate('PluginWorkflow', 'Clear stock match'))
+
+
+def pluginLogsTexts(window):
+    window.setWindowTitle(translate('PluginWorkflow', 'Plugin logs'))

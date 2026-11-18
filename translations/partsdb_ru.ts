@@ -743,6 +743,189 @@ Document files will remain on disk. The icon file in the icons folder will be de
     </message>
   </context>
   <context>
+    <name>PluginWorkflow</name>
+    <message>
+      <source>Added</source>
+      <translation>Добавлено</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Отмена</translation>
+    </message>
+    <message>
+      <source>Change</source>
+      <translation>Изменение</translation>
+    </message>
+    <message>
+      <source>Changed</source>
+      <translation>Изменено</translation>
+    </message>
+    <message>
+      <source>Clear stock match</source>
+      <translation>Удалить сопоставление со складом</translation>
+    </message>
+    <message>
+      <source>DNP</source>
+      <translation>Не устанавливать</translation>
+    </message>
+    <message>
+      <source>Footprint</source>
+      <translation>Посадочное место</translation>
+    </message>
+    <message>
+      <source>Import cancelled</source>
+      <translation>Импорт отменён</translation>
+    </message>
+    <message>
+      <source>Import error</source>
+      <translation>Ошибка импорта</translation>
+    </message>
+    <message>
+      <source>Import preview</source>
+      <translation>Предпросмотр импорта</translation>
+    </message>
+    <message>
+      <source>Import project</source>
+      <translation>Импорт проекта</translation>
+    </message>
+    <message>
+      <source>Imported {} components</source>
+      <translation>Импортировано позиций: {}</translation>
+    </message>
+    <message>
+      <source>Importer</source>
+      <translation>Импортёр</translation>
+    </message>
+    <message>
+      <source>In BOM</source>
+      <translation>В перечне деталей</translation>
+    </message>
+    <message>
+      <source>Install alongside existing plugins</source>
+      <translation>Установить рядом с существующими плагинами</translation>
+    </message>
+    <message>
+      <source>Install and enable an importer in Settings → Plugins first.</source>
+      <translation>Сначала установите и включите импортёр в меню «Настройки → Плагины».</translation>
+    </message>
+    <message>
+      <source>Install plugin</source>
+      <translation>Установка плагина</translation>
+    </message>
+    <message>
+      <source>Kind</source>
+      <translation>Категория</translation>
+    </message>
+    <message>
+      <source>Link selected stock part</source>
+      <translation>Сопоставить с выбранной деталью склада</translation>
+    </message>
+    <message>
+      <source>Link {} to stock part #{}?</source>
+      <translation>Сопоставить {} с деталью склада №{}?</translation>
+    </message>
+    <message>
+      <source>No log entries</source>
+      <translation>Журнал пуст</translation>
+    </message>
+    <message>
+      <source>On board</source>
+      <translation>На плате</translation>
+    </message>
+    <message>
+      <source>Plugin error</source>
+      <translation>Ошибка плагина</translation>
+    </message>
+    <message>
+      <source>Plugin installed</source>
+      <translation>Плагин установлен</translation>
+    </message>
+    <message>
+      <source>Plugin logs</source>
+      <translation>Журнал плагина</translation>
+    </message>
+    <message>
+      <source>Plugin removed</source>
+      <translation>Плагин удалён</translation>
+    </message>
+    <message>
+      <source>Plugin to replace</source>
+      <translation>Плагин для замены</translation>
+    </message>
+    <message>
+      <source>Plugin wheels (*.whl)</source>
+      <translation>Пакеты плагинов (*.whl)</translation>
+    </message>
+    <message>
+      <source>Preparing plugin environment...</source>
+      <translation>Подготовка окружения плагина…</translation>
+    </message>
+    <message>
+      <source>Reading project...</source>
+      <translation>Чтение проекта…</translation>
+    </message>
+    <message>
+      <source>Reference</source>
+      <translation>Обозначение</translation>
+    </message>
+    <message>
+      <source>Remove plugin</source>
+      <translation>Удаление плагина</translation>
+    </message>
+    <message>
+      <source>Remove project</source>
+      <translation>Удаление проекта</translation>
+    </message>
+    <message>
+      <source>Remove project {}? Stock parts will be kept.</source>
+      <translation>Удалить проект {}? Детали склада будут сохранены.</translation>
+    </message>
+    <message>
+      <source>Remove {}? Imported projects will be kept.</source>
+      <translation>Удалить {}? Импортированные проекты будут сохранены.</translation>
+    </message>
+    <message>
+      <source>Removed</source>
+      <translation>Удалено</translation>
+    </message>
+    <message>
+      <source>Review needed</source>
+      <translation>Нужна перепроверка</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Сохранить</translation>
+    </message>
+    <message>
+      <source>Stock match</source>
+      <translation>Сопоставление со складом</translation>
+    </message>
+    <message>
+      <source>Stock part</source>
+      <translation>Деталь склада</translation>
+    </message>
+    <message>
+      <source>This plugin has no configurable settings</source>
+      <translation>У этого плагина нет изменяемых настроек</translation>
+    </message>
+    <message>
+      <source>Unchanged</source>
+      <translation>Без изменений</translation>
+    </message>
+    <message>
+      <source>Unmatched parts</source>
+      <translation>Несопоставленные детали</translation>
+    </message>
+    <message>
+      <source>Value</source>
+      <translation>Значение</translation>
+    </message>
+    <message>
+      <source>{}: {} components. Added: {}; changed: {}; removed: {}.</source>
+      <translation>{}: позиций — {}. Добавлено: {}; изменено: {}; удалено: {}.</translation>
+    </message>
+  </context>
+  <context>
     <name>PluginsDialog</name>
     <message>
       <source>Author</source>
@@ -767,10 +950,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Logs</source>
       <translation>Журнал</translation>
-    </message>
-    <message>
-      <source>Plugin management is not available yet.</source>
-      <translation>Управление плагинами пока недоступно.</translation>
     </message>
     <message>
       <source>Plugins</source>
