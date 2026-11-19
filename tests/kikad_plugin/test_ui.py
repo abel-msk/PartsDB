@@ -2,6 +2,7 @@
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -15,6 +16,7 @@ from PyQt6.QtWidgets import QDialog, QMessageBox, QFileDialog
 import zipfile
 from ElConfig import ElConfig
 from ElData.ElDBScheme import DBFactory
+from ElData.ElDBDataPlagins import PluginData, PluginDataStore
 from ElMainWindow import MainWindow
 from ElImportPreview import ImportPreview
 from ElImportTask import run_import_task
@@ -22,7 +24,8 @@ from ElPluginsDialog import PluginsDialog
 from ElPluginMgr.installer import InstalledPlugin
 from ElPluginMgr.manager import PluginManager
 from ElPluginMgr.repository import ProjectRepository
-from ElPartsPluginApi import PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER
+from ElPluginMgr.runner import PluginRunner
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING
 from ElPartsPluginApi.importers import ImportCancelled
 from ElPartsPluginApi.importers.manifest import PluginManifest
 from ElTranslations import LanguageManager
@@ -154,6 +157,92 @@ class PluginWorkflowTests(unittest.TestCase):
         self.assertEqual(manager.list_plugins(), [])
         self.assertFalse(candidate.path.exists())
         self.assertEqual(self.conn.execute('SELECT count(*) FROM PLUGINS').fetchone(), (0,))
+
+    def test_real_wheel_install_populates_saved_card_and_survives_reopening(self):
+        """Install a real wheel via the button and verify DB, form and runtime together."""
+        wheels = self.path / 'wheels'
+        subprocess.run([sys.executable, '-m', 'pip', 'wheel', '--no-deps', '--no-index',
+                        '--no-cache-dir', '--no-build-isolation', '--wheel-dir', str(wheels),
+                        str(ROOT / 'ElPartsPluginSrc/kicad')],
+                       check=True, capture_output=True, text=True, timeout=60)
+        manager = PluginManager(self.path / 'real-plugins')
+        dialog = PluginsDialog(self.window, manager=manager, conn=self.factory.scheme)
+        self.addCleanup(dialog.close)
+        self.assertEqual(dialog.pluginsModel.rowCount(), 0)
+        self.assertFalse(dialog.ui.pl_delete.isEnabled())
+        with mock.patch.object(QFileDialog, 'getOpenFileName',
+                               return_value=(str(next(wheels.glob('*.whl'))), '')), \
+                mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.StandardButton.Yes), \
+                mock.patch.object(QMessageBox, 'critical') as error:
+            dialog.ui.pl_add_file_cmd.click()
+            error.assert_not_called()
+        saved, = PluginDataStore(self.factory.scheme).all()
+        self.assertIsInstance(dialog.selected(), PluginData)
+        self.assertEqual(dialog.selected(), saved)
+        self.assertEqual(dialog.ui.pl_descr.text(), MANIFEST.description)
+        self.assertEqual(dialog.ui.pl_author.text(), MANIFEST.author)
+        self.assertEqual(dialog.ui.pl_version.text(), MANIFEST.version)
+        self.assertIn(MANIFEST.system_name, dialog.ui.pl_type.text())
+        self.assertEqual(dialog.ui.pl_status.text(), 'Plugin installed')
+        result = PluginRunner().run(manager.get(saved.id), SOURCE.as_uri())
+        self.assertEqual(len(result.components), 49)
+        dialog.ui.pl_enable.click()
+        self.assertFalse(PluginDataStore(self.conn).all()[0].enabled)
+        dialog.close()
+        reopened = PluginsDialog(self.window, manager=PluginManager(manager.root), conn=self.conn)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.selected().id, saved.id)
+        self.assertFalse(reopened.ui.pl_enable.isChecked())
+        self.assertEqual(reopened.ui.pl_name.text(), MANIFEST.name)
+
+    def test_list_contains_all_types_and_preserves_selection_on_refresh_and_translation(self):
+        """Show all three card types, including disabled ones, and preserve selected ID."""
+        plugins = [self.plugin]
+        for kind in (PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING):
+            manifest = PluginManifest.from_dict(dict(MANIFEST.to_dict(), id='test.' + kind,
+                plugin_type=kind, capabilities=[kind], name=kind, description='<b>Literal text</b>'))
+            plugins.append(InstalledPlugin(manifest, self.path / kind, enabled=False))
+        manager = PluginManager(self.path / 'plugins')
+        with mock.patch.object(manager, 'list_plugins', return_value=plugins):
+            dialog = PluginsDialog(self.window, manager=manager, conn=self.conn)
+            self.addCleanup(dialog.close)
+            self.assertEqual(dialog.pluginsModel.rowCount(), 3)
+            dialog.ui.pl_list.setCurrentIndex(dialog.pluginsModel.index(2, 0))
+            selected_id = dialog.selected().id
+            self.assertFalse(dialog.ui.pl_enable.isChecked())
+            self.assertEqual(dialog.ui.pl_descr.text(), '<b>Literal text</b>')
+            dialog.refresh()
+            self.assertEqual(dialog.selected().id, selected_id)
+            with mock.patch.object(manager, 'sync') as sync:
+                self.window.languageManager.setLanguage('ru')
+                app.processEvents()
+                self.assertIn('Отслеживание посылок', dialog.ui.pl_type.text())
+                self.assertEqual(dialog.selected().id, selected_id)
+                sync.assert_not_called()
+
+    def test_failed_install_and_cancel_keep_existing_card_and_database(self):
+        """Reject invalid/cancelled installations without clearing the displayed saved card."""
+        manager = PluginManager(self.path / 'plugins')
+        with mock.patch.object(manager, 'list_plugins', return_value=[self.plugin]):
+            dialog = PluginsDialog(self.window, manager=manager, conn=self.conn)
+            self.addCleanup(dialog.close)
+            before = list(self.conn.iterdump())
+            with mock.patch.object(QFileDialog, 'getOpenFileName', return_value=('', '')), \
+                    mock.patch.object(manager, 'inspect') as inspect:
+                dialog.ui.pl_add_file_cmd.click()
+                inspect.assert_not_called()
+            with mock.patch.object(QFileDialog, 'getOpenFileName', return_value=('bad.whl', '')), \
+                    mock.patch.object(manager, 'inspect', return_value=MANIFEST), \
+                    mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.StandardButton.Yes), \
+                    mock.patch('ElPluginsDialog.PluginInstaller.prepare', side_effect=RuntimeError('install failed')), \
+                    mock.patch.object(QMessageBox, 'critical') as error:
+                dialog.ui.pl_add_file_cmd.click()
+                error.assert_called_once()
+            self.assertEqual(dialog.selected().id, MANIFEST.id)
+            self.assertEqual(dialog.ui.pl_name.text(), MANIFEST.name)
+            self.assertEqual(dialog.ui.pl_status.text(), 'install failed')
+            self.assertEqual(list(self.conn.iterdump()), before)
+            self.assertFalse(manager.registry.exists())
 
     def test_project_import_chooser_filters_other_plugin_types(self):
         other_manifest = PluginManifest.from_dict(dict(MANIFEST.to_dict(),

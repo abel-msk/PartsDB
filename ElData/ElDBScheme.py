@@ -759,6 +759,12 @@ class DBScheme:
         """Order a plugin metadata dict according to PLUGIN_COLUMNS; no DB operations."""
         return tuple(metadata[key] for key in PLUGIN_COLUMNS)
 
+    def loadPluginMetadata(self) -> list:
+        """Return PLUGINS metadata dicts ordered by name/ID; takes no parameters."""
+        rows = self.db.execute('SELECT ' + ','.join(PLUGIN_COLUMNS) +
+                               ' FROM PLUGINS ORDER BY name COLLATE NOCASE, id')
+        return [dict(zip(PLUGIN_COLUMNS, row)) for row in rows]
+
     def storePluginMetadata(self, metadata: dict):
         """Upsert one validated PLUGINS record inside the caller's transaction; no commit."""
         self.db.execute('INSERT INTO PLUGINS (' + ','.join(PLUGIN_COLUMNS) + ') VALUES (' +

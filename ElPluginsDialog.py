@@ -1,4 +1,4 @@
-"""Install, update, enable and remove project importers from the plugins window."""
+"""Install plugins and display their saved metadata in the manager window."""
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
 from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox
@@ -7,12 +7,16 @@ from ElPluginsWnd import Ui_Dialog
 from ElTranslations import TranslatedDialogMixin, translate
 from ElWindowTexts import pluginsDialogTexts, pluginLogsTexts, pluginTypeText
 from ElPluginMgr.installer import PluginInstaller
-from ElPluginMgr.manager import PluginManager
+from ElPluginMgr.manager import PluginManager, plugin_record
+from ElData.ElDBDataPlagins import PluginData, PluginDataStore
 from ElImportTask import run_import_task
 
 
 class PluginsDialog(TranslatedDialogMixin, QDialog):
+    """Manage installation actions and display saved plugin cards for the active DB."""
+
     def __init__(self, parent=None, manager=None, conn=None):
+        """Build the form; parent is QWidget, manager is PluginManager, conn is optional DB."""
         super().__init__(parent)
         self.manager = manager or PluginManager()
         self.conn = conn
@@ -38,35 +42,47 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         self.refresh()
 
     def selected(self):
+        """Return the selected PluginData card, or None for an empty list."""
         return self.ui.pl_list.currentIndex().data(Qt.ItemDataRole.UserRole)
 
     def refresh(self, selected_id=None):
-        self.pluginsModel.clear()
+        """Reload saved cards; selected_id is an optional ID to select after refreshing."""
+        previous = self.selected()
+        selected_id = selected_id or (previous.id if previous else None)
         try:
-            plugins = self.manager.list_plugins()
+            if self.conn is not None:
+                self.manager.sync(self.conn)
+                plugins = PluginDataStore(self.conn).all()
+            else:
+                plugins = [PluginData.from_record(plugin_record(plugin))
+                           for plugin in self.manager.list_plugins()]
+            self.pluginsModel.clear()
             for plugin in plugins:
-                item = QStandardItem(f'{plugin.manifest.name} — {pluginTypeText(plugin.manifest.plugin_type)}')
+                item = QStandardItem(f'{plugin.name} — {pluginTypeText(plugin.plugin_type)}')
                 item.setData(plugin, Qt.ItemDataRole.UserRole)
+                item.setToolTip('\n'.join((plugin.id, plugin.version, plugin.description)))
                 self.pluginsModel.appendRow(item)
-                if plugin.manifest.id == selected_id:
+                if plugin.id == selected_id:
                     self.ui.pl_list.setCurrentIndex(item.index())
             if not self.ui.pl_list.currentIndex().isValid() and plugins:
                 self.ui.pl_list.setCurrentIndex(self.pluginsModel.index(0, 0))
             self.onSelection()
+            return True
         except Exception as exc:
             self.error(exc)
+            return False
 
     def onSelection(self, *args):
+        """Fill the detail form from the selected card; Qt selection arguments are ignored."""
         plugin = self.selected()
         self.ui.pl_data_frame.setEnabled(plugin is not None)
         self.ui.pl_delete.setEnabled(plugin is not None)
         if plugin:
-            manifest = plugin.manifest
-            self.ui.pl_name.setText(manifest.name)
-            self.ui.pl_descr.setText(manifest.description)
-            self.ui.pl_author.setText(manifest.author)
-            self.ui.pl_type.setText(f'{pluginTypeText(manifest.plugin_type)} ({manifest.system_name})')
-            self.ui.pl_version.setText(manifest.version)
+            self.ui.pl_name.setText(plugin.name)
+            self.ui.pl_descr.setText(plugin.description)
+            self.ui.pl_author.setText(plugin.author)
+            self.ui.pl_type.setText(f'{pluginTypeText(plugin.plugin_type)} ({plugin.system_name})')
+            self.ui.pl_version.setText(plugin.version)
         else:
             self.ui.pl_name.setText(translate('PluginsDialog', 'Select a plugin'))
             for label in (self.ui.pl_descr, self.ui.pl_author, self.ui.pl_type, self.ui.pl_version):
@@ -76,6 +92,7 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         self.ui.pl_enable.blockSignals(False)
 
     def installFile(self):
+        """Choose and validate a wheel, install it in the background, then select its card."""
         filename, _ = QFileDialog.getOpenFileName(self, translate('PluginWorkflow', 'Install plugin'), '',
                                                 translate('PluginWorkflow', 'Plugin wheels (*.whl)'))
         if not filename:
@@ -113,38 +130,41 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
                 except OSError:
                     pass
                 raise
-            self.refresh(plugin.manifest.id)
-            self.ui.pl_status.setText(translate('PluginWorkflow', 'Plugin installed'))
+            if self.refresh(plugin.manifest.id):
+                self.ui.pl_status.setText(translate('PluginWorkflow', 'Plugin installed'))
         except Exception as exc:
             self.error(exc)
 
     def removePlugin(self):
+        """Confirm removal of the selected plugin; preserve imported project data."""
         plugin = self.selected()
         if not plugin:
             return
         if QMessageBox.question(self, translate('PluginWorkflow', 'Remove plugin'),
-                                translate('PluginWorkflow', 'Remove {}? Imported projects will be kept.').format(plugin.manifest.name),
+                                translate('PluginWorkflow', 'Remove {}? Imported projects will be kept.').format(plugin.name),
                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                 QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
         try:
-            self.manager.remove(plugin.manifest.id, self.conn)
+            self.manager.remove(plugin.id, self.conn)
             self.refresh()
             self.ui.pl_status.setText(translate('PluginWorkflow', 'Plugin removed'))
         except Exception as exc:
             self.error(exc)
 
     def enablePlugin(self, enabled):
+        """Persist enabled (bool) for the selected plugin and reload its saved state."""
         plugin = self.selected()
         if plugin:
             try:
-                self.manager.set_enabled(plugin.manifest.id, enabled, self.conn)
-                self.refresh(plugin.manifest.id)
+                self.manager.set_enabled(plugin.id, enabled, self.conn)
+                self.refresh(plugin.id)
             except Exception as exc:
                 self.error(exc)
-                self.refresh(plugin.manifest.id)
+                self.refresh(plugin.id)
 
     def showLogs(self):
+        """Display the selected installation log in a read-only dialog."""
         plugin = self.selected()
         if plugin:
             from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout
@@ -154,18 +174,20 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             layout = QVBoxLayout(dialog)
             text = QPlainTextEdit(dialog)
             text.setReadOnly(True)
-            text.setPlainText(self.manager.logs(plugin.manifest.id) or translate('PluginWorkflow', 'No log entries'))
+            text.setPlainText(self.manager.logs(plugin.id) or translate('PluginWorkflow', 'No log entries'))
             layout.addWidget(text)
             dialog.exec()
 
     def error(self, exc):
+        """Display an Exception in the status label and an error message box."""
         self.ui.pl_status.setText(str(exc))
         QMessageBox.critical(self, translate('PluginWorkflow', 'Plugin error'), str(exc))
 
     def retranslate(self):
+        """Update localized captions and card type labels without accessing the database."""
         pluginsDialogTexts(self)
         for row in range(self.pluginsModel.rowCount()):
             item = self.pluginsModel.item(row)
             plugin = item.data(Qt.ItemDataRole.UserRole)
-            item.setText(f'{plugin.manifest.name} — {pluginTypeText(plugin.manifest.plugin_type)}')
+            item.setText(f'{plugin.name} — {pluginTypeText(plugin.plugin_type)}')
         self.onSelection()

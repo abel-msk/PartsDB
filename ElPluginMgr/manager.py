@@ -6,6 +6,7 @@ import tempfile
 import os
 
 from ElData.ElDBScheme import DBError, DBScheme
+from ElData.ElDBDataPlagins import PluginData, PluginDataStore
 from ElPartsPluginApi import PLUGIN_TYPE_IMPORT
 from ElPartsPluginApi.importers import PluginError
 from ElPartsPluginApi.importers.manifest import PluginManifest
@@ -22,7 +23,7 @@ def plugin_record(plugin):
 
 def store_plugin(conn, plugin):
     """Delegate metadata storage for an InstalledPlugin and DBScheme/borrowed connection."""
-    DBScheme.using(conn).storePluginMetadata(plugin_record(plugin))
+    PluginDataStore(conn).save(PluginData.from_record(plugin_record(plugin)))
 
 
 class PluginManager:
@@ -139,9 +140,9 @@ class PluginManager:
                 if database is not None:
                     store_plugin(database, InstalledPlugin(manifest, candidate.path, enabled))
                     if old_plugin and old_id != manifest.id:
-                        database.deletePluginMetadata(old_id)
+                        PluginDataStore(database).remove(old_id)
                 if old_plugin and database is not None:
-                    database.switchProjectPlugin(old_id, manifest.id)
+                    PluginDataStore(database).replace(old_id, manifest.id)
                 self._write(updated)
                 registry_written = True
         except Exception:
@@ -186,7 +187,7 @@ class PluginManager:
         records = self._records()
         records.pop(plugin_id)
         self._change_registry(records, conn,
-                              lambda database: database.deletePluginMetadata(plugin_id))
+                              lambda database: PluginDataStore(database).remove(plugin_id))
         # Projects intentionally retain their plugin_id and last imported data.
         try:
             PluginInstaller(self.root, self.python).discard(plugin)
@@ -195,9 +196,9 @@ class PluginManager:
 
     def sync(self, conn):
         """Sync installed metadata to a DBScheme/borrowed connection through its SQL layer."""
-        records = [plugin_record(plugin) for plugin in self.list_plugins()]
+        records = [PluginData.from_record(plugin_record(plugin)) for plugin in self.list_plugins()]
         with self._connection(conn) as database:
-            database.syncPluginMetadata(records)
+            PluginDataStore(database).sync(records)
 
     def logs(self, plugin_id):
         plugin = self.get(plugin_id, require_enabled=False)

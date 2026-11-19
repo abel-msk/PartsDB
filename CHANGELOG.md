@@ -2,6 +2,10 @@
 
 ## Unreleased — 2026-11-19
 
+- Connected the plugin manager list and details to saved `PLUGINS` cards through
+  `ElData/ElDBDataPlagins.py`. Refresh preserves selection and installation selects
+  the saved card. Added a real wheel installation/UI/reopen check and coverage
+  for all three plugin types, disabled cards, cancellation and install errors.
 - Split database access into `ElData/ElDBScheme.py` (application SQL and migrations)
   and `ElData/ElDBConnect.py` (SQLite connection, transactions and system metadata).
   Removed the root `connector.py` and updated import/architecture checks.
@@ -29,7 +33,7 @@
   retain the scratch DB and the three newest backups per database. Input fixtures
   and archived databases are preserved.
 - Updated Russian/English workflow texts and documentation. The full check on
-  2026-11-19 passed 340 tests, including test cleanup and backup rotation.
+  2026-11-19 passed 343 tests, including test cleanup and backup rotation.
 
 ## 1.3 — 2026-11-15
 
