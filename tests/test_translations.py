@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from ElAppPathDialog import AppPathConfig
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 from ElHdrEditDialog import HeaderEditDialog
 from ElMainWindow import MainWindow
 from ElOpenFileDialog import OpenFileDialog
@@ -114,7 +114,7 @@ class TestLiveTranslations(unittest.TestCase):
 
     def test_default_headers_translated_custom_headers_unchanged(self):
         table = self.window.partsTable
-        fields = list(__import__("ElDBScheme").ELEMENT_FIELDS)[2:]
+        fields = list(__import__("ElData.ElDBScheme", fromlist=["ELEMENT_FIELDS"]).ELEMENT_FIELDS)[2:]
         self.switch("ru")
         model = table.tableModel
         self.assertEqual(model.headerData(fields.index("part_num"), Qt.Orientation.Horizontal,

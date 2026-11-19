@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QAbstractItemView, QMenu, QMessageBox
 from ElProjList import ProjList
 from ElWindowTexts import projWindowTexts, componentHeaders, projectMatchTexts
 from ElTranslations import translate
-from ElPartsImport.repository import ProjectRepository
+from ElPluginMgr.repository import ProjectRepository
 
 
 class ProjWindow(QObject):
@@ -79,7 +79,7 @@ class ProjWindow(QObject):
         self.componentsModel.setHorizontalHeaderLabels(headers)
         self.unmatchedModel.setHorizontalHeaderLabels(headers)
         if project:
-            repository = ProjectRepository(self.projList.factory.scheme.db.conn)
+            repository = ProjectRepository(self.projList.factory.scheme)
             matches = repository.matches(project.id)
             for row in repository.components(project.id):
                 match = matches.get(row['id'])
@@ -115,7 +115,7 @@ class ProjWindow(QObject):
                 QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
         try:
-            ProjectRepository(self.projList.factory.scheme.db.conn).set_match(component_id, part_id)
+            ProjectRepository(self.projList.factory.scheme).set_match(component_id, part_id)
             self.loadComponents(self.project)
         except Exception as exc:
             QMessageBox.critical(self.ui, translate('PluginWorkflow', 'Import error'), str(exc))

@@ -6,7 +6,7 @@ PartsDB (window title: *Electronic parts workbench*) is a small desktop applicat
 electronic components and their datasheets. It is written in Python with PyQt6 and keeps everything
 in a single SQLite file.
 
-![Catalog: N-channel MOSFETs with part pictures and an attached document](docs/images/catalog-mosfet.png)
+![Catalog: N-channel MOSFETs with part pictures and an attached document](docs/images/catalog-view.png)
 
 ## Features
 
@@ -100,6 +100,10 @@ the full pipeline: regenerate UI, run tests, then build. The build stops if any
 test fails.
 
 Plugin sources are in `ElPartsPluginSrc/kicad`.
+The SDK defines `project_import`, `parts_order` and `shipment_tracking` types.
+Each plugin declares its type in the manifest and `get_plugin_type()`; it is
+validated before use and stored in SQLite `PLUGINS` (schema 6).
+
 
 Use `./build.sh -p` to build the KiCad plugin wheel in `dist/plugins/`, or
 `./build.sh -tp` to run all tests before building the plugin. The `-p` option
@@ -172,15 +176,16 @@ are not stored in git: put a copy of your database into `tests/` and point `db_f
 | `ElPartsTable.py`                           | parts table, column menus, search                         |
 | `ElIconDelegate.py`, `ElDefaultIcons.py`    | part pictures in the table and default icons              |
 | `ElIconListWidget.py`                       | list of part documents                                    |
-| `ElDBScheme.py`                             | database schema and access (`DBFactory`, `Type`, `Part`, …) |
+| `ElData/ElDBConnect.py` | SQLite connection, transactions and system metadata |
+| `ElData/ElDBScheme.py`                             | database schema and access (`DBFactory`, `Type`, `Part`, …) |
 | `ElConfig.py`, `constants.py`               | configuration file and its keys                           |
 | `ElAppList.py`, `ElAppPathDialog.py`, `ElProcess.py` | applications for opening documents               |
 | `ElHdrEditDialog.py`                        | column header editor                                      |
 | `ELImport.py`                               | import from an Excel list                                 |
 | `ElPartsPluginSrc/kicad/`                   | KiCad importer sources, manifest and wheel configuration |
 | `ElPartsPluginApi/`                        | public importer models, manifest and runtime context     |
-| `ElPartsImport/`                           | installation, registry, worker protocol and atomic project storage |
-| `ElPluginsDialog.py`, `ElProjectImports.py`, `ElImportTask.py`, `ElImportPreview.py` | plugin and import workflow |
+| `ElPluginMgr/`                           | installation, registry, worker protocol and atomic project storage |
+| `ElPluginsDialog.py`, `ElPluginMgr/ElProjectImports.py`, `ElImportTask.py`, `ElImportPreview.py` | plugin and import workflow |
 | `ElProjList.py`, `ElProjWindow.py`          | projects, imported positions and stock matches           |
 | `tests/input/`, `tests/kikad_plugin/`       | local KiCad fixture, parser, lifecycle, DB and UI tests   |
 | `tools/cleanup_test_databases.py`           | successful-run cleanup and failed-run backup rotation    |
@@ -218,6 +223,16 @@ after success or `--failed` after failure.
 - [Database schema](docs/database-plugins-and-parts.md) and [import migration](docs/project-import-schema.md).
 - [Actual KiCad output and database field mapping](docs/kicad-import-output-and-database-mapping.md).
 - [KiCad importer sources and commands](ElPartsPluginSrc/kicad/README.md).
+
+### Database access rules
+
+Application SQL is implemented in `ElData/ElDBScheme.py`. SQLite connections,
+transactions, PRAGMA and system metadata are handled by `ElData/ElDBConnect.py`.
+Tests may use SQLite directly; the root `connector.py` has been removed.
+UI and import services call the database layer. [SQLite driver methods](docs/sqlite-driver.md).
+Further data-module naming, constants and class/method documentation rules are
+recorded in [AGENTS.md](AGENTS.md). Existing data classes and general constants
+will be moved only on a separate request.
 
 ### Translations
 

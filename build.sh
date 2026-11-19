@@ -79,7 +79,7 @@ if [ $RUN_BUILD -eq 1 ]; then
         echo "PyInstaller is not installed for $PYTHON. Install it: $PYTHON -m pip install pyinstaller" >&2
         exit 1
     fi
-    "$PYTHON" -m PyInstaller  -F --onefile --windowed  -y  --clean --name="ElPartsDB" --icon="icons/ElPartsCatalog.icns" --add-data="translations:translations" --add-data="ElPartsPluginApi:ElPartsPluginApi" --add-data="ElPartsImport:ElPartsImport" main.py || exit $?
+    "$PYTHON" -m PyInstaller  -F --onefile --windowed  -y  --clean --name="ElPartsDB" --icon="icons/ElPartsCatalog.icns" --add-data="translations:translations" --add-data="ElPartsPluginApi:ElPartsPluginApi" --add-data="ElPluginMgr:ElPluginMgr" main.py || exit $?
 fi
 
 if [ $RUN_PLUGIN -eq 1 ]; then

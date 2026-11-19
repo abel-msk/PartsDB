@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass
 import re
 
 from .errors import PluginError
+from ..constants import PLUGIN_TYPES
 
 API_VERSION = 1
 
@@ -13,6 +14,7 @@ class PluginManifest:
     name: str
     version: str
     api_version: int
+    plugin_type: str
     description: str
     author: str
     system_id: str
@@ -36,8 +38,10 @@ class PluginManifest:
         for key in ('id', 'system_id'):
             if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', data[key]):
                 raise PluginError(f'Invalid manifest field: {key}')
-        if data['capabilities'] != ['project_import']:
-            raise PluginError('Expected project_import capability')
+        if data['plugin_type'] not in PLUGIN_TYPES:
+            raise PluginError(f'Unsupported plugin type: {data["plugin_type"]}')
+        if data['capabilities'] != [data['plugin_type']]:
+            raise PluginError('Plugin type does not match its declared capability')
         if not re.fullmatch(r'[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*:[A-Za-z_]\w*', data['entry_point']):
             raise PluginError('Invalid plugin entry point')
         return cls(**data)

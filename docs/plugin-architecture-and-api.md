@@ -1,7 +1,7 @@
 # Плагины PartsDB: архитектура и API
 
 Актуальность: 19 ноября 2026 года. Описана текущая реализация: API 1,
-протокол 1, схема БД 5, импортёр KiCad 0.1.0.
+протокол 1, схема БД 6, импортёр KiCad 0.1.0.
 
 Порядок установки и работы: [Установка и запуск импортёров](plugin-runtime.md).
 Структура хранения: [База для плагинов и деталей](database-plugins-and-parts.md).
@@ -34,22 +34,22 @@ PartsDB/
 │       ├── __init__.py
 │       ├── plugin.py
 │       └── sexpr.py
-├── ElPartsPluginApi/importers/   # публичный SDK
-│   ├── __init__.py
-│   ├── manifest.py
-│   ├── importers.py
-│   ├── models.py
-│   ├── context.py
-│   └── errors.py
-├── ElPartsImport/                # backend приложения
+├── ElPartsPluginApi/             # общий API плагинов
+│   ├── constants.py              # три глобальных типа
+│   ├── plugin.py                 # Plugin.get_plugin_type()
+│   └── importers/                # контракты импорта, модели, контекст, ошибки
+├── ElData/
+│   ├── ElDBScheme.py            # схема, запросы приложения и миграции
+│   └── ElDBConnect.py           # SQLite, соединение, транзакции, системные метаданные
+├── ElPluginMgr/                # backend приложения без SQL
 │   ├── manager.py
 │   ├── installer.py
 │   ├── runner.py
 │   ├── worker.py
 │   ├── protocol.py
-│   └── repository.py
+│   ├── repository.py
+│   └── ElProjectImports.py       # действия импорта и сохранения
 ├── ElPluginsDialog.py            # окно управления плагинами
-├── ElProjectImports.py           # действия импорта и сохранения
 ├── ElImportTask.py               # фоновая задача Qt
 ├── ElImportPreview.py            # предпросмотр и изменения состава
 ├── ElProjWindow.py               # таблицы позиций и ручные сопоставления
@@ -64,6 +64,32 @@ PartsDB/
 а каталог `plugins` рядом с конфигурацией — установленные окружения.
 Эти пути имеют разное назначение.
 
+## Типы плагинов
+
+Тип определяет сам плагин: поле `plugin_type` в манифесте и обязательный метод
+`Plugin.get_plugin_type()` должны возвращать одно значение. Глобальные константы
+объявлены в `ElPartsPluginApi/constants.py`, экспортируются из SDK и доступны
+в `constants.py` приложения:
+
+| Константа | Значение | Назначение |
+|---|---|---|
+| `PLUGIN_TYPE_IMPORT` | `project_import` | Импорт проекта |
+| `PLUGIN_TYPE_PARTS_ORDER` | `parts_order` | Заказ деталей |
+| `PLUGIN_TYPE_SHIPMENT_TRACKING` | `shipment_tracking` | Отслеживание посылок |
+
+`PLUGIN_TYPES` содержит все три допустимых значения. Для заказа и отслеживания
+реализованы объявление типа, проверка и регистрация. Выполнение заказа и получение
+статуса посылки остаются отдельными будущими API.
+
+Неизвестный тип отвергается при чтении wheel. После установки во временное
+окружение worker вызывает `get_plugin_type()` и сравнивает ответ с манифестом.
+При несовпадении установка не регистрируется, прежний плагин сохраняется.
+Перед импортом проекта runner дополнительно требует `PLUGIN_TYPE_IMPORT`,
+а worker повторяет проверку до вызова `import_project()`.
+
+Тип сохраняется в `PLUGINS.plugin_type` SQLite вместе с метаданными и в манифесте
+файлового реестра. `system_id` описывает внешнюю систему, а не функциональный тип.
+
 ## Манифест
 
 В wheel должен находиться ровно один файл `partsdb-plugin.json`:
@@ -74,6 +100,7 @@ PartsDB/
   "name": "KiCad Importer",
   "version": "0.1.0",
   "api_version": 1,
+  "plugin_type": "project_import",
   "description": "Import components from KiCad schematic projects",
   "author": "PartsDB",
   "system_id": "kicad",
@@ -85,7 +112,8 @@ PartsDB/
 
 Все показанные поля обязательны. `PluginManifest.from_dict()` отвергает
 неизвестные поля, неподдерживаемую версию API, некорректные идентификаторы
-и точку входа. В первой версии допустима возможность `project_import`.
+и точку входа. `plugin_type` должен входить в `PLUGIN_TYPES`; `capabilities`
+в текущей версии содержит одно совпадающее значение, например `["project_import"]`.
 `version` — версия пакета, `api_version` — версия контракта с приложением.
 
 `id` сохраняется как `PROJECTS.plugin_id`. `system_id` применяется при замене
@@ -93,17 +121,22 @@ PartsDB/
 по имени Python-пакета или расширению файла.
 
 Установщик читает манифест до выполнения кода. Затем worker импортирует класс
-из `entry_point`, проверяет наследование от `ProjectImporter`, создаёт экземпляр
-без аргументов и проверяет поддерживаемые форматы.
+из `entry_point`, проверяет наследование от общего `Plugin`, создаёт экземпляр
+без аргументов и проверяет его тип. Импортёр дополнительно должен наследовать
+`ProjectImporter` и объявлять поддерживаемые форматы.
 
 ## Интерфейс импортёра
 
 ```python
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT
 from ElPartsPluginApi.importers import (
     ProjectImporter, ImportFormat, ProbeResult, ImportedProject,
 )
 
 class ExampleImporter(ProjectImporter):
+    def get_plugin_type(self) -> str:
+        return PLUGIN_TYPE_IMPORT
+
     def get_import_formats(self) -> list[ImportFormat]:
         return [ImportFormat('example', 'Example project', ['.example'])]
 
@@ -118,6 +151,7 @@ class ExampleImporter(ProjectImporter):
 
 | Метод | Результат |
 |---|---|
+| `get_plugin_type()` | Один из трёх глобальных типов; обязан совпадать с манифестом |
 | `get_import_formats()` | Список `ImportFormat(id, name, extensions)` |
 | `probe(source_uri)` | `ProbeResult(supported, reason=None)` |
 | `import_project(source_uri)` | `ImportedProject` |
@@ -214,7 +248,8 @@ SDK и worker копируются из приложения в `runtime`. От�
 ## Обновление, замена и сохранение
 
 1. Установщик проверяет новое окружение до изменения действующей записи реестра.
-2. При замене другим ID менеджер проверяет совпадение `system_id`.
+2. При замене менеджер проверяет совпадение `plugin_type` и `system_id`,
+   в том числе при обновлении существующего ID.
 3. В текущей открытой БД меняется `plugin_id` при замене и выставляется `needs_reload=1`.
 4. После успешного переключения удаляется прежнее окружение. При ошибке установки
    или переключения прежний плагин сохраняется. Другие базы приложение не обходит.
@@ -239,3 +274,22 @@ SDK и worker копируются из приложения в `runtime`. От�
 
 Автоматический подбор аналогов, сетевой каталог плагинов, установка из PyPI,
 офлайн-ZIP и декларативные пользовательские настройки остаются расширениями.
+
+
+## Правила организации кода
+
+Запросы приложения централизованы в `ElData/ElDBScheme.py`: список проектов,
+типы иконок, метаданные плагинов, запись позиций и сопоставлений. SQLite-драйвер,
+транзакции, PRAGMA, `sqlite_master` и `sqlite_sequence` находятся в
+`ElData/ElDBConnect.py`. Вне этой пары SQL не исполняется; исключение — тесты.
+Корневой `connector.py` удалён. [Методы SQLite-драйвера](sqlite-driver.md). Интерфейс передаёт
+сервисам `DBScheme`, а не сырое соединение. Поддержка старых вызовов с соединением
+сохраняется через `DBScheme.using()`; операция не открывает новую базу.
+
+Остальные правила записаны в [AGENTS.md](../AGENTS.md): файлы данных
+`ElDBDataProj.py`, `ElDBDataParts.py`, `ElDBDataPlagins.py`, общий файл констант
+`ElConstants.py`, описания классов и методов. Они применяются к новым частям кода;
+перенос существующих классов и констант выполняется по отдельной команде.
+Перед созданием другого файла данных его имя согласовывается с пользователем.
+Классы внешних API исключены из правила размещения DB-моделей. Классы и структуры
+иконок по правилам 2 и 3 пока остаются на прежних местах.

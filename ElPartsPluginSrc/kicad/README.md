@@ -2,6 +2,10 @@
 
 Версия пакета: **0.1.0**, API **1**. Исходники: `ElPartsPluginSrc/kicad`.
 
+Тип плагина — `PLUGIN_TYPE_IMPORT` (`project_import`), указанный в манифесте
+и методе `get_plugin_type()`. При установке и запуске PartsDB сверяет тип;
+в SQLite он сохраняется как `PLUGINS.plugin_type` (схема БД 6).
+
 Основной метод — `KiCadImporter.get_components(source_uri) -> list[ImportedComponent]`.
 Принимает путь или локальный `file:` URI файла `.kicad_pro` либо `.kicad_sch`.
 Для проекта читает одноимённую корневую схему и рекурсивно связанные листы.

@@ -133,14 +133,7 @@ class ProjList(QObject):
         """Refresh from the DB, retaining the selected project when possible."""
         selected = self.getSelected()
         selected_id = selected.id if selected is not None else None
-        cursor = self.factory.scheme.db.conn.execute(
-            'SELECT id, name, descr, plugin_id, external_id, source_uri, '
-            'last_imported_at, needs_reload, properties_json FROM PROJECTS '
-            'ORDER BY name COLLATE NOCASE, id')
-        try:
-            projects = [Project(*row) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
+        projects = [Project(*row) for row in self.factory.scheme.loadProjectRows()]
         self.model.setProjects(projects)
         if not self.selectByID(selected_id) and self.model.rowCount():
             self.view.setCurrentIndex(self.model.index(0, 0))

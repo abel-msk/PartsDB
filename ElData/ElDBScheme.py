@@ -1,14 +1,17 @@
 from PyQt6.QtCore import QT_TRANSLATE_NOOP
+from ElPartsPluginApi.constants import PLUGIN_TYPES
+from .ElDBConnect import DBError, DBSyntax, SQLiteConnector
 
 import logging
-import sqlite3
+import json
+from contextlib import contextmanager
+from datetime import datetime, timezone
 import re
 import sys
 import os
 import bisect
 import urllib.parse
 from pathlib import Path
-from sqlite3 import Cursor
 
 import ElLogger
 
@@ -21,7 +24,6 @@ class PartInProjectsError(RuntimeError):
     """Deleting a part referenced by a project is not allowed."""
 
 
-from connector import SQLiteConnector, DBError
 
 logger = ElLogger.setLogger(__name__)
 # logger = logging.getLogger(__name__)
@@ -188,6 +190,25 @@ DOC_TYPE_PNG = 4
 DOC_TYPE_TEXT = 5
 DOC_TYPE_DEFAULT = 6
 
+# Plugin metadata is local to this database; environment paths remain in plugins.json.
+_PLUGIN_TYPE_SQL = ', '.join(repr(value) for value in sorted(PLUGIN_TYPES))
+PLUGINS_TABLE_SQL = f"""
+CREATE TABLE IF NOT EXISTS PLUGINS (
+    id TEXT PRIMARY KEY NOT NULL,
+    plugin_type TEXT NOT NULL CHECK (plugin_type IN ({_PLUGIN_TYPE_SQL})),
+    name TEXT NOT NULL,
+    version TEXT NOT NULL,
+    api_version INTEGER NOT NULL,
+    system_id TEXT NOT NULL,
+    system_name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    author TEXT NOT NULL,
+    enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    manifest_json TEXT NOT NULL
+);
+"""
+
+
 PROJECTS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS PROJECTS (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -260,7 +281,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 5
+DB_VERSION = 6
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -274,7 +295,17 @@ ENVIRONMENT_DEFAULTS = {
 }
 
 
+COMPONENT_FIELDS = ('external_id', 'reference', 'kind', 'value_raw', 'nominal_value',
+                    'nominal_unit', 'model', 'symbol_id', 'footprint', 'description',
+                    'in_bom', 'on_board', 'dnp', 'properties_json')
+REQUIREMENTS = ('kind', 'value_raw', 'nominal_value', 'nominal_unit', 'model',
+                'symbol_id', 'footprint', 'description', 'in_bom', 'on_board', 'dnp')
+PLUGIN_COLUMNS = ('id', 'plugin_type', 'name', 'version', 'api_version', 'system_id',
+                  'system_name', 'description', 'author', 'enabled', 'manifest_json')
+
+
 class DBScheme:
+    """Own database access, SQL and transactions; stores a connector and type cache."""
     def __init__(self, db_file: str):
         self.db: SQLiteConnector = SQLiteConnector(db_file)
         self.Types = None
@@ -292,8 +323,9 @@ class DBScheme:
             self.db.exec(HEADER_TABLE_SQL)
             self.db.exec(GET_PARTS_TABLE_SQL())
             self.db.exec(DATASHEETS_TABLE_SQL)
+            self.db.exec(PLUGINS_TABLE_SQL)
             self.db.exec(PROJECTS_TABLE_SQL)
-            _createProjectImportTables(self.db.conn)
+            _createProjectImportTables(self.db)
             self.db.exec(EL_BY_PROJECT_TABLE_SQL)
             self.db.exec(ENVIRONMENT_TABLE_SQL)
             self.db.commit()
@@ -509,25 +541,25 @@ class DBScheme:
         return recId
 
     def ensurePartNotInProjects(self, partId):
-        row = self.db.conn.execute(
+        row = self.db.execute(
             "SELECT 1 FROM EL_BY_PROJECT WHERE part_id = ? LIMIT 1;", (partId,)).fetchone()
         if row is not None:
             raise PartInProjectsError(QT_TRANSLATE_NOOP("PartsDB", 'This part is used in projects and cannot be deleted.'))
 
     def countProjectComponentMatches(self, partId):
-        return self.db.conn.execute(
+        return self.db.execute(
             "SELECT count(*) FROM PROJECT_COMPONENT_MATCHES WHERE part_id = ?;", (partId,)).fetchone()[0]
 
     def delPart(self, partId):
         # Foreign-key enforcement may be disabled on older databases. Explicitly remove
         # dependent records in one transaction; linked files are never deleted.
-        with self.db.conn:
-            if not self.db.conn.in_transaction:
-                self.db.conn.execute("BEGIN IMMEDIATE;")
+        with self.db.transaction():
+            if not self.db.in_transaction:
+                self.db.begin(immediate=True)
             self.ensurePartNotInProjects(partId)
-            self.db.conn.execute("DELETE FROM PROJECT_COMPONENT_MATCHES WHERE part_id = ?;", (partId,))
-            self.db.conn.execute("DELETE FROM DATASHEETS WHERE part_id = ?;", (partId,))
-            self.db.conn.execute("DELETE FROM PARTS WHERE id = ?;", (partId,))
+            self.db.execute("DELETE FROM PROJECT_COMPONENT_MATCHES WHERE part_id = ?;", (partId,))
+            self.db.execute("DELETE FROM DATASHEETS WHERE part_id = ?;", (partId,))
+            self.db.execute("DELETE FROM PARTS WHERE id = ?;", (partId,))
 
     def addDocument(self, parentId, type, link ):
         values = []
@@ -600,6 +632,160 @@ class DBScheme:
 
     def disconnect(self):
         self.db.disconnect()
+
+
+    @classmethod
+    def using(cls, database) -> 'DBScheme':
+        """Accept DBScheme or a borrowed sqlite3.Connection; never open or copy a DB."""
+        if isinstance(database, cls):
+            return database
+        scheme = cls('')
+        scheme.db = SQLiteConnector.from_connection(database)
+        return scheme
+
+    def isConnected(self) -> bool:
+        """Return whether this scheme has a connection, without running SQL."""
+        return self.db.isConnect()
+
+    @contextmanager
+    def transaction(self, foreign_keys: bool = False):
+        """Yield this scheme; reject pending transactions, commit success or roll back errors.
+
+        foreign_keys (bool): enable FK checks before starting when True.
+        """
+        with self.db.transaction(require_idle=True, foreign_keys=True if foreign_keys else None):
+            yield self
+
+    def loadProjectRows(self) -> list:
+        """Return project tuples ordered by name/id; no parameters or writes."""
+        return self.db.execute(
+            'SELECT id, name, descr, plugin_id, external_id, source_uri, '
+            'last_imported_at, needs_reload, properties_json FROM PROJECTS '
+            'ORDER BY name COLLATE NOCASE, id').fetchall()
+
+    def loadIconTypeRows(self) -> list:
+        """Return (id, name, parent_id, icon) tuples; old schemas return NULL icons."""
+        columns = [row[1] for row in self.db.table_info('TYPES')]
+        icon_column = 'icon' if 'icon' in columns else 'NULL'
+        return self.db.execute('SELECT id,name,parent_id,' + icon_column + ' FROM TYPES').fetchall()
+
+    def loadProjectComponents(self, project_id) -> dict:
+        """Return component row dictionaries keyed by external_id; ID is int or None."""
+        if project_id is None:
+            return {}
+        rows = self.db.execute('SELECT id, ' + ', '.join(COMPONENT_FIELDS) +
+                                    ' FROM PROJECT_COMPONENTS WHERE project_id=? ORDER BY id', (project_id,)).fetchall()
+        keys = ('id', *COMPONENT_FIELDS)
+        return {row[1]: dict(zip(keys, row)) for row in rows}
+
+    @staticmethod
+    def _requirementProperties(properties_json: str) -> dict:
+        """Decode JSON properties, excluding duplicated fields and diagnostic UUIDs."""
+        return {key: value for key, value in json.loads(properties_json).items()
+                if key not in ('Reference', 'Value', 'Footprint', 'Description', 'Datasheet', 'kicad_symbol_uuids')}
+
+    def saveImportedProject(self, project: dict, rows: list, plugin_id: str,
+                            source_uri: str, project_id=None) -> int:
+        """Atomically save a validated project dict and component dicts; preserve IDs/matches.
+
+        project uses name, descr, external_id, properties_json. rows follow
+        COMPONENT_FIELDS. project_id is an existing int ID or None for a new card.
+        """
+        now = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+        conn = self.db
+        with self.transaction(foreign_keys=True):
+            previous = self.loadProjectComponents(project_id)
+            values = (project['name'], project['descr'], plugin_id, project['external_id'],
+                      source_uri, now, project['properties_json'])
+            if project_id is None:
+                cursor = conn.execute(
+                    'INSERT INTO PROJECTS(name,descr,plugin_id,external_id,source_uri,'
+                    'last_imported_at,needs_reload,properties_json) VALUES (?,?,?,?,?,?,0,?)', values)
+                project_id = cursor.lastrowid
+            else:
+                old = conn.execute('SELECT plugin_id FROM PROJECTS WHERE id=?', (project_id,)).fetchone()
+                if not old:
+                    raise DBError('Project no longer exists')
+                if old[0] not in (None, plugin_id):
+                    raise DBError('Switch the project plugin before importing with another plugin')
+                conn.execute('UPDATE PROJECTS SET name=?,descr=?,plugin_id=?,external_id=?,source_uri=?,'
+                             'last_imported_at=?,needs_reload=0,properties_json=? WHERE id=?', values + (project_id,))
+            for row in rows:
+                old = previous.pop(row['external_id'], None)
+                if old:
+                    if (any(row[key] != old[key] for key in REQUIREMENTS) or
+                            self._requirementProperties(row['properties_json']) !=
+                            self._requirementProperties(old['properties_json'])):
+                        conn.execute('UPDATE PROJECT_COMPONENT_MATCHES SET needs_review=1 WHERE component_id=?', (old['id'],))
+                    conn.execute('UPDATE PROJECT_COMPONENTS SET ' +
+                                 ', '.join(key + '=?' for key in COMPONENT_FIELDS) + ' WHERE id=?',
+                                 tuple(row[key] for key in COMPONENT_FIELDS) + (old['id'],))
+                else:
+                    conn.execute('INSERT INTO PROJECT_COMPONENTS(project_id, ' +
+                                 ', '.join(COMPONENT_FIELDS) + ') VALUES (' +
+                                 ', '.join('?' for _ in range(len(COMPONENT_FIELDS) + 1)) + ')',
+                                 (project_id,) + tuple(row[key] for key in COMPONENT_FIELDS))
+            for removed in previous.values():
+                conn.execute('DELETE FROM PROJECT_COMPONENTS WHERE id=?', (removed['id'],))
+        return project_id
+
+    def deleteImportedProject(self, project_id: int):
+        """Delete one project's positions, matches and legacy links; preserve stock cards."""
+        with self.transaction(foreign_keys=True):
+            self.db.execute('DELETE FROM EL_BY_PROJECT WHERE project_id=?', (project_id,))
+            self.db.execute('DELETE FROM PROJECTS WHERE id=?', (project_id,))
+
+    def loadProjectMatches(self, project_id: int) -> dict:
+        """Return confirmed stock matches keyed by component ID for an int project ID."""
+        rows = self.db.execute(
+            'SELECT m.component_id,m.part_id,m.needs_review,p.part_num '
+            'FROM PROJECT_COMPONENT_MATCHES m JOIN PROJECT_COMPONENTS c ON c.id=m.component_id '
+            'JOIN PARTS p ON p.id=m.part_id WHERE c.project_id=?', (project_id,)).fetchall()
+        return {row[0]: {'part_id': row[1], 'needs_review': row[2], 'part_num': row[3]} for row in rows}
+
+    def setProjectMatch(self, component_id: int, part_id=None):
+        """Confirm a match to an int stock ID, or delete it when part_id is None."""
+        with self.transaction(foreign_keys=True):
+            if part_id is None:
+                self.db.execute('DELETE FROM PROJECT_COMPONENT_MATCHES WHERE component_id=?', (component_id,))
+            else:
+                self.db.execute(
+                    'INSERT INTO PROJECT_COMPONENT_MATCHES(component_id,part_id,needs_review) VALUES (?,?,0) '
+                    'ON CONFLICT(component_id) DO UPDATE SET part_id=excluded.part_id,needs_review=0,'
+                    "matched_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')", (component_id, part_id))
+
+    @staticmethod
+    def _pluginValues(metadata: dict) -> tuple:
+        """Order a plugin metadata dict according to PLUGIN_COLUMNS; no DB operations."""
+        return tuple(metadata[key] for key in PLUGIN_COLUMNS)
+
+    def storePluginMetadata(self, metadata: dict):
+        """Upsert one validated PLUGINS record inside the caller's transaction; no commit."""
+        self.db.execute('INSERT INTO PLUGINS (' + ','.join(PLUGIN_COLUMNS) + ') VALUES (' +
+                             ','.join('?' for _ in PLUGIN_COLUMNS) + ') ON CONFLICT(id) DO UPDATE SET ' +
+                             ','.join(key + '=excluded.' + key for key in PLUGIN_COLUMNS if key != 'id'),
+                             self._pluginValues(metadata))
+
+    def deletePluginMetadata(self, plugin_id: str):
+        """Delete a PLUGINS metadata row by string ID; keep projects and do not commit."""
+        self.db.execute('DELETE FROM PLUGINS WHERE id=?', (plugin_id,))
+
+    def switchProjectPlugin(self, old_id: str, new_id: str):
+        """Switch linked projects between string plugin IDs and require reload; no commit."""
+        self.db.execute('UPDATE PROJECTS SET plugin_id=?,needs_reload=1 WHERE plugin_id=?', (new_id, old_id))
+
+    def syncPluginMetadata(self, records: list):
+        """Sync validated metadata dicts in the caller's transaction and flag changed installs."""
+        stored = {row[0]: row for row in self.db.execute('SELECT ' + ','.join(PLUGIN_COLUMNS) + ' FROM PLUGINS')}
+        for record in records:
+            old = stored.pop(record['id'], None)
+            values = self._pluginValues(record)
+            if old != values:
+                self.storePluginMetadata(record)
+                if old is None or any(old[index] != values[index] for index in (1, 3, 4, 5)):
+                    self.db.execute('UPDATE PROJECTS SET needs_reload=1 WHERE plugin_id=?', (record['id'],))
+        for plugin_id in stored:
+            self.deletePluginMetadata(plugin_id)
 
 
 class Type:
@@ -679,8 +865,8 @@ class Type:
             descendants.append(child)
             pending.extend(child.getChildren())
 
-        conn = self.scheme.db.conn
-        with conn:
+        conn = self.scheme.db
+        with conn.transaction():
             for child in descendants:
                 conn.execute("DELETE FROM HEADERS WHERE type_id = ?", (child.recId,))
                 conn.executemany(
@@ -791,7 +977,7 @@ class Types:
 
 def _migrate_to_2(scheme: DBScheme):
     """v2: HEADERS.position (visual column order, icon column first) and ENVIRONMENT defaults."""
-    columns = [row[1] for row in scheme.db.select_all("PRAGMA table_info(" + HEADER_TABLE_NAME + ");")]
+    columns = [row[1] for row in scheme.db.table_info(HEADER_TABLE_NAME)]
     if columns and "position" not in columns:
         scheme.db.exec("ALTER TABLE " + HEADER_TABLE_NAME + " ADD COLUMN position INTEGER;")
         for position, field_name in enumerate(defaultColumnOrder()):
@@ -803,45 +989,44 @@ def _migrate_to_2(scheme: DBScheme):
 
 def _migrate_to_3(scheme: DBScheme):
     """v3: TYPES.icon, the default part icon chosen for a section."""
-    columns = [row[1] for row in scheme.db.select_all("PRAGMA table_info(" + TYPES_TABLE_NAME + ");")]
+    columns = [row[1] for row in scheme.db.table_info(TYPES_TABLE_NAME)]
     if columns and "icon" not in columns:
         scheme.db.exec("ALTER TABLE " + TYPES_TABLE_NAME + " ADD COLUMN icon TEXT;")
 
 
 def _migrate_to_4(scheme: DBScheme):
     """v4: currency has TEXT affinity; preserve NULL and cast existing values."""
-    conn = scheme.db.conn
-    columns = conn.execute('PRAGMA table_info(PARTS)').fetchall()
+    conn = scheme.db
+    columns = conn.table_info('PARTS')
     currency = next(row for row in columns if row[1] == 'currency')
     if currency[2].upper() == 'TEXT':
         return
-    sql = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='PARTS'").fetchone()[0]
+    sql = conn.table_definition('PARTS')
     sql, count = re.subn(r'\bcurrency\s+TXT\b', 'currency TEXT', sql, flags=re.IGNORECASE)
     if count != 1:
         raise RuntimeError('Unexpected PARTS.currency declaration')
     create_sql = re.sub(r'^(CREATE\s+TABLE\s+)(?:"PARTS"|PARTS)\b',
                         r'\1PARTS_currency_v4', sql, count=1, flags=re.IGNORECASE)
-    objects = conn.execute("SELECT sql FROM sqlite_master WHERE tbl_name='PARTS' "
-                           "AND type IN ('index', 'trigger') AND sql IS NOT NULL").fetchall()
-    sequence = conn.execute("SELECT seq FROM sqlite_sequence WHERE name='PARTS'").fetchone()
+    objects = conn.schema_objects('PARTS')
+    sequence = conn.sequence_value('PARTS')
     names = ', '.join('"' + row[1].replace('"', '""') + '"' for row in columns)
     values = ', '.join('CAST(currency AS TEXT)' if row[1] == 'currency' else
                        '"' + row[1].replace('"', '""') + '"' for row in columns)
-    foreign_keys = conn.execute('PRAGMA foreign_keys').fetchone()[0]
+    foreign_keys = conn.get_foreign_keys()
     conn.commit()
-    conn.execute('PRAGMA foreign_keys=OFF')
+    conn.set_foreign_keys(False)
     try:
-        conn.execute('BEGIN IMMEDIATE')
-        existing_violations = set(conn.execute('PRAGMA foreign_key_check').fetchall())
+        conn.begin(immediate=True)
+        existing_violations = conn.foreign_key_violations()
         conn.execute(create_sql)
         conn.execute('INSERT INTO PARTS_currency_v4 (' + names + ') SELECT ' + values + ' FROM PARTS')
         conn.execute('DROP TABLE PARTS')
         conn.execute('ALTER TABLE PARTS_currency_v4 RENAME TO PARTS')
-        for (object_sql,) in objects:
+        for object_sql in objects:
             conn.execute(object_sql)
         if sequence is not None:
-            conn.execute("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name='PARTS'", sequence)
-        if set(conn.execute('PRAGMA foreign_key_check').fetchall()) - existing_violations:
+            conn.preserve_sequence('PARTS', sequence)
+        if conn.foreign_key_violations() - existing_violations:
             raise RuntimeError('Foreign key violations after currency migration')
         conn.execute("UPDATE ENVIRONMENT SET value='4' WHERE name=?", (ENV_DB_VERSION,))
         conn.commit()
@@ -849,7 +1034,7 @@ def _migrate_to_4(scheme: DBScheme):
         conn.rollback()
         raise
     finally:
-        conn.execute('PRAGMA foreign_keys=' + str(foreign_keys))
+        conn.set_foreign_keys(foreign_keys)
 
 
 def _legacyProjectUri(value, db_file):
@@ -864,19 +1049,18 @@ def _legacyProjectUri(value, db_file):
 
 def _migrate_to_5(scheme: DBScheme):
     """v5: URI-based projects, imported positions, and removable stock matches."""
-    conn = scheme.db.conn
+    conn = scheme.db
     conn.commit()
-    foreign_keys = conn.execute("PRAGMA foreign_keys;").fetchone()[0]
-    conn.execute("PRAGMA foreign_keys=OFF;")
+    foreign_keys = conn.get_foreign_keys()
+    conn.set_foreign_keys(False)
     try:
-        with conn:
-            conn.execute("BEGIN IMMEDIATE;")
-            violations = set(conn.execute("PRAGMA foreign_key_check;").fetchall())
-            columns = {row[1] for row in conn.execute("PRAGMA table_info(PROJECTS);")}
+        with conn.transaction():
+            conn.begin(immediate=True)
+            violations = conn.foreign_key_violations()
+            columns = {row[1] for row in conn.table_info('PROJECTS')}
             if "schematic_path" in columns:
-                objects = conn.execute("SELECT sql FROM sqlite_master WHERE tbl_name='PROJECTS' "
-                                       "AND type IN ('index', 'trigger') AND sql IS NOT NULL;").fetchall()
-                sequence = conn.execute("SELECT seq FROM sqlite_sequence WHERE name='PROJECTS';").fetchone()
+                objects = conn.schema_objects('PROJECTS')
+                sequence = conn.sequence_value('PROJECTS')
                 conn.execute(PROJECTS_TABLE_SQL.replace("PROJECTS (", "PROJECTS_v5 (", 1))
                 for project_id, name, description, path in conn.execute(
                         "SELECT id, name, descr, schematic_path FROM PROJECTS;").fetchall():
@@ -885,18 +1069,28 @@ def _migrate_to_5(scheme: DBScheme):
                 conn.execute("DROP TABLE PROJECTS;")
                 conn.execute("ALTER TABLE PROJECTS_v5 RENAME TO PROJECTS;")
                 if sequence is not None:
-                    conn.execute("UPDATE sqlite_sequence SET seq=MAX(seq, ?) WHERE name='PROJECTS';", sequence)
-                for (sql,) in objects:
+                    conn.preserve_sequence('PROJECTS', sequence)
+                for sql in objects:
                     conn.execute(sql)
             else:
                 conn.execute(PROJECTS_TABLE_SQL)
             _createProjectImportTables(conn)
-            if set(conn.execute("PRAGMA foreign_key_check;").fetchall()) - violations:
+            if conn.foreign_key_violations() - violations:
                 raise RuntimeError("Foreign key violations after project import migration")
             # The schema and version must commit together, without connector helpers.
             conn.execute("UPDATE ENVIRONMENT SET value='5' WHERE name=?;", (ENV_DB_VERSION,))
     finally:
-        conn.execute("PRAGMA foreign_keys=" + str(foreign_keys))
+        conn.set_foreign_keys(foreign_keys)
+
+
+def _migrate_to_6(scheme: DBScheme):
+    """v6: installed plugin metadata and its declared functional type."""
+    conn = scheme.db
+    conn.commit()
+    with conn.transaction():
+        conn.begin(immediate=True)
+        conn.execute(PLUGINS_TABLE_SQL)
+        conn.execute("UPDATE ENVIRONMENT SET value='6' WHERE name=?", (ENV_DB_VERSION,))
 
 
 MIGRATIONS = {
@@ -904,6 +1098,7 @@ MIGRATIONS = {
     3: _migrate_to_3,
     4: _migrate_to_4,
     5: _migrate_to_5,
+    6: _migrate_to_6,
 }
 
 
@@ -1330,7 +1525,7 @@ class DBFactory:
             if not self.isDB():
                 self.scheme.connect()
                 self.scheme.createTables()
-                self.scheme.db.conn.commit()
+                self.scheme.db.commit()
             else:
                 self.scheme.connect()
                 self.scheme.migrate()
@@ -1514,7 +1709,7 @@ class DBFactory:
         if icon is None or os.path.commonpath([iconsDir, icon]) != iconsDir or icon == iconsDir:
             return None
         # A file used as a document must survive, even when it is also this part's icon.
-        rows = self.scheme.db.conn.execute("SELECT uri FROM DATASHEETS;")
+        rows = self.scheme.db.execute("SELECT uri FROM DATASHEETS;")
         if any(localPath(row[0], self.dataPath) == icon for row in rows):
             return None
         return icon

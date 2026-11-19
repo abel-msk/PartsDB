@@ -15,19 +15,19 @@ from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QM
 
 import urllib.parse
 import ElConfig
-import ElDBScheme
+from ElData import ElDBScheme
 import ElLogger
 import ElTypesTree
 import constants
 from ElAppList import AppList
 from ElAppPathDialog import AppPathConfig
-from ElDBScheme import DBFactory, Type, Part, Document
+from ElData.ElDBScheme import DBFactory, Type, Part, Document
 from ElFileDialog import FileListW
 from ElHdrEditDialog import HeaderEditDialog
 from ElOpenFileDialog import OpenFileDialog
 from ElProjWindow import ProjWindow
 from ElPluginsDialog import PluginsDialog
-from ElProjectImports import ProjectImports
+from ElPluginMgr.ElProjectImports import ProjectImports
 from ElParts import Ui_MainWindow
 from ElPartsTable import PartsTableModel, TableView
 from ElProcess import ProcessFactory, Process
@@ -319,7 +319,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.languageActions[language] = action
 
     def onPlugins(self):
-        dialog = PluginsDialog(self, manager=self.projectImports.manager, conn=self.factory.scheme.db.conn)
+        dialog = PluginsDialog(self, manager=self.projectImports.manager, conn=self.factory.scheme)
         try:
             dialog.exec()
         finally:
@@ -584,6 +584,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.partsTable.setFactory(factory, iconsDir)
         self.factory = factory
         self.projWindow.setFactory(factory)
+        self.projectImports.refresh_plugins()
         ElDBScheme.DB_FACTORY = factory
         self.documentRoot = None
         self.searchStr.clear()
@@ -624,7 +625,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         except Exception as err:
             logger.exception("Can't create database %s", path)
-            if scheme is not None and scheme.db.isConnect():
+            if scheme is not None and scheme.isConnected():
                 scheme.disconnect()
                 scheme = None
             if created:
@@ -632,7 +633,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.critical(self, translate("PartsDB", 'Create new database'), translate("PartsDB", "Can't create database:\n{}\n\n{}").format(path, err))
             return
         finally:
-            if scheme is not None and scheme.db.isConnect():
+            if scheme is not None and scheme.isConnected():
                 scheme.disconnect()
 
         self.loadDB(path, ElDBScheme.DOC_TYPE_DEFAULT)

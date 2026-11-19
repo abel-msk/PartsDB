@@ -8,9 +8,10 @@ from PyQt6.QtWidgets import QDialog, QInputDialog, QMessageBox
 from ElImportPreview import ImportPreview
 from ElImportTask import run_import_task
 from ElOpenFileDialog import OpenFileDialog
-from ElPartsImport.manager import PluginManager
-from ElPartsImport.repository import ProjectRepository
-from ElPartsImport.runner import PluginRunner
+from .manager import PluginManager
+from .repository import ProjectRepository
+from .runner import PluginRunner
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT
 from ElPartsPluginApi.importers import ImportCancelled
 from ElTranslations import translate
 
@@ -33,12 +34,13 @@ class ProjectImports(QObject):
 
     def refresh_plugins(self):
         try:
+            self.manager.sync(self.window.factory.scheme)
             self.window.projWindow.projList.model.setPlugins(self.manager.metadata())
         except Exception as exc:
             self.window.statusbar.showMessage(str(exc))
 
     def choose_plugin(self):
-        plugins = [p for p in self.manager.list_plugins() if p.enabled]
+        plugins = [p for p in self.manager.list_plugins() if p.enabled and p.manifest.plugin_type == PLUGIN_TYPE_IMPORT]
         if not plugins:
             QMessageBox.information(self.window, translate('PluginWorkflow', 'Import project'),
                                     translate('PluginWorkflow', 'Install and enable an importer in Settings → Plugins first.'))
@@ -70,7 +72,7 @@ class ProjectImports(QObject):
 
     def reload(self, project):
         try:
-            plugin = self.manager.get(project.plugin_id) if project.plugin_id else self.choose_plugin()
+            plugin = self.manager.get(project.plugin_id, expected_type=PLUGIN_TYPE_IMPORT) if project.plugin_id else self.choose_plugin()
             if plugin:
                 self.import_source(plugin, project.source_uri, project.id)
         except Exception as exc:
@@ -83,7 +85,7 @@ class ProjectImports(QObject):
                                      PluginRunner().run(plugin, source_uri, cancel=cancel, on_event=emit))
             if self.window.factory is not factory:
                 raise RuntimeError('The active database changed during import')
-            repository = ProjectRepository(factory.scheme.db.conn)
+            repository = ProjectRepository(factory.scheme)
             changes = repository.changes(result, project_id)
             preview = ImportPreview(result, changes, self.window)
             accepted = preview.exec() == QDialog.DialogCode.Accepted
@@ -108,7 +110,7 @@ class ProjectImports(QObject):
                                 QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
         try:
-            ProjectRepository(self.window.factory.scheme.db.conn).delete(project.id)
+            ProjectRepository(self.window.factory.scheme).delete(project.id)
             self.window.projWindow.refresh()
         except Exception as exc:
             self.error(exc)

@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT, PLUGIN_TYPES
 from ElPartsPluginApi.importers import (
     ImportCancelled, InvalidSourceError, MissingSourceError, PluginError, UnsupportedFormatError,
 )
@@ -20,6 +21,9 @@ class PluginRunner:
         self.timeout = timeout
 
     def run(self, plugin, source_uri='', action='import', cancel=None, on_event=None):
+        expected_type = PLUGIN_TYPE_IMPORT if action == 'import' else plugin.manifest.plugin_type
+        if expected_type not in PLUGIN_TYPES or plugin.manifest.plugin_type != expected_type:
+            raise PluginError('Plugin type does not support project import')
         if not plugin.enabled:
             raise PluginError('Plugin is disabled')
         cancel = cancel or threading.Event()
@@ -27,7 +31,7 @@ class PluginRunner:
             raise ImportCancelled('Import cancelled')
         python = plugin.python
         request = {'protocol_version': PROTOCOL_VERSION, 'manifest': plugin.manifest.to_dict(),
-                   'action': action, 'source_uri': source_uri}
+                   'action': action, 'source_uri': source_uri, 'expected_type': expected_type}
         process = subprocess.Popen([str(python), '-X', 'utf8', '-I', str(plugin.path / 'runtime/worker.py')],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                    cwd=plugin.path, bufsize=0, start_new_session=os.name != 'nt')
@@ -91,6 +95,8 @@ class PluginRunner:
                     raise PluginError('Invalid worker protocol')
                 event_type = event.get('type')
                 if event_type == 'result':
+                    if event.get('plugin_type') != expected_type:
+                        raise PluginError('Worker returned a mismatched plugin type')
                     if received:
                         raise PluginError('Worker returned multiple results')
                     result = event['result']
@@ -120,7 +126,13 @@ class PluginRunner:
             if process.returncode or not received:
                 raise PluginError(f'Plugin exited without a valid result (code {process.returncode})')
             entries.append('Completed successfully')
-            return project_from_dict(result) if action == 'import' else validate_formats(result)
+            if action == 'import':
+                return project_from_dict(result)
+            if expected_type == PLUGIN_TYPE_IMPORT:
+                return validate_formats(result)
+            if result != []:
+                raise PluginError('Unexpected result for plugin type check')
+            return result
         except (OSError, KeyError, TypeError) as exc:
             raise PluginError(f'Worker communication failed: {exc}') from exc
         finally:

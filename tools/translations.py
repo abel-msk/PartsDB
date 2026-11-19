@@ -23,7 +23,10 @@ def messages():
     supports our explicit-context calls using ast.Constant, without patching PyQt.
     """
     result = set()
-    for path in sorted(ROOT.glob("*.py")):
+    # UI controllers also live in ElPluginMgr; plugin sources and tests are not scanned.
+    sources = (list(ROOT.glob("*.py")) + list((ROOT / "ElPluginMgr").rglob("*.py"))
+               + list((ROOT / "ElData").rglob("*.py")))
+    for path in sorted(sources):
         if path.name in ("resources.py", "ElParts.py", "ElAppPathWnd.py", "ElOpenFileWnd.py", "ElHdrEditWnd.py", "ElPluginsWnd.py"):
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):

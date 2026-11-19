@@ -1,5 +1,6 @@
 """Public project importer contract."""
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from ..plugin import Plugin
 from dataclasses import dataclass
 from typing import Optional
 
@@ -19,7 +20,7 @@ class ProbeResult:
     reason: Optional[str] = None
 
 
-class ProjectImporter(ABC):
+class ProjectImporter(Plugin):
     @abstractmethod
     def get_import_formats(self) -> list[ImportFormat]:
         raise NotImplementedError

@@ -16,8 +16,8 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import ElDBScheme
-from ElDBScheme import (DBScheme, DBFactory, Type, Header, Headers, HEADER_FIELDS, HEADER_FLD_NAMES,
+from ElData import ElDBScheme
+from ElData.ElDBScheme import (DBScheme, DBFactory, Type, Header, Headers, HEADER_FIELDS, HEADER_FLD_NAMES,
                         ELEMENT_FLD_NAMES, ICON_COLUMN_POSITION, defaultColumnOrder, defaultHeaderPosition,
                         DOC_TYPE_PDF, DOC_TYPE_PNG)
 

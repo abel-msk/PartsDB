@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QM
 
 import ElLogger
 import ElTypesTree
-from ElDBScheme import DBFactory, Type, Parts, Part, Documents, Document
+from ElData.ElDBScheme import DBFactory, Type, Parts, Part, Documents, Document
 import resources   ###  Do Not delete
 
 logger = ElLogger.setLogger(__name__)

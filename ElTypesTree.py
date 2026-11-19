@@ -11,7 +11,7 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem, QDropEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QMenu, QInputDialog, QMessageBox
 
 import ElLogger
-from ElDBScheme import DBFactory, Type, Types, Part
+from ElData.ElDBScheme import DBFactory, Type, Types, Part
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)

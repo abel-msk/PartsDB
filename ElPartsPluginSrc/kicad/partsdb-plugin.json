@@ -7,6 +7,9 @@
   "author": "PartsDB",
   "system_id": "kicad",
   "system_name": "KiCad",
-  "capabilities": ["project_import"],
-  "entry_point": "partsdb_kicad.plugin:KiCadImporter"
+  "capabilities": [
+    "project_import"
+  ],
+  "entry_point": "partsdb_kicad.plugin:KiCadImporter",
+  "plugin_type": "project_import"
 }

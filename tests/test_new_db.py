@@ -14,9 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 import constants
-import ElDBScheme
+from ElData import ElDBScheme
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 from ElMainWindow import MainWindow
 
 from tests.qt_support import application

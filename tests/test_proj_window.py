@@ -9,7 +9,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMainWindow
 
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 from ElParts import Ui_MainWindow
 from ElProjWindow import ProjWindow
 from tests.qt_support import application

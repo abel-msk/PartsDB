@@ -80,9 +80,9 @@ class PluginInstaller:
             source = Path(__file__).resolve().parent
             sdk = source.parent / 'ElPartsPluginApi'
             shutil.copytree(sdk, runtime / 'ElPartsPluginApi', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
-            (runtime / 'ElPartsImport').mkdir()
+            (runtime / 'ElPluginMgr').mkdir()
             for name in ('__init__.py', 'protocol.py'):
-                shutil.copyfile(source / name, runtime / 'ElPartsImport' / name)
+                shutil.copyfile(source / name, runtime / 'ElPluginMgr' / name)
             shutil.copyfile(source / 'worker.py', runtime / 'worker.py')
             PluginRunner().run(plugin, action='inspect')
             return plugin

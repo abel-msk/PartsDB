@@ -42,7 +42,7 @@ class TranslatedAction(QAction):
 
 def defaultHeaderText(header, field):
     """Translate built-in titles for display only; never translate user-defined DB content."""
-    from ElDBScheme import ELEMENT_FIELDS_DISPLAY
+    from ElData.ElDBScheme import ELEMENT_FIELDS_DISPLAY
     text = header["display"]
     return translate("PartsDB", text) if text == ELEMENT_FIELDS_DISPLAY.get(field) else text
 

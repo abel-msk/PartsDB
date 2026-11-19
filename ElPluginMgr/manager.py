@@ -1,17 +1,32 @@
 """Declarative registry and validated, reversible plugin lifecycle changes."""
-from contextlib import nullcontext
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import tempfile
 import os
 
+from ElData.ElDBScheme import DBError, DBScheme
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT
 from ElPartsPluginApi.importers import PluginError
 from ElPartsPluginApi.importers.manifest import PluginManifest
 from .installer import InstalledPlugin, PluginInstaller, inspect_wheel
 from .protocol import json_text
 
 
+def plugin_record(plugin):
+    """Flatten an InstalledPlugin into metadata fields without accessing the database."""
+    data = plugin.manifest.to_dict()
+    data.update(enabled=int(plugin.enabled), manifest_json=json_text(plugin.manifest.to_dict()))
+    return data
+
+
+def store_plugin(conn, plugin):
+    """Delegate metadata storage for an InstalledPlugin and DBScheme/borrowed connection."""
+    DBScheme.using(conn).storePluginMetadata(plugin_record(plugin))
+
+
 class PluginManager:
+    """Manage plugin installations and registry; holds paths and interpreter configuration."""
     def __init__(self, root=None, python=None):
         self.root = Path(root or Path.home() / '.elworks/plugins').expanduser().resolve()
         self.registry = self.root / 'plugins.json'
@@ -45,7 +60,11 @@ class PluginManager:
         plugins = []
         for plugin_id, record in self._records().items():
             try:
-                manifest = PluginManifest.from_dict(record['manifest'])
+                metadata = record['manifest']
+                # The earlier registry supported importers only. New wheels must declare their type.
+                if 'plugin_type' not in metadata and metadata.get('capabilities') == [PLUGIN_TYPE_IMPORT]:
+                    metadata = dict(metadata, plugin_type=PLUGIN_TYPE_IMPORT)
+                manifest = PluginManifest.from_dict(metadata)
                 path = (self.root / record['path']).resolve()
                 if manifest.id != plugin_id or path.parent != (self.root / '.installs').resolve():
                     raise PluginError('Invalid plugin installation path or ID')
@@ -59,10 +78,12 @@ class PluginManager:
                 raise PluginError('Invalid plugin registry record') from exc
         return sorted(plugins, key=lambda p: p.manifest.name.casefold())
 
-    def get(self, plugin_id, require_enabled=True):
+    def get(self, plugin_id, require_enabled=True, expected_type=None):
         plugin = next((p for p in self.list_plugins() if p.manifest.id == plugin_id), None)
         if plugin is None:
             raise PluginError(f'Plugin is not installed: {plugin_id}')
+        if expected_type is not None and plugin.manifest.plugin_type != expected_type:
+            raise PluginError(f'Plugin type does not match the requested operation: {plugin_id}')
         if require_enabled and not plugin.enabled:
             raise PluginError(f'Plugin is disabled: {plugin_id}')
         return plugin
@@ -76,10 +97,17 @@ class PluginManager:
         return inspect_wheel(filename)
 
     @staticmethod
+    @contextmanager
     def _connection(conn):
-        if conn is not None and conn.in_transaction:
-            raise PluginError('Finish the current database transaction before changing plugins')
-        return conn if conn is not None else nullcontext()
+        """Yield DBScheme transaction for a scheme/borrowed connection, or None for no DB."""
+        if conn is None:
+            yield None
+            return
+        try:
+            with DBScheme.using(conn).transaction() as database:
+                yield database
+        except DBError as exc:
+            raise PluginError(str(exc)) from exc
 
     def install(self, filename, conn=None, replace_id=None, prepare=None):
         """Validate candidate before registry/DB switch; preserve old install on failure."""
@@ -89,6 +117,8 @@ class PluginManager:
         old_plugin = self.get(old_id, require_enabled=False) if old_id in old_records else None
         if replace_id and old_plugin is None:
             raise PluginError('Replacement plugin is not installed')
+        if old_plugin and old_plugin.manifest.plugin_type != manifest.plugin_type:
+            raise PluginError('Replacement must have the same plugin type')
         if old_plugin and old_plugin.manifest.system_id != manifest.system_id:
             raise PluginError('Replacement must support the same external system')
         if replace_id and replace_id != manifest.id and manifest.id in old_records:
@@ -105,10 +135,13 @@ class PluginManager:
                                 'path': str(candidate.path.relative_to(self.root)), 'enabled': enabled}
         registry_written = False
         try:
-            with self._connection(conn):
-                if old_plugin and conn is not None:
-                    conn.execute('UPDATE PROJECTS SET plugin_id=?, needs_reload=1 WHERE plugin_id=?',
-                                 (manifest.id, old_id))
+            with self._connection(conn) as database:
+                if database is not None:
+                    store_plugin(database, InstalledPlugin(manifest, candidate.path, enabled))
+                    if old_plugin and old_id != manifest.id:
+                        database.deletePluginMetadata(old_id)
+                if old_plugin and database is not None:
+                    database.switchProjectPlugin(old_id, manifest.id)
                 self._write(updated)
                 registry_written = True
         except Exception:
@@ -124,22 +157,47 @@ class PluginManager:
                 pass
         return self.get(manifest.id, require_enabled=False)
 
-    def set_enabled(self, plugin_id, enabled):
-        self.get(plugin_id, require_enabled=False)
+    def _change_registry(self, records, conn, operation):
+        """Apply a records dict and callable(DBScheme) atomically with the optional DB."""
+        previous = self._records()
+        written = False
+        try:
+            with self._connection(conn) as database:
+                if database is not None:
+                    operation(database)
+                self._write(records)
+                written = True
+        except Exception:
+            if written:
+                self._write(previous)
+            raise
+
+    def set_enabled(self, plugin_id, enabled, conn=None):
+        """Set a string plugin ID's bool enabled state; conn is DBScheme/borrowed handle or None."""
+        plugin = self.get(plugin_id, require_enabled=False)
         records = self._records()
         records[plugin_id] = dict(records[plugin_id], enabled=bool(enabled))
-        self._write(records)
+        changed = InstalledPlugin(plugin.manifest, plugin.path, bool(enabled))
+        self._change_registry(records, conn, lambda connection: store_plugin(connection, changed))
 
-    def remove(self, plugin_id):
+    def remove(self, plugin_id, conn=None):
+        """Remove a string plugin ID; optional DBScheme/borrowed handle updates its metadata."""
         plugin = self.get(plugin_id, require_enabled=False)
         records = self._records()
         records.pop(plugin_id)
-        self._write(records)
+        self._change_registry(records, conn,
+                              lambda database: database.deletePluginMetadata(plugin_id))
         # Projects intentionally retain their plugin_id and last imported data.
         try:
             PluginInstaller(self.root, self.python).discard(plugin)
         except OSError:
             pass
+
+    def sync(self, conn):
+        """Sync installed metadata to a DBScheme/borrowed connection through its SQL layer."""
+        records = [plugin_record(plugin) for plugin in self.list_plugins()]
+        with self._connection(conn) as database:
+            database.syncPluginMetadata(records)
 
     def logs(self, plugin_id):
         plugin = self.get(plugin_id, require_enabled=False)

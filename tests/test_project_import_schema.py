@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import ElDBScheme as db
+from ElData import ElDBScheme as db
 
 
 class TestProjectImportSchema(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestProjectImportSchema(unittest.TestCase):
         self.assertTrue({'PROJECT_COMPONENTS', 'PROJECT_COMPONENT_MATCHES'} <= self.tables())
         self.assertTrue({'PROJECT_SOURCES', 'PROJECT_IMPORTS'}.isdisjoint(self.tables()))
         self.assertNotIn('sheet_path', self.columns('PROJECT_COMPONENTS'))
-        self.assertEqual(self.scheme.getDBVersion(), 5)
+        self.assertEqual(self.scheme.getDBVersion(), db.DB_VERSION)
 
     def test_defaults_unknown_fields_and_exact_nominal(self):
         self.seed()
@@ -143,7 +143,7 @@ class TestProjectImportSchema(unittest.TestCase):
         self.assertEqual(list(self.conn.iterdump()), before)
         self.assertEqual(self.conn.execute('PRAGMA foreign_keys').fetchone()[0], 1)
         self.scheme.migrate()
-        self.assertEqual(self.scheme.getDBVersion(), 5)
+        self.assertEqual(self.scheme.getDBVersion(), db.DB_VERSION)
 
 
 if __name__ == '__main__':

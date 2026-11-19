@@ -14,14 +14,15 @@ sys.path.insert(0, str(ROOT / 'ElPartsPluginSrc/kicad'))
 from PyQt6.QtWidgets import QDialog, QMessageBox, QFileDialog
 import zipfile
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 from ElMainWindow import MainWindow
 from ElImportPreview import ImportPreview
 from ElImportTask import run_import_task
 from ElPluginsDialog import PluginsDialog
-from ElPartsImport.installer import InstalledPlugin
-from ElPartsImport.manager import PluginManager
-from ElPartsImport.repository import ProjectRepository
+from ElPluginMgr.installer import InstalledPlugin
+from ElPluginMgr.manager import PluginManager
+from ElPluginMgr.repository import ProjectRepository
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER
 from ElPartsPluginApi.importers import ImportCancelled
 from ElPartsPluginApi.importers.manifest import PluginManifest
 from ElTranslations import LanguageManager
@@ -54,7 +55,7 @@ class PluginWorkflowTests(unittest.TestCase):
         self.addCleanup(self.window.languageManager.close)
 
     def test_import_preview_accept_writes_and_displays_all_components(self):
-        with mock.patch('ElProjectImports.PluginRunner.run', return_value=self.project), \
+        with mock.patch('ElPluginMgr.ElProjectImports.PluginRunner.run', return_value=self.project), \
                 mock.patch.object(ImportPreview, 'exec', return_value=QDialog.DialogCode.Accepted):
             project_id = self.controller.import_source(self.plugin, SOURCE.as_uri())
         self.assertIsNotNone(project_id)
@@ -63,19 +64,19 @@ class PluginWorkflowTests(unittest.TestCase):
         self.assertEqual(self.window.projWindow.project.id, project_id)
         before = ProjectRepository(self.conn).components(project_id)
         with mock.patch.object(self.controller.manager, 'get', return_value=self.plugin), \
-                mock.patch('ElProjectImports.PluginRunner.run', return_value=self.project), \
+                mock.patch('ElPluginMgr.ElProjectImports.PluginRunner.run', return_value=self.project), \
                 mock.patch.object(ImportPreview, 'exec', return_value=QDialog.DialogCode.Accepted):
             self.window.d_prj_reload_cmd.click()
         self.assertEqual(ProjectRepository(self.conn).components(project_id), before)
 
     def test_preview_reject_cancel_and_worker_error_keep_database_unchanged(self):
         before = list(self.conn.iterdump())
-        with mock.patch('ElProjectImports.PluginRunner.run', return_value=self.project), \
+        with mock.patch('ElPluginMgr.ElProjectImports.PluginRunner.run', return_value=self.project), \
                 mock.patch.object(ImportPreview, 'exec', return_value=QDialog.DialogCode.Rejected):
             self.assertIsNone(self.controller.import_source(self.plugin, SOURCE.as_uri()))
-        with mock.patch('ElProjectImports.PluginRunner.run', side_effect=ImportCancelled('cancelled')):
+        with mock.patch('ElPluginMgr.ElProjectImports.PluginRunner.run', side_effect=ImportCancelled('cancelled')):
             self.assertIsNone(self.controller.import_source(self.plugin, SOURCE.as_uri()))
-        with mock.patch('ElProjectImports.PluginRunner.run', side_effect=RuntimeError('failed')), \
+        with mock.patch('ElPluginMgr.ElProjectImports.PluginRunner.run', side_effect=RuntimeError('failed')), \
                 mock.patch.object(QMessageBox, 'critical') as error:
             self.assertIsNone(self.controller.import_source(self.plugin, SOURCE.as_uri()))
             error.assert_called_once()
@@ -125,7 +126,7 @@ class PluginWorkflowTests(unittest.TestCase):
             self.assertEqual(dialog.ui.pl_name.text(), MANIFEST.name)
             self.assertTrue(dialog.ui.pl_enable.isChecked())
             dialog.ui.pl_enable.click()
-            enable.assert_called_once_with(MANIFEST.id, False)
+            enable.assert_called_once_with(MANIFEST.id, False, self.conn)
 
     def test_install_from_file_and_remove_use_the_manager(self):
         manager = PluginManager(self.path / 'plugin-storage')
@@ -146,10 +147,25 @@ class PluginWorkflowTests(unittest.TestCase):
         self.assertEqual(manager.get(MANIFEST.id).manifest, MANIFEST)
         self.assertEqual(dialog.pluginsModel.rowCount(), 1)
         self.assertEqual(dialog.ui.pl_name.text(), MANIFEST.name)
+        self.assertIn('Project import', dialog.ui.pl_type.text())
+        self.assertEqual(self.conn.execute('SELECT plugin_type FROM PLUGINS').fetchone(), (PLUGIN_TYPE_IMPORT,))
         with mock.patch.object(QMessageBox, 'question', return_value=QMessageBox.StandardButton.Yes):
             dialog.ui.pl_delete.click()
         self.assertEqual(manager.list_plugins(), [])
         self.assertFalse(candidate.path.exists())
+        self.assertEqual(self.conn.execute('SELECT count(*) FROM PLUGINS').fetchone(), (0,))
+
+    def test_project_import_chooser_filters_other_plugin_types(self):
+        other_manifest = PluginManifest.from_dict(dict(MANIFEST.to_dict(),
+            id='example.order', plugin_type=PLUGIN_TYPE_PARTS_ORDER, capabilities=[PLUGIN_TYPE_PARTS_ORDER]))
+        other = InstalledPlugin(other_manifest, self.path / 'other')
+        with mock.patch.object(self.controller.manager, 'list_plugins', return_value=[other, self.plugin]):
+            self.assertEqual(self.controller.choose_plugin(), self.plugin)
+        before = list(self.conn.iterdump())
+        with mock.patch.object(QMessageBox, 'critical') as error:
+            self.assertIsNone(self.controller.import_source(other, SOURCE.as_uri()))
+            error.assert_called_once()
+        self.assertEqual(list(self.conn.iterdump()), before)
 
     def test_background_work_uses_another_thread(self):
         owner = threading.get_ident()

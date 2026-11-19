@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory, DOC_TYPE_PDF, PartInProjectsError
+from ElData.ElDBScheme import DBFactory, DOC_TYPE_PDF, PartInProjectsError
 from ElMainWindow import MainWindow
 from ElTranslations import translate
 
@@ -154,7 +154,7 @@ class TestDeletePart(unittest.TestCase):
         self.assertTrue(self.doc.exists())
 
     def test_icon_remove_failure_warns_after_deleting_database_records(self):
-        with mock.patch("ElDBScheme.os.remove", side_effect=PermissionError("read-only")), \
+        with mock.patch("ElData.ElDBScheme.os.remove", side_effect=PermissionError("read-only")), \
                 mock.patch.object(QMessageBox, "warning") as warning:
             self.confirm()
         warning.assert_called_once()

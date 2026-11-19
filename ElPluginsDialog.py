@@ -5,9 +5,9 @@ from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from ElPluginsWnd import Ui_Dialog
 from ElTranslations import TranslatedDialogMixin, translate
-from ElWindowTexts import pluginsDialogTexts, pluginLogsTexts
-from ElPartsImport.installer import PluginInstaller
-from ElPartsImport.manager import PluginManager
+from ElWindowTexts import pluginsDialogTexts, pluginLogsTexts, pluginTypeText
+from ElPluginMgr.installer import PluginInstaller
+from ElPluginMgr.manager import PluginManager
 from ElImportTask import run_import_task
 
 
@@ -45,7 +45,7 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         try:
             plugins = self.manager.list_plugins()
             for plugin in plugins:
-                item = QStandardItem(plugin.manifest.name)
+                item = QStandardItem(f'{plugin.manifest.name} — {pluginTypeText(plugin.manifest.plugin_type)}')
                 item.setData(plugin, Qt.ItemDataRole.UserRole)
                 self.pluginsModel.appendRow(item)
                 if plugin.manifest.id == selected_id:
@@ -65,7 +65,7 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             self.ui.pl_name.setText(manifest.name)
             self.ui.pl_descr.setText(manifest.description)
             self.ui.pl_author.setText(manifest.author)
-            self.ui.pl_type.setText(manifest.system_name)
+            self.ui.pl_type.setText(f'{pluginTypeText(manifest.plugin_type)} ({manifest.system_name})')
             self.ui.pl_version.setText(manifest.version)
         else:
             self.ui.pl_name.setText(translate('PluginsDialog', 'Select a plugin'))
@@ -83,7 +83,7 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         try:
             manifest = self.manager.inspect(filename)
             info = '\n'.join((manifest.name, manifest.description, manifest.author,
-                              manifest.system_name, manifest.version))
+                              manifest.system_name, pluginTypeText(manifest.plugin_type), manifest.version))
             if QMessageBox.question(self, translate('PluginWorkflow', 'Install plugin'), info,
                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                     QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
@@ -91,7 +91,8 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             # Offer an explicit same-system replacement; keeping both is also supported.
             replacement = None
             existing = self.manager.list_plugins()
-            same_system = [p for p in existing if p.manifest.system_id == manifest.system_id]
+            same_system = [p for p in existing if p.manifest.system_id == manifest.system_id
+                           and p.manifest.plugin_type == manifest.plugin_type]
             if not any(p.manifest.id == manifest.id for p in existing) and same_system:
                 from PyQt6.QtWidgets import QInputDialog
                 keep = translate('PluginWorkflow', 'Install alongside existing plugins')
@@ -127,7 +128,7 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
                                 QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
         try:
-            self.manager.remove(plugin.manifest.id)
+            self.manager.remove(plugin.manifest.id, self.conn)
             self.refresh()
             self.ui.pl_status.setText(translate('PluginWorkflow', 'Plugin removed'))
         except Exception as exc:
@@ -137,7 +138,7 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         plugin = self.selected()
         if plugin:
             try:
-                self.manager.set_enabled(plugin.manifest.id, enabled)
+                self.manager.set_enabled(plugin.manifest.id, enabled, self.conn)
                 self.refresh(plugin.manifest.id)
             except Exception as exc:
                 self.error(exc)
@@ -163,4 +164,8 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
 
     def retranslate(self):
         pluginsDialogTexts(self)
+        for row in range(self.pluginsModel.rowCount()):
+            item = self.pluginsModel.item(row)
+            plugin = item.data(Qt.ItemDataRole.UserRole)
+            item.setText(f'{plugin.manifest.name} — {pluginTypeText(plugin.manifest.plugin_type)}')
         self.onSelection()

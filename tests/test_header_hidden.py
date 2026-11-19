@@ -11,7 +11,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 
 
 class TestHeaderPartialSave(unittest.TestCase):

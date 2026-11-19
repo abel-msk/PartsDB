@@ -11,11 +11,12 @@ import importlib
 import json
 import traceback
 
+from ElPartsPluginApi import Plugin, PLUGIN_TYPE_IMPORT, PLUGIN_TYPES
 from ElPartsPluginApi.importers import PluginError, ProjectImporter
 from ElPartsPluginApi.importers.context import ImportContext
 from ElPartsPluginApi.importers.manifest import PluginManifest
-from ElPartsImport.protocol import (PROTOCOL_VERSION, MAX_MESSAGE_BYTES, json_text,
-                                    project_to_dict, validate_formats)
+from ElPluginMgr.protocol import (PROTOCOL_VERSION, MAX_MESSAGE_BYTES, json_text,
+                                  project_to_dict, validate_formats)
 
 
 def emit(event):
@@ -39,19 +40,28 @@ def main():
         module, name = manifest.entry_point.split(':')
         with redirect_stdout(sys.stderr):
             cls = getattr(importlib.import_module(module), name)
-            if not isinstance(cls, type) or not issubclass(cls, ProjectImporter):
-                raise PluginError('Entry point must implement ProjectImporter')
+            if not isinstance(cls, type) or not issubclass(cls, Plugin):
+                raise PluginError('Entry point must implement Plugin')
             importer = cls()
+            actual_type = importer.get_plugin_type()
+            if (not isinstance(actual_type, str) or actual_type not in PLUGIN_TYPES or actual_type != manifest.plugin_type
+                    or actual_type != request.get('expected_type')):
+                raise PluginError('Plugin type does not match the manifest or requested operation')
+            if isinstance(importer, ProjectImporter) != (actual_type == PLUGIN_TYPE_IMPORT):
+                raise PluginError('ProjectImporter must declare the project import type')
             importer.context = ImportContext(emit=emit)
             if request['action'] == 'inspect':
-                result = validate_formats([asdict(f) for f in importer.get_import_formats()])
+                result = (validate_formats([asdict(f) for f in importer.get_import_formats()])
+                          if actual_type == PLUGIN_TYPE_IMPORT else [])
             elif request['action'] == 'import':
+                if actual_type != PLUGIN_TYPE_IMPORT:
+                    raise PluginError('Expected an import plugin')
                 importer.context.progress(0, None, 'Reading project')
                 result = project_to_dict(importer.import_project(request['source_uri']))
                 importer.context.progress(1, 1, 'Project read')
             else:
                 raise PluginError('Unknown worker action')
-        emit({'type': 'result', 'result': result})
+        emit({'type': 'result', 'result': result, 'plugin_type': actual_type})
         return 0
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)

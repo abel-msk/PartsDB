@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
-import ElDBScheme
-from ElDBScheme import DBFactory, Type
+from ElData import ElDBScheme
+from ElData.ElDBScheme import DBFactory, Type
 from ElPartsTable import PartsTableModel
 
 TYPE_NAME = "NewType"

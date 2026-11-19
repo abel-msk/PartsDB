@@ -7,7 +7,7 @@ import sys
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-import ElDBScheme
+from ElData import ElDBScheme
 import ElLogger
 
 # logger = logging.getLogger(__name__)

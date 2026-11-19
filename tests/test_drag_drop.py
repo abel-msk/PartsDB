@@ -34,11 +34,11 @@ from tests.qt_support import application
 
 app = application()
 
-import ElDBScheme
+from ElData import ElDBScheme
 import ElMainWindow
 import ElPartsTable
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 from ElMainWindow import MainWindow
 from ElPartsTable import ICON_COLUMN
 

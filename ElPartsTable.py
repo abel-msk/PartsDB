@@ -12,9 +12,9 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor, QFont, QMouse
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QHeaderView, QMenu, QInputDialog, QAbstractItemView, QMessageBox, \
     QListWidget
 
-import ElDBScheme
+from ElData import ElDBScheme
 import ElLogger
-from ElDBScheme import DBFactory, Type, Types, Parts, Part, Document
+from ElData.ElDBScheme import DBFactory, Type, Types, Parts, Part, Document
 from ElHdrEditDialog import HeaderEditDialog
 from ElIconListWidget import IconsListWidget
 from ElIconDelegate import IconCellDelegate

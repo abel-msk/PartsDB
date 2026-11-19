@@ -8,7 +8,7 @@ from unittest import mock
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory, ELEMENT_FLD_NAMES, HEADER_FLD_NAMES
+from ElData.ElDBScheme import DBFactory, ELEMENT_FLD_NAMES, HEADER_FLD_NAMES
 from ElMainWindow import MainWindow
 from tests.qt_support import application
 

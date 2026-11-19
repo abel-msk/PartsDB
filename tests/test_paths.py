@@ -16,9 +16,9 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import QApplication
 
 import constants
-import ElDBScheme
+from ElData import ElDBScheme
 from ElConfig import ElConfig
-from ElDBScheme import DBFactory, ENV_ICONS_PATH, DEFAULT_ICONS_DIR
+from ElData.ElDBScheme import DBFactory, ENV_ICONS_PATH, DEFAULT_ICONS_DIR
 from ElIconDelegate import IconCellDelegate
 from main import checkDataPath
 

@@ -143,3 +143,15 @@ def projectMatchTexts(link, clear):
 
 def pluginLogsTexts(window):
     window.setWindowTitle(translate('PluginWorkflow', 'Plugin logs'))
+
+
+def pluginTypeText(plugin_type):
+    from ElPartsPluginApi.constants import (
+        PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING,
+    )
+    names = {
+        PLUGIN_TYPE_IMPORT: translate('PluginWorkflow', 'Project import'),
+        PLUGIN_TYPE_PARTS_ORDER: translate('PluginWorkflow', 'Parts ordering'),
+        PLUGIN_TYPE_SHIPMENT_TRACKING: translate('PluginWorkflow', 'Shipment tracking'),
+    }
+    return names.get(plugin_type, plugin_type)

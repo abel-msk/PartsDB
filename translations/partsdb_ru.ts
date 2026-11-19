@@ -833,6 +833,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>На плате</translation>
     </message>
     <message>
+      <source>Parts ordering</source>
+      <translation>Заказ деталей</translation>
+    </message>
+    <message>
       <source>Plugin error</source>
       <translation>Ошибка плагина</translation>
     </message>
@@ -859,6 +863,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Preparing plugin environment...</source>
       <translation>Подготовка окружения плагина…</translation>
+    </message>
+    <message>
+      <source>Project import</source>
+      <translation>Импорт проектов</translation>
     </message>
     <message>
       <source>Reading project...</source>
@@ -895,6 +903,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Save</source>
       <translation>Сохранить</translation>
+    </message>
+    <message>
+      <source>Shipment tracking</source>
+      <translation>Отслеживание посылок</translation>
     </message>
     <message>
       <source>Stock match</source>

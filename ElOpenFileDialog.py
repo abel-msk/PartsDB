@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, QDir, QModelIndex, QObject, pyqtSignal
 from PyQt6.QtGui import QFileSystemModel, QKeyEvent
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog
 
-import ElDBScheme
+from ElData import ElDBScheme
 import ElLogger
 from ElAppList import AppList, AppDef
 from ElAppPathWnd import Ui_AppPathDialog

@@ -840,6 +840,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>On board</translation>
     </message>
     <message>
+      <source>Parts ordering</source>
+      <translation>Parts ordering</translation>
+    </message>
+    <message>
       <source>Plugin error</source>
       <translation>Plugin error</translation>
     </message>
@@ -866,6 +870,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Preparing plugin environment...</source>
       <translation>Preparing plugin environment...</translation>
+    </message>
+    <message>
+      <source>Project import</source>
+      <translation>Project import</translation>
     </message>
     <message>
       <source>Reading project...</source>
@@ -902,6 +910,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Save</source>
       <translation>Save</translation>
+    </message>
+    <message>
+      <source>Shipment tracking</source>
+      <translation>Shipment tracking</translation>
     </message>
     <message>
       <source>Stock match</source>

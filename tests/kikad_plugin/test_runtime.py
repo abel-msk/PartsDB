@@ -15,14 +15,15 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'ElPartsPluginSrc/kicad'))
 
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory, PLUGINS_TABLE_SQL
+from ElPartsPluginApi import (PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING)
 from ElPartsPluginApi.importers import ImportedComponent, ImportedProject, ImportCancelled, PluginError
 from ElPartsPluginApi.importers.manifest import PluginManifest
-from ElPartsImport.installer import InstalledPlugin, PluginInstaller, inspect_wheel
-from ElPartsImport.manager import PluginManager
-from ElPartsImport.protocol import project_from_dict, project_to_dict
-from ElPartsImport.repository import ProjectRepository
-from ElPartsImport.runner import PluginRunner
+from ElPluginMgr.installer import InstalledPlugin, PluginInstaller, inspect_wheel
+from ElPluginMgr.manager import PluginManager
+from ElPluginMgr.protocol import project_from_dict, project_to_dict
+from ElPluginMgr.repository import ProjectRepository
+from ElPluginMgr.runner import PluginRunner
 from partsdb_kicad import KiCadImporter
 
 SOURCE = ROOT / 'tests/input/SMHome_UniversalRound_ESP32_C3_Mini_v4/SMHome_UniversalRound_ESP32_C3_Mini_v4.kicad_pro'
@@ -157,6 +158,7 @@ class ManagerTests(unittest.TestCase):
         self.manager = PluginManager(self.root / 'plugins')
         self.conn = sqlite3.connect(':memory:')
         self.addCleanup(self.conn.close)
+        self.conn.execute(PLUGINS_TABLE_SQL)
         self.conn.execute('CREATE TABLE PROJECTS(id INTEGER PRIMARY KEY, plugin_id TEXT, needs_reload INTEGER)')
         with self.conn:
             self.conn.execute('INSERT INTO PROJECTS VALUES(1,?,0)', (MANIFEST['id'],))
@@ -219,6 +221,42 @@ class ManagerTests(unittest.TestCase):
         self.assertFalse((self.manager.root / '.installs/2').exists())
         self.assertEqual(self.conn.execute('SELECT needs_reload FROM PROJECTS').fetchone(), (0,))
 
+    def test_type_is_saved_and_synced_in_sqlite(self):
+        plugin = self.install()
+        self.assertEqual(self.conn.execute('SELECT id,plugin_type FROM PLUGINS').fetchall(),
+                         [(plugin.manifest.id, PLUGIN_TYPE_IMPORT)])
+        self.manager.set_enabled(plugin.manifest.id, False, self.conn)
+        self.assertEqual(self.conn.execute('SELECT enabled FROM PLUGINS').fetchone(), (0,))
+        self.manager.set_enabled(plugin.manifest.id, True)
+        self.manager.sync(self.conn)
+        self.assertEqual(self.conn.execute('SELECT enabled FROM PLUGINS').fetchone(), (1,))
+        self.manager.remove(plugin.manifest.id, self.conn)
+        self.assertEqual(self.conn.execute('SELECT count(*) FROM PLUGINS').fetchone(), (0,))
+        self.assertEqual(self.conn.execute('SELECT count(*) FROM PROJECTS').fetchone(), (1,))
+
+    def test_replacement_cannot_change_type_even_for_the_same_system(self):
+        old = self.install()
+        before = self.manager.registry.read_bytes()
+        snapshot = list(self.conn.iterdump())
+        with mock.patch.object(self, 'prepare') as prepare:
+            with self.assertRaisesRegex(PluginError, 'same plugin type'):
+                self.manager.install(self.wheel(plugin_type=PLUGIN_TYPE_PARTS_ORDER,
+                                               capabilities=[PLUGIN_TYPE_PARTS_ORDER]),
+                                     self.conn, prepare=prepare)
+            prepare.assert_not_called()
+        self.assertEqual(self.manager.registry.read_bytes(), before)
+        self.assertEqual(list(self.conn.iterdump()), snapshot)
+        self.assertTrue(old.path.exists())
+
+    def test_unknown_type_is_not_installed_or_saved(self):
+        with mock.patch.object(self, 'prepare') as prepare:
+            with self.assertRaisesRegex(PluginError, 'Unsupported plugin type'):
+                self.manager.install(self.wheel(plugin_type='unknown', capabilities=['unknown']),
+                                     self.conn, prepare=prepare)
+            prepare.assert_not_called()
+        self.assertFalse(self.manager.registry.exists())
+        self.assertEqual(self.conn.execute('SELECT count(*) FROM PLUGINS').fetchone(), (0,))
+
     def test_unsupported_manifest_does_not_execute_or_install(self):
         with self.assertRaises(PluginError):
             self.install(api_version=999)
@@ -238,18 +276,21 @@ class WorkerTests(unittest.TestCase):
         runtime = self.path / 'runtime'
         runtime.mkdir()
         shutil.copytree(ROOT / 'ElPartsPluginApi', runtime / 'ElPartsPluginApi', ignore=shutil.ignore_patterns('__pycache__'))
-        (runtime / 'ElPartsImport').mkdir()
+        (runtime / 'ElPluginMgr').mkdir()
         for name in ('__init__.py', 'protocol.py'):
-            shutil.copyfile(ROOT / 'ElPartsImport' / name, runtime / 'ElPartsImport' / name)
-        shutil.copyfile(ROOT / 'ElPartsImport/worker.py', runtime / 'worker.py')
+            shutil.copyfile(ROOT / 'ElPluginMgr' / name, runtime / 'ElPluginMgr' / name)
+        shutil.copyfile(ROOT / 'ElPluginMgr/worker.py', runtime / 'worker.py')
         self.plugin = InstalledPlugin(PluginManifest.from_dict(dict(MANIFEST, entry_point='test_plugin:Importer')), self.path)
         self.plugin.python.parent.mkdir(parents=True)
         self.plugin.python.symlink_to(Path(sys.executable).resolve())
 
     def code(self, body):
         (self.path / 'runtime/test_plugin.py').write_text('''
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT
 from ElPartsPluginApi.importers import ProjectImporter, ImportFormat, ProbeResult, ImportedProject
 class Importer(ProjectImporter):
+    def get_plugin_type(self):
+        return PLUGIN_TYPE_IMPORT
     def get_import_formats(self):
         return [ImportFormat('test', 'Test', ['.test'])]
     def probe(self, source_uri):
@@ -273,6 +314,34 @@ class Importer(ProjectImporter):
             with self.assertRaises(PluginError):
                 PluginRunner().run(self.plugin)
 
+    def test_runtime_type_mismatch_is_rejected_before_project_import(self):
+        marker = self.path / 'import-was-called'
+        self.code(f'from pathlib import Path\nPath({str(marker)!r}).touch()\nreturn ImportedProject("Test")')
+        module = self.path / 'runtime/test_plugin.py'
+        module.write_text(module.read_text().replace('return PLUGIN_TYPE_IMPORT', "return 'parts_order'"))
+        with self.assertRaisesRegex(PluginError, 'Plugin type does not match'):
+            PluginRunner().run(self.plugin)
+        self.assertFalse(marker.exists())
+
+    def test_other_plugin_types_can_be_checked_but_cannot_import_projects(self):
+        module = self.path / 'runtime/test_plugin.py'
+        for plugin_type in (PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING):
+            with self.subTest(plugin_type=plugin_type):
+                metadata = dict(MANIFEST, plugin_type=plugin_type, capabilities=[plugin_type],
+                                entry_point='test_plugin:Importer')
+                plugin = InstalledPlugin(PluginManifest.from_dict(metadata), self.path)
+                module.write_text('from ElPartsPluginApi import Plugin\n'
+                                  'class Importer(Plugin):\n'
+                                  '    def get_plugin_type(self):\n'
+                                  f'        return {plugin_type!r}\n')
+                # Remove bytecode so rewriting this test module with a same-sized type is deterministic.
+                shutil.rmtree(self.path / 'runtime/__pycache__', ignore_errors=True)
+                self.assertEqual(PluginRunner().run(plugin, action='inspect'), [])
+                with mock.patch('ElPluginMgr.runner.subprocess.Popen') as start:
+                    with self.assertRaisesRegex(PluginError, 'does not support project import'):
+                        PluginRunner().run(plugin)
+                    start.assert_not_called()
+
     def test_timeout_and_cancellation_stop_the_worker(self):
         self.code('import time\ntime.sleep(30)\nreturn ImportedProject("Test")')
         with self.assertRaisesRegex(PluginError, 'timed out'):
@@ -290,21 +359,42 @@ class WheelEndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder)
             wheels = path / 'wheels'
-            subprocess.run([sys.executable, '-m', 'pip', 'wheel', '--no-deps', '--no-index',
-                            '--no-cache-dir', '--no-build-isolation', '--wheel-dir', str(wheels),
-                            str(ROOT / 'ElPartsPluginSrc/kicad')], check=True, capture_output=True, text=True, timeout=60)
+            self.build_wheel(ROOT / 'ElPartsPluginSrc/kicad', wheels)
             manager = PluginManager(path / 'plugins')
-            plugin = manager.install(next(wheels.glob('*.whl')))
-            result = PluginRunner().run(plugin, SOURCE.as_uri())
-            self.assertEqual(len(result.components), 49)
             database = DBFactory(str(path / 'import.sqlite'))
             try:
-                repository = ProjectRepository(database.scheme.db.conn)
+                conn = database.scheme.db.conn
+                plugin = manager.install(next(wheels.glob('*.whl')), conn)
+                self.assertEqual(conn.execute('SELECT plugin_type FROM PLUGINS').fetchone(), (PLUGIN_TYPE_IMPORT,))
+                result = PluginRunner().run(plugin, SOURCE.as_uri())
+                self.assertEqual(len(result.components), 49)
+                repository = ProjectRepository(conn)
                 project_id = repository.save(result, plugin.manifest.id, SOURCE.as_uri())
                 self.assertEqual(len(repository.components(project_id)), 49)
                 self.assertEqual(repository.save(result, plugin.manifest.id, SOURCE.as_uri(), project_id), project_id)
+                self.assertEqual(result, KiCadImporter().import_project(SOURCE.as_uri()))
+                self.assertEqual(PluginRunner().run(plugin, action='inspect')[0]['extensions'],
+                                 ['.kicad_pro', '.kicad_sch'])
+                # A wheel whose code lies about the declared type must not replace a good install.
+                bad_source = path / 'bad-source'
+                shutil.copytree(ROOT / 'ElPartsPluginSrc/kicad', bad_source,
+                                ignore=shutil.ignore_patterns('build', '*.egg-info', '__pycache__'))
+                code = bad_source / 'partsdb_kicad/plugin.py'
+                code.write_text(code.read_text().replace('return PLUGIN_TYPE_IMPORT', "return 'parts_order'"))
+                bad_wheels = path / 'bad-wheels'
+                self.build_wheel(bad_source, bad_wheels)
+                before = list(conn.iterdump())
+                registry = manager.registry.read_bytes()
+                with self.assertRaisesRegex(PluginError, 'Plugin type does not match'):
+                    manager.install(next(bad_wheels.glob('*.whl')), conn)
+                self.assertEqual(list(conn.iterdump()), before)
+                self.assertEqual(manager.registry.read_bytes(), registry)
+                self.assertEqual(list((manager.root / '.installs').iterdir()), [plugin.path])
             finally:
                 database.disconnect()
-            self.assertEqual(result, KiCadImporter().import_project(SOURCE.as_uri()))
-            self.assertEqual(PluginRunner().run(plugin, action='inspect')[0]['extensions'],
-                             ['.kicad_pro', '.kicad_sch'])
+
+    @staticmethod
+    def build_wheel(source, wheels):
+        subprocess.run([sys.executable, '-m', 'pip', 'wheel', '--no-deps', '--no-index',
+                        '--no-cache-dir', '--no-build-isolation', '--wheel-dir', str(wheels),
+                        str(source)], check=True, capture_output=True, text=True, timeout=60)

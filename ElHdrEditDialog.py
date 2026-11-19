@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QDialog, QHeaderView, QMessageBox
 from PyQt6 import QtCore, QtWidgets
 import logging
 import sys
-import ElDBScheme
+from ElData import ElDBScheme
 import ElDefaultIcons
 import ElLogger
 from ElHdrEditWnd import Ui_HdrEditDialog

@@ -2,7 +2,7 @@ import os
 from asyncio import events
 from unittest import TestCase
 
-from ElDBScheme import DBFactory, Types
+from ElData.ElDBScheme import DBFactory, Types
 
 DBNAME = "./test_db.sqlite"
 EL_NAME1 = "Диод"

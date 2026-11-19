@@ -8,11 +8,11 @@ import traceback
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
-import ElDBScheme
+from ElData import ElDBScheme
 import ElLogger
 import constants
 from ElConfig import ElConfig
-from ElDBScheme import DBScheme, DBFactory
+from ElData.ElDBScheme import DBScheme, DBFactory
 from ElMainWindow import MainWindow
 
 # logger = logging.getLogger(__name__)

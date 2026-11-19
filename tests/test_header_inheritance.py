@@ -5,7 +5,7 @@ import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from ElDBScheme import DBFactory, ELEMENT_FIELDS_DISPLAY, defaultHeaderPosition
+from ElData.ElDBScheme import DBFactory, ELEMENT_FIELDS_DISPLAY, defaultHeaderPosition
 from ElPartsTable import PartsTableModel, TableView
 from PyQt6.QtWidgets import QTableView, QListWidget
 from tests.qt_support import application
@@ -74,7 +74,7 @@ class TestHeaderInheritance(unittest.TestCase):
         documents = QListWidget()
         table = TableView(self.factory, widget, documents)
         table.loadData(self.child)
-        import ElDBScheme
+        from ElData import ElDBScheme
         value_column = ElDBScheme.ELEMENT_FLD_NAMES.index("value") - 2
         name_column = ElDBScheme.ELEMENT_FLD_NAMES.index("part_num") - 2
         self.assertTrue(widget.isColumnHidden(value_column))

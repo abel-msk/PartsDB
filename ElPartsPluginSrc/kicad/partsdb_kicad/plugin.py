@@ -10,6 +10,7 @@ from ElPartsPluginApi.importers import (
     MissingSourceError, Nominal, PluginError, ProbeResult, ProjectImporter,
     UnsupportedFormatError,
 )
+from ElPartsPluginApi import PLUGIN_TYPE_IMPORT
 from ElPartsPluginApi.importers import ImportContext
 from .sexpr import children, first, parse, properties, value
 
@@ -111,6 +112,9 @@ def _nominal(raw, kind):
 
 
 class KiCadImporter(ProjectImporter):
+    def get_plugin_type(self) -> str:
+        return PLUGIN_TYPE_IMPORT
+
     def get_import_formats(self):
         return [ImportFormat('kicad', 'KiCad project', ['.kicad_pro', '.kicad_sch'])]
 

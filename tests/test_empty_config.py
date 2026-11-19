@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PyQt6.QtWidgets import QApplication
 
 import constants
-import ElDBScheme
+from ElData import ElDBScheme
 import main
 from ElConfig import ElConfig
 from ElMainWindow import MainWindow

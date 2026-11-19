@@ -76,10 +76,8 @@ class DefaultPartIcons:
         self._sectionCache = {}  # type_id -> section path tuple
 
     def _loadTypes(self):
-        db = self.factory.scheme.db
-        columns = [row[1] for row in db.select_all("PRAGMA table_info(TYPES);")]
-        iconCol = "icon" if "icon" in columns else "NULL"
-        rows = db.select_all("SELECT id, name, parent_id, " + iconCol + " FROM TYPES;")
+        """Refresh cached section/icon rows through DBScheme; no explicit parameters."""
+        rows = self.factory.scheme.loadIconTypeRows()
         self._types = {row[0]: (row[1], row[2]) for row in rows}
         self._typeIcons = {row[0]: row[3] for row in rows if row[3]}
         self._sectionCache = {}

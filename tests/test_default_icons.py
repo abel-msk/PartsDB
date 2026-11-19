@@ -16,7 +16,7 @@ from PyQt6.QtCore import QFile, Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import QApplication
 
-from ElDBScheme import DBFactory
+from ElData.ElDBScheme import DBFactory
 from ElDefaultIcons import DefaultPartIcons, SECTION_ICONS, RESOURCE_TEMPLATE, FALLBACK_ICON, mountingOf, SMD, THT, \
     availableIcons
 from ElIconDelegate import IconCellDelegate

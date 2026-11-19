@@ -7,3 +7,9 @@ CONFIG_LANGUAGE = "language"  # system, en or ru; interface only, never database
 CONFIG_STARTUP_MODE = "startup_mode"
 LOG_LEVEL = "log_level"
 LOG_FILE = "log_file"
+
+
+# Defined by the public SDK so plugins and the host use the same identifiers.
+from ElPartsPluginApi.constants import (
+    PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING, PLUGIN_TYPES,
+)
