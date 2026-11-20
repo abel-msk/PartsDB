@@ -1,9 +1,10 @@
 """Loading and selection of projects in the main window's proj_list."""
 from dataclasses import dataclass
+from ElTwoLineDelegate import TwoLineDelegate
+from ElConstants import SUBTITLE_ROLE
 
-from PyQt6.QtCore import QAbstractListModel, QModelIndex, QObject, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPalette
-from PyQt6.QtWidgets import QApplication, QAbstractItemView, QStyledItemDelegate, QStyle, QStyleOptionViewItem
+from PyQt6.QtCore import QAbstractListModel, QModelIndex, QObject, Qt, pyqtSignal
+from PyQt6.QtWidgets import QAbstractItemView
 
 
 @dataclass(frozen=True)
@@ -25,7 +26,7 @@ class ProjectListModel(QAbstractListModel):
     plugins maps plugin IDs to metadata dictionaries with optional type/name.
     Missing plugins deliberately have no subtitle, even if DB data remains.
     """
-    TypeRole = Qt.ItemDataRole.UserRole + 1
+    TypeRole = SUBTITLE_ROLE
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -66,53 +67,8 @@ class ProjectListModel(QAbstractListModel):
                                   [self.TypeRole])
 
 
-class ProjectListDelegate(QStyledItemDelegate):
-    Margin = 6
-    Gap = 2
-
-    @staticmethod
-    def fonts(option):
-        title = QFont(option.font)
-        title.setPixelSize(16)
-        subtitle = QFont(option.font)
-        subtitle.setPixelSize(10)
-        return title, subtitle
-
-    def sizeHint(self, option, index):
-        title, subtitle = self.fonts(option)
-        height = (QFontMetrics(title).height() + QFontMetrics(subtitle).height()
-                  + self.Gap + 2 * self.Margin)
-        return QSize(0, height)
-
-    def paint(self, painter, option, index):
-        opt = QStyleOptionViewItem(option)
-        self.initStyleOption(opt, index)
-        opt.text = ''
-        style = opt.widget.style() if opt.widget else QApplication.style()
-        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, opt.widget)
-        title, subtitle = self.fonts(opt)
-        rect = opt.rect.adjusted(self.Margin, self.Margin, -self.Margin, -self.Margin)
-        painter.save()
-        painter.setClipRect(opt.rect)
-        painter.setFont(title)
-        selected = bool(opt.state & QStyle.StateFlag.State_Selected)
-        painter.setPen(opt.palette.color(QPalette.ColorRole.HighlightedText
-                                        if selected else QPalette.ColorRole.Text))
-        title_height = QFontMetrics(title).height()
-        title_rect = rect.adjusted(0, 0, 0, 0)
-        title_rect.setHeight(title_height)
-        painter.drawText(title_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                         QFontMetrics(title).elidedText(index.data() or '',
-                                                       Qt.TextElideMode.ElideRight, rect.width()))
-        painter.setFont(subtitle)
-        painter.setPen(QColor('gray'))
-        rect.setTop(rect.top() + title_height + self.Gap)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                         QFontMetrics(subtitle).elidedText(
-                             index.data(ProjectListModel.TypeRole) or '',
-                             Qt.TextElideMode.ElideRight, rect.width()))
-        painter.restore()
-
+# Compatibility name for existing users of the project delegate.
+ProjectListDelegate = TwoLineDelegate
 
 class ProjList(QObject):
     projectSelected = pyqtSignal(object)
@@ -122,7 +78,7 @@ class ProjList(QObject):
         self.factory = factory
         self.view = view
         self.model = ProjectListModel(self)
-        self.delegate = ProjectListDelegate(view)
+        self.delegate = ProjectListDelegate(view, getattr(view.window(), "config", None))
         view.setItemDelegate(self.delegate)
         view.setModel(self.model)
         view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

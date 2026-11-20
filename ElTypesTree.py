@@ -11,6 +11,10 @@ from PyQt6.QtGui import QStandardItemModel, QStandardItem, QDropEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QMenu, QInputDialog, QMessageBox
 
 import ElLogger
+from ElCatalogDialogs import SectionDialog
+from ElTwoLineDelegate import TwoLineDelegate
+from ElConstants import SUBTITLE_ROLE
+from ElData import ElDBDataParts
 from ElData.ElDBScheme import DBFactory, Type, Types, Part
 
 # logger = logging.getLogger(__name__)
@@ -39,6 +43,8 @@ class TypesTree(QtCore.QObject):
         self.treeWidget: QTreeView = treeWidget
         self.treeModel = QStandardItemModel()
         self.treeWidget.setModel(self.treeModel)
+        self.treeWidget.setItemDelegate(TwoLineDelegate(treeWidget, getattr(treeWidget.window(), "config", None)))
+        self.treeWidget.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
         # self.rootNode = self.treeModel.invisibleRootItem()
         self.rootNode: QStandardItem = None
 
@@ -179,6 +185,7 @@ class TypesTree(QtCore.QObject):
         for theType in types_list:
             childNode = QStandardItem(theType.name)
             childNode.setData(theType, Qt.ItemDataRole.UserRole)
+            childNode.setData(ElDBDataParts.basicTypeName(self.dbFactory, theType), SUBTITLE_ROLE)
 
             # Check for children.
             if theType.isChildren():
@@ -186,12 +193,24 @@ class TypesTree(QtCore.QObject):
             node.appendRow(childNode)
 
     def add(self):
-        logger.debug("Add menu clicked.")
-        name = self.getInput()
-        if name.strip() != "":
-            self._add(name)
+        """Add a sibling section, inheriting its parent's basic type; takes no parameters."""
+        selected = self.getSelectedIndex()
+        parent = selected.parent() if selected is not None else QModelIndex()
+        parent_type = parent.data(Qt.ItemDataRole.UserRole)
+        result = self.sectionInput(parent_type=parent_type)
+        if result:
+            self._add(result[0], parent, result[1])
 
-    def _add(self, name, parentIndex: QModelIndex = None):
+    def sectionInput(self, section=None, parent_type=None):
+        """Collect a name and reference. @param section, parent_type [Type, None] editing/default context."""
+        context = section or parent_type
+        dialog = SectionDialog(self.treeWidget, ElDBDataParts.basicTypes(self.dbFactory),
+                               section.name if section else '', context.basic_type_id if context else 1)
+        if dialog.exec() == SectionDialog.DialogCode.Accepted:
+            return dialog.nameEdit.text().strip(), dialog.typeCombo.currentData()
+        return None
+
+    def _add(self, name, parentIndex: QModelIndex = None, basic_type_id=None):
         if name == "":
             raise ValueError("Type name cannot be empty.")
         if parentIndex is None:
@@ -204,16 +223,18 @@ class TypesTree(QtCore.QObject):
 
         # parentItem: QStandardItem = neighborItem.parent() if neighborItem.parent() is not None else self.rootNode
         # parentType: Type = parentItem.data(Qt.ItemDataRole.UserRole)
-        return self._addChild(name, parentIndex)
+        return self._addChild(name, parentIndex, basic_type_id)
 
     def addChild(self):
-        logger.debug("Add child menu clicked.")
-        index: QModelIndex = self.treeWidget.selectedIndexes()[0]
-        name = self.getInput()
-        if name.strip() != "":
-            self._addChild(name, index)
+        """Add beneath the selected section; takes no parameters."""
+        index = self.getSelectedIndex()
+        if index is None:
+            return
+        result = self.sectionInput(parent_type=index.data(Qt.ItemDataRole.UserRole))
+        if result:
+            self._addChild(result[0], index, result[1])
 
-    def _addChild(self, name, parentIndex: QModelIndex ):
+    def _addChild(self, name, parentIndex: QModelIndex, basic_type_id=None):
         if name == "":
             raise ValueError("Type name cannot be empty.")
         parentType: Type = parentIndex.data(Qt.ItemDataRole.UserRole)
@@ -221,9 +242,10 @@ class TypesTree(QtCore.QObject):
         if parentItem is None:
             parentItem = self.rootNode
 
-        newType = self.dbFactory.appendType(name, parentType)
+        newType = self.dbFactory.appendType(name, parentType, basic_type_id)
         childItem = QStandardItem(newType.name)
         childItem.setData(newType, Qt.ItemDataRole.UserRole)
+        childItem.setData(ElDBDataParts.basicTypeName(self.dbFactory, newType), SUBTITLE_ROLE)
         parentItem.appendRow(childItem)
         self.treeModel.sort(0, Qt.SortOrder.AscendingOrder)
         return newType
@@ -236,11 +258,18 @@ class TypesTree(QtCore.QObject):
             self.treeModel.sort(0, Qt.SortOrder.AscendingOrder)
 
     def rename(self):
-        logger.debug("Delete menu clicked.")
-        index: QModelIndex = self.treeWidget.selectedIndexes()[0]
-        name = self.getInput()
-        if name.strip() != "":
-            self._rename(name)
+        """Edit selected section name and basic type; takes no parameters."""
+        index = self.getSelectedIndex()
+        if index is None:
+            return
+        section = index.data(Qt.ItemDataRole.UserRole)
+        result = self.sectionInput(section=section)
+        if result:
+            ElDBDataParts.setBasicType(section, result[1])
+            item = self.treeModel.itemFromIndex(index)
+            item.setData(ElDBDataParts.basicTypeName(self.dbFactory, section), SUBTITLE_ROLE)
+            self._rename(result[0])
+            self.comm.typeSelect.emit(section, None)
 
     def _rename(self, value):
         if value == "":

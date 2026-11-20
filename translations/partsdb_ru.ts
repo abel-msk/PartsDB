@@ -164,8 +164,20 @@ p, li { white-space: pre-wrap; }
       <translation>Склад электронных компонентов</translation>
     </message>
     <message>
+      <source>Imported by</source>
+      <translation>Импортировано с помощью</translation>
+    </message>
+    <message>
+      <source>LInk Part</source>
+      <translation>Сопоставить деталь</translation>
+    </message>
+    <message>
       <source>Last Import</source>
       <translation>Последний импорт</translation>
+    </message>
+    <message>
+      <source>Open App</source>
+      <translation>Открыть приложение</translation>
     </message>
     <message>
       <source>Parts not in store</source>
@@ -186,6 +198,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Propagate Header</source>
       <translation>Копировать колонки</translation>
+    </message>
+    <message>
+      <source>Refresh date</source>
+      <translation>Дата обновления</translation>
     </message>
     <message>
       <source>Reload Data</source>
@@ -320,6 +336,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Auto (from parent section / built-in rule)</source>
       <translation>Автоматически (из родительского раздела / по правилу)</translation>
+    </message>
+    <message>
+      <source>Basic type:</source>
+      <translation>Базовый тип:</translation>
     </message>
     <message>
       <source>Can't create database:
@@ -476,10 +496,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Введите название</translation>
     </message>
     <message>
-      <source>Enter Part number</source>
-      <translation>Введите название или партномер</translation>
-    </message>
-    <message>
       <source>Enter application name</source>
       <translation>Введите название приложения</translation>
     </message>
@@ -490,6 +506,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Enter new name column</source>
       <translation>Введите новое название колонки</translation>
+    </message>
+    <message>
+      <source>Enter part nominal</source>
+      <translation>Введите номинал детали</translation>
     </message>
     <message>
       <source>Enter section name:</source>
@@ -538,6 +558,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Is Present</source>
       <translation>В наличии</translation>
+    </message>
+    <message>
+      <source>Key value</source>
+      <translation>Ключевое значение</translation>
     </message>
     <message>
       <source>Language</source>
@@ -656,8 +680,20 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Сохранить изменения колонок и иконки текущего раздела?</translation>
     </message>
     <message>
+      <source>Section</source>
+      <translation>Секция</translation>
+    </message>
+    <message>
+      <source>Section name:</source>
+      <translation>Название секции:</translation>
+    </message>
+    <message>
       <source>Select Document</source>
       <translation>Выберите документ</translation>
+    </message>
+    <message>
+      <source>Select at least one key column.</source>
+      <translation>Выберите хотя бы одну ключевую колонку.</translation>
     </message>
     <message>
       <source>Setup</source>

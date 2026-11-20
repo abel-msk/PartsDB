@@ -171,8 +171,20 @@ p, li { white-space: pre-wrap; }
       <translation>Electronic parts workbench</translation>
     </message>
     <message>
+      <source>Imported by</source>
+      <translation>Imported by</translation>
+    </message>
+    <message>
+      <source>LInk Part</source>
+      <translation>LInk Part</translation>
+    </message>
+    <message>
       <source>Last Import</source>
       <translation>Last Import</translation>
+    </message>
+    <message>
+      <source>Open App</source>
+      <translation>Open App</translation>
     </message>
     <message>
       <source>Parts not in store</source>
@@ -193,6 +205,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Propagate Header</source>
       <translation>Propagate Header</translation>
+    </message>
+    <message>
+      <source>Refresh date</source>
+      <translation>Refresh date</translation>
     </message>
     <message>
       <source>Reload Data</source>
@@ -327,6 +343,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Auto (from parent section / built-in rule)</source>
       <translation>Auto (from parent section / built-in rule)</translation>
+    </message>
+    <message>
+      <source>Basic type:</source>
+      <translation>Basic type:</translation>
     </message>
     <message>
       <source>Can't create database:
@@ -483,10 +503,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Enter Name</translation>
     </message>
     <message>
-      <source>Enter Part number</source>
-      <translation>Enter Part number</translation>
-    </message>
-    <message>
       <source>Enter application name</source>
       <translation>Enter application name</translation>
     </message>
@@ -497,6 +513,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Enter new name column</source>
       <translation>Enter new name column</translation>
+    </message>
+    <message>
+      <source>Enter part nominal</source>
+      <translation>Enter part nominal</translation>
     </message>
     <message>
       <source>Enter section name:</source>
@@ -545,6 +565,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Is Present</source>
       <translation>Is Present</translation>
+    </message>
+    <message>
+      <source>Key value</source>
+      <translation>Key value</translation>
     </message>
     <message>
       <source>Language</source>
@@ -663,8 +687,20 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Save header and icon changes for the current type?</translation>
     </message>
     <message>
+      <source>Section</source>
+      <translation>Section</translation>
+    </message>
+    <message>
+      <source>Section name:</source>
+      <translation>Section name:</translation>
+    </message>
+    <message>
       <source>Select Document</source>
       <translation>Select Document</translation>
+    </message>
+    <message>
+      <source>Select at least one key column.</source>
+      <translation>Select at least one key column.</translation>
     </message>
     <message>
       <source>Setup</source>

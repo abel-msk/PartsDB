@@ -43,6 +43,7 @@ COLUMNS_DICT = {
     "field_name": "TEXT",
     "display": "TEXT",
     "hidden": "BOOL",
+    "is_key": "BOOL",
     "sort": "BOOL",
     "align": "TEXT"
 }
@@ -149,6 +150,7 @@ class HeaderTableModel(QtCore.QAbstractTableModel):
                 labels = {"field_name": QT_TRANSLATE_NOOP("PartsDB", "Field"),
                           "display": QT_TRANSLATE_NOOP("PartsDB", "Title"),
                           "hidden": QT_TRANSLATE_NOOP("PartsDB", "Hidden"),
+                          "is_key": QT_TRANSLATE_NOOP("PartsDB", "Key value"),
                           "sort": QT_TRANSLATE_NOOP("PartsDB", "Sortable"),
                           "align": QT_TRANSLATE_NOOP("PartsDB", "Alignment")}
                 return translate("PartsDB", labels[self.columnsList[section]])
@@ -201,7 +203,8 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
         self.header.setStretchLastSection(True)
         self.ui.headersTbl.setHorizontalHeader(self.header)
 
-        self.ui.buttonBox.accepted.connect(self.onSave)
+        self.ui.buttonBox.accepted.disconnect()
+        self.ui.buttonBox.accepted.connect(self.accept)
 
         self.currentTypeId = None
         self.pendingIcon = None  # icon chosen for the current type but not saved yet ('' = auto)
@@ -301,7 +304,12 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
                 combo.blockSignals(False)
                 return
             if answer == QMessageBox.StandardButton.Save:
-                self.onSave()
+                if not self.onSave():
+                    combo = self.ui.typesList
+                    combo.blockSignals(True)
+                    combo.setCurrentIndex(combo.findData(self.currentTypeId))
+                    combo.blockSignals(False)
+                    return
         self._load(typeId)
 
     def _load(self, typeId):
@@ -324,8 +332,18 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
         combo.blockSignals(False)
         self._load(combo.itemData(index))
 
+    def accept(self):
+        """Validate keys and save before closing; takes no parameters."""
+        if self.onSave():
+            super().accept()
+
     def onSave(self):
         logger.debug("Save button pressed.")
+        key_column = self.tableModel.columnsList.index('is_key')
+        if self.tableModel.rows and not any(row[key_column][TBL_VAL] for row in self.tableModel.dataAr):
+            QMessageBox.warning(self, translate('PartsDB', 'Key value'),
+                                translate('PartsDB', 'Select at least one key column.'))
+            return False
 
         if self.pendingIcon is not None and self.currentTypeId is not None:
             self.factory.scheme.setTypeIcon(self.currentTypeId, self.pendingIcon)
@@ -347,3 +365,4 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
                 hdrObj.save()
                 logger.debug("Header %s saved.", hdrObj["display"])
                 self.comm.tblUpdateRequest.emit(hdrObj)
+        return True

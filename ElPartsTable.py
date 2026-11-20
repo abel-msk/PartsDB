@@ -16,6 +16,8 @@ from ElData import ElDBScheme
 import ElLogger
 from ElData.ElDBScheme import DBFactory, Type, Types, Parts, Part, Document
 from ElHdrEditDialog import HeaderEditDialog
+from ElCatalogDialogs import PartValuesDialog
+from ElData import ElDBDataParts
 from ElIconListWidget import IconsListWidget
 from ElIconDelegate import IconCellDelegate
 from ElDefaultIcons import DefaultPartIcons
@@ -253,7 +255,8 @@ class PartsTableModel(QtCore.QAbstractTableModel):
 
         elif role == Qt.ItemDataRole.FontRole:
             font = QFont()
-            font.setBold(True)
+            font.setBold(bool(self.headers[DB_COLUMNS[section + 2]]["is_key"])
+                         if orientation == Qt.Orientation.Horizontal else False)
             font.setPixelSize(12)
             return QVariant(font)
 
@@ -857,13 +860,25 @@ class TableView(QtCore.QObject):
 
     def addRow(self):
         theType = self.tableModel.theType
-        logger.debug("Add new part for Type=%s(%s)", theType.name, theType.recId)
-        value, ok = QInputDialog.getText(self.tableView, translate("PartsDB", 'Add part'), translate("PartsDB", 'Enter Part number'))
-        if ok and value:
-            el = {}
-            el["part_num"] = value
-            thePart = self.factory.createPart(theType, el)
+        if theType is None:
+            return
+        dialog = PartValuesDialog(self.tableView, ElDBDataParts.keyHeaders(theType))
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            thePart = ElDBDataParts.createPart(self.factory, theType, dialog.values())
             self.tableModel.appendRow(thePart)
+            column = self.header.sortIndicatorSection()
+            if column >= 0:
+                self.tableModel.sort(column, self.header.sortIndicatorOrder())
+            row = next(row for row, part in enumerate(self.tableModel.parts.partsAr)
+                       if part.id == thePart.id)
+            column = next((self.header.logicalIndex(visual)
+                           for visual in range(self.header.count())
+                           if not self.header.isSectionHidden(self.header.logicalIndex(visual))), 0)
+            index = self.tableModel.index(row, column)
+            self.tableView.selectionModel().setCurrentIndex(
+                index, QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect
+                | QtCore.QItemSelectionModel.SelectionFlag.Rows)
+            self.tableView.scrollTo(index, QAbstractItemView.ScrollHint.EnsureVisible)
 
     def deleteRow(self):
         selection = self.tableView.selectionModel()

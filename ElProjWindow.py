@@ -4,6 +4,8 @@ from PyQt6.QtGui import QStandardItem, QStandardItemModel
 from PyQt6.QtWidgets import QAbstractItemView, QMenu, QMessageBox
 
 from ElProjList import ProjList
+from ElProjectTableLayout import ProjectTableLayout
+from ElConstants import PROJECT_TABLE_ALL, PROJECT_TABLE_UNMATCHED
 from ElWindowTexts import projWindowTexts, componentHeaders, projectMatchTexts
 from ElTranslations import translate
 from ElPluginMgr.repository import ProjectRepository
@@ -26,17 +28,21 @@ class ProjWindow(QObject):
         self.unmatchedModel = QStandardItemModel(self)
         window.tableView_2.setModel(self.unmatchedModel)
         window.tableView_2.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tableLayouts = [ProjectTableLayout(window.prj_parts_all, factory, PROJECT_TABLE_ALL),
+                             ProjectTableLayout(window.tableView_2, factory, PROJECT_TABLE_UNMATCHED)]
         self.projList = ProjList(factory, window.proj_list)
         self.projList.projectSelected.connect(self.onProjectSelected)
         window.proj_add_cmd.clicked.connect(self.onAddProject)
         window.proj_remove_cmd.clicked.connect(self.onRemoveProject)
         window.d_prj_reload_cmd.clicked.connect(self.onReloadProject)
-        for label in (window.d_proj_name, window.d_proj_descr, window.d_proj_omp_date):
+        for label in (window.d_proj_name, window.d_proj_descr, window.d_proj_imp_date):
             label.setTextFormat(Qt.TextFormat.PlainText)
         self.retranslate()
         self.projList.load()
 
     def setFactory(self, factory):
+        for layout in self.tableLayouts:
+            layout.setFactory(factory)
         self.projList.setFactory(factory)
 
     def refresh(self):
@@ -54,7 +60,7 @@ class ProjWindow(QObject):
         self.project = project
         self.ui.d_proj_name.setText((project.name or project.source_uri or str(project.id)) if project else '')
         self.ui.d_proj_descr.setText((project.descr or '') if project else '')
-        self.ui.d_proj_omp_date.setText((project.last_imported_at or '--') if project else '--')
+        self.ui.d_proj_imp_date.setText((project.last_imported_at or '--') if project else '--')
         if load_components:
             self.loadComponents(project)
         self.ui.det_frm.setEnabled(project is not None)
@@ -88,10 +94,13 @@ class ProjWindow(QObject):
                           f"{match['part_id']}: {match['part_num'] or ''}" if match else '',
                           str(match['needs_review']) if match else '']
                 items = [QStandardItem(value) for value in values]
-                items[0].setData(row['id'], Qt.ItemDataRole.UserRole)
+                # items[0].setData(row['id'], Qt.ItemDataRole.UserRole)
                 self.componentsModel.appendRow(items)
                 if not match:
                     self.unmatchedModel.appendRow([QStandardItem(value) for value in values])
+
+        for layout in self.tableLayouts:
+            layout.schedule()
 
     def matchMenu(self, position):
         index = self.ui.prj_parts_all.indexAt(position)

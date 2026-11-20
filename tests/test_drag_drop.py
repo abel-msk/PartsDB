@@ -451,6 +451,8 @@ class TestPartsToTree(DBTestCase):
         part = self.partAt(0)
         tree = self.window.types_tree_view
         tree.collapseAll()
+        # Two-line rows can fill the old viewport: reserve an actual empty area.
+        tree.setFixedHeight(tree.sizeHintForRow(0) * tree.model().rowCount() + 60)
         processEvents()
         QCursor.setPos(tree.viewport().mapToGlobal(QPoint(10, tree.viewport().height() - 5)))
         self.dropAtCursor()

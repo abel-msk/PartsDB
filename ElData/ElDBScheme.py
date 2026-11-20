@@ -115,12 +115,47 @@ PROJECT_COMPONENT_MATCHES_TABLE = "PROJECT_COMPONENT_MATCHES"
 EL_BY_PROJECT_TABLE = "EL_BY_PROJECT"
 ENVIRONMENT_TABLE = "ENVIRONMENT"
 
+# Reference designators: https://klc.kicad.org/symbol/s6/s6.1/
+# IDs remain stable across new databases and migrations; icon is reserved for later use.
+BASIC_TYPE_ROWS = (
+    (1, 'Miscellaneous', ''), (2, 'Capacitor', 'C'), (3, 'Resistor', 'R'),
+    (4, 'Transistor', 'Q'), (5, 'Diode', 'D'), (6, 'Integrated circuit', 'U'),
+    (7, 'Inductor', 'L'), (8, 'Transformer', 'T'), (9, 'Relay', 'K'),
+    (10, 'Switch', 'SW'), (11, 'Jack', 'J'), (12, 'Plug', 'P'),
+    (13, 'Battery', 'BT'), (14, 'Fuse', 'F'), (15, 'Ferrite bead', 'FB'),
+    (16, 'Filter', 'FL'), (17, 'Display', 'DS'), (18, 'Loudspeaker or buzzer', 'LS'),
+    (19, 'Motor', 'M'), (20, 'Microphone', 'MK'), (21, 'Antenna', 'AE'),
+    (22, 'Jumper', 'JP'), (23, 'Resistor network', 'RN'), (24, 'Thermistor', 'RT'),
+    (25, 'Varistor', 'RV'), (26, 'Thermocouple', 'TC'), (27, 'Test point', 'TP'),
+    (28, 'Crystal or oscillator', 'Y'), (29, 'Zener diode', 'Z'),
+    (30, 'Sub-assembly or module', 'A'), (31, 'Hardware', 'H'),
+    (32, 'Fiducial', 'FD'), (33, 'Thermal jumper', 'TJ'),
+)
+BASIC_TYPES_TABLE_SQL = (
+    "CREATE TABLE IF NOT EXISTS BASIC_TYPES (id INTEGER PRIMARY KEY, "
+    "name TEXT NOT NULL UNIQUE, designator TEXT NOT NULL, icon TEXT);")
+PROJECT_COLUMN_WIDTHS_SQL = (
+    "CREATE TABLE IF NOT EXISTS PROJECT_COLUMN_WIDTHS ("
+    "table_name TEXT NOT NULL, field_name TEXT NOT NULL, width INTEGER NOT NULL CHECK(width > 0), "
+    "PRIMARY KEY(table_name, field_name));")
+BASIC_TYPE_ALIASES = {
+    'конденсатор': 2, 'конденсаторы': 2, 'резистор': 3, 'резисторы': 3,
+    'транзистор': 4, 'транзистр': 4, 'транзисторы': 4, 'диод': 5, 'диоды': 5,
+    'микросхемы': 6, 'чипы': 6, 'дроссель': 7, 'индуктивности': 7,
+    'трансформатор': 8, 'трансформаторы': 8, 'реле': 9,
+    'разъем': 11, 'разъём': 11, 'коннекторы': 11, 'разъемы': 11,
+    'предохранители': 14, 'варистор': 25, 'варисторы': 25,
+    'стабилитрон': 29, 'стабилитроны': 29,
+}
+
+
 TYPES_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + TYPES_TABLE_NAME + " (" \
                                                                      "id INTEGER PRIMARY KEY AUTOINCREMENT," \
                                                                      "name TEXT NOT NULL," \
                                                                      "path TEXT," \
                                                                      "parent_id INTEGER DEFAULT 0," \
-                                                                     "icon TEXT" \
+                                                                     "icon TEXT," \
+                                                                     "basic_type_id INTEGER NOT NULL DEFAULT 1 REFERENCES BASIC_TYPES(id)" \
                                                                      ");"
 
 HEADER_FIELDS = {
@@ -133,7 +168,8 @@ HEADER_FIELDS = {
     "sort": "BOOLEAN",
     "display": "TEXT",
     "width": "INTEGER",
-    "position": "INTEGER"  # Visual column position in the parts table
+    "position": "INTEGER",  # Visual column position in the parts table
+    "is_key": "BOOLEAN"  # NULL resolves the basic-type default; 0/1 is an explicit setting
 }
 
 HEADER_FLD_NAMES = list(HEADER_FIELDS.keys())
@@ -281,7 +317,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 6
+DB_VERSION = 7
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -318,7 +354,10 @@ class DBScheme:
 
     def createTables(self):
         if self.db.isConnect():
-            # Create Types table
+            # Create reference data before sections.
+            self.db.exec(BASIC_TYPES_TABLE_SQL)
+            self.db.executemany("INSERT OR IGNORE INTO BASIC_TYPES(id,name,designator) VALUES(?,?,?)", BASIC_TYPE_ROWS)
+            self.db.exec(PROJECT_COLUMN_WIDTHS_SQL)
             self.db.exec(TYPES_TABLE_SQL)
             self.db.exec(HEADER_TABLE_SQL)
             self.db.exec(GET_PARTS_TABLE_SQL())
@@ -395,7 +434,7 @@ class DBScheme:
     def loadTypes(self, parent_id: int = 0):
         if self.db.isConnect():
             curr = self.db.select(
-                "SELECT id,name,path,parent_id FROM " + TYPES_TABLE_NAME + " WHERE parent_id = '" + str(parent_id) + "' ORDER BY name;")
+                "SELECT id,name,path,parent_id,basic_type_id FROM " + TYPES_TABLE_NAME + " WHERE parent_id = '" + str(parent_id) + "' ORDER BY name;")
             res = curr.fetchall()
             curr.close()
             return res
@@ -433,11 +472,11 @@ class DBScheme:
         return curr.fetchall()
 
     def addType(self, type):
-        values = [type.name,type.path,type.parent_id]
+        values = [type.name, type.path, type.parent_id, type.basic_type_id]
 
         sql = "INSERT INTO " + TYPES_TABLE_NAME + \
-              " ( name,path,parent_id ) " \
-              "VALUES (?, ?, ?);"
+              " ( name,path,parent_id,basic_type_id ) " \
+              "VALUES (?, ?, ?, ?);"
         # logger.debug("SQL > "+sql)
         type.recId = self.db.exec_insert(sql, values)
         self.db.commit()
@@ -458,6 +497,37 @@ class DBScheme:
         recId = self.db.exec_insert(sql, values)
         self.db.commit()
         return recId
+
+    def loadBasicTypes(self):
+        """Return reference rows (id, English name, designator, icon). @return [list[tuple]]"""
+        return self.db.select_all("SELECT id,name,designator,icon FROM BASIC_TYPES ORDER BY id;")
+
+    def getBasicTypeId(self, type_id):
+        """Resolve a section's reference ID. @param type_id [int] section ID."""
+        row = self.db.select_params("SELECT basic_type_id FROM TYPES WHERE id=?;", (type_id,)).fetchone()
+        return row[0] if row else 1
+
+    def setBasicTypeId(self, type_id, basic_type_id):
+        """Assign an existing basic type. @param type_id, basic_type_id [int] valid IDs."""
+        self.db.exec_insert("UPDATE TYPES SET basic_type_id=? WHERE id=?;", (basic_type_id, type_id))
+        self.db.commit()
+
+    def defaultKeyField(self, type_id):
+        """Choose the nominal for R/C, part number otherwise. @param type_id [int] section ID."""
+        return 'value' if self.getBasicTypeId(type_id) in (2, 3) else 'part_num'
+
+    def loadProjectColumnWidths(self, table_name):
+        """Read minimum widths. @param table_name [str] stable project table identifier."""
+        return dict(self.db.select_params(
+            "SELECT field_name,width FROM PROJECT_COLUMN_WIDTHS WHERE table_name=?;", (table_name,)).fetchall())
+
+    def saveProjectColumnWidths(self, table_name, widths):
+        """Store user widths atomically. @param table_name [str]; widths [dict[str,int]] positive pixels."""
+        with self.db.transaction():
+            self.db.executemany(
+                "INSERT INTO PROJECT_COLUMN_WIDTHS(table_name,field_name,width) VALUES(?,?,?) "
+                "ON CONFLICT(table_name,field_name) DO UPDATE SET width=excluded.width",
+                [(table_name, field, int(width)) for field, width in widths.items()])
 
     def getTypeIcon(self, type_id) -> str:
         """TYPES.icon: default icon of the section (Qt resource path), '' if not set."""
@@ -501,8 +571,12 @@ class DBScheme:
         values = []
         els["type_id"] = type_id
 
-        if "part_num" not in els.keys():
-            raise RuntimeError("Field part_num Required.")
+        if "part_num" not in els:
+            headers = Headers(self, type_id)
+            keys = [field for field in ELEMENT_FLD_NAMES[2:] if headers[field]['is_key']]
+            if not keys or any(field not in els or str(els[field]).strip() == '' for field in keys):
+                raise RuntimeError("Key field values are required.")
+            els['part_num'] = ''
 
         for key in els.keys():
             try:
@@ -795,12 +869,13 @@ class DBScheme:
 
 
 class Type:
-    def __init__(self, scheme: DBScheme, recId: int, name: str, path: str, parent):
+    def __init__(self, scheme: DBScheme, recId: int, name: str, path: str, parent, basic_type_id=None):
         self.recId = recId
         self.name = name
         self.path = path
         self.parent = parent
         self.parent_id = 0 if parent is None else parent.recId
+        self.basic_type_id = (parent.basic_type_id if parent else 1) if basic_type_id is None else basic_type_id
         self.children = None
         self.scheme = scheme
         self.headers: Headers = None
@@ -909,7 +984,7 @@ class Types:
 
         for row in self.scheme.loadTypes(parentId):
 
-            theType = Type(self.scheme, row[0], row[1], row[2], self.parent)
+            theType = Type(self.scheme, row[0], row[1], row[2], self.parent, row[4])
             self.typesAr.append(theType)
 
     def __len__(self):
@@ -952,9 +1027,9 @@ class Types:
     #             return theType
     #     return None
 
-    def addNode(self, name) -> Type:
+    def addNode(self, name, basic_type_id=None) -> Type:
         thePath = self.parent.path + " " + name if self.parent is not None else name
-        theType = Type(self.scheme, 0, name, thePath, self.parent)
+        theType = Type(self.scheme, 0, name, thePath, self.parent, basic_type_id)
         theType = self.scheme.addType(theType)
         bisect.insort(self.typesAr, theType)
         # self.typesAr.append(theType)
@@ -1099,12 +1174,49 @@ def _migrate_to_6(scheme: DBScheme):
         conn.execute("UPDATE ENVIRONMENT SET value='6' WHERE name=?", (ENV_DB_VERSION,))
 
 
+def _migrate_to_7(scheme: DBScheme):
+    """v7: basic component types, key columns and persisted project table widths."""
+    conn = scheme.db
+    conn.commit()
+    foreign_keys = conn.get_foreign_keys()
+    try:
+        with conn.transaction(foreign_keys=False, immediate=True):
+            conn.execute(BASIC_TYPES_TABLE_SQL)
+            conn.executemany("INSERT OR IGNORE INTO BASIC_TYPES(id,name,designator) VALUES(?,?,?)", BASIC_TYPE_ROWS)
+            violations = conn.foreign_key_violations()
+            added_basic_type = 'basic_type_id' not in {row[1] for row in conn.table_info('TYPES')}
+            if added_basic_type:
+                conn.execute("ALTER TABLE TYPES ADD COLUMN basic_type_id INTEGER NOT NULL DEFAULT 1 REFERENCES BASIC_TYPES(id)")
+            header_columns = {row[1] for row in conn.table_info('HEADERS')}
+            if header_columns and 'is_key' not in header_columns:
+                conn.execute("ALTER TABLE HEADERS ADD COLUMN is_key BOOLEAN")
+            conn.execute(PROJECT_COLUMN_WIDTHS_SQL)
+            rows = conn.select_all("SELECT id,name,parent_id FROM TYPES;")
+            by_id = {row[0]: row for row in rows}
+            english = {name.casefold(): key for key, name, _ in BASIC_TYPE_ROWS}
+            def resolve(section_id, visited):
+                if section_id not in by_id or section_id in visited:
+                    return 1
+                _, name, parent_id = by_id[section_id]
+                known = BASIC_TYPE_ALIASES.get(name.strip().casefold(), english.get(name.strip().casefold()))
+                return known if known else resolve(parent_id, visited | {section_id})
+            if added_basic_type:
+                conn.executemany("UPDATE TYPES SET basic_type_id=? WHERE id=?;",
+                                 [(resolve(row[0], set()), row[0]) for row in rows])
+            if conn.foreign_key_violations() - violations:
+                raise RuntimeError("Foreign key violations after catalog migration")
+            conn.execute("UPDATE ENVIRONMENT SET value='7' WHERE name=?", (ENV_DB_VERSION,))
+    finally:
+        conn.set_foreign_keys(foreign_keys)
+
+
 MIGRATIONS = {
     2: _migrate_to_2,
     3: _migrate_to_3,
     4: _migrate_to_4,
     5: _migrate_to_5,
     6: _migrate_to_6,
+    7: _migrate_to_7,
 }
 
 
@@ -1126,10 +1238,16 @@ class Header:
         self.type_id = type_id
         self.field_name = field_name
         self.position = defaultHeaderPosition(field_name)
+        self.is_key = field_name == (scheme.defaultKeyField(type_id) if scheme else "part_num")
+        self._key_explicit = False
 
     def setFields(self, el):
         for fldName in HEADER_FLD_NAMES:
             value = el[int(HEADER_FLD_NAMES.index(fldName))]
+            if fldName == "is_key":
+                self._key_explicit = value is not None
+                if value is None:
+                    continue
             if HEADER_FIELDS[fldName] == "BOOLEAN":
                 self.__dict__[fldName] = True if value == 1 else False
             elif fldName == "position" and value in (None, ""):
@@ -1142,7 +1260,8 @@ class Header:
     def getFields(self) -> dict:
         hds_dict: dict = {}
         for fldName in HEADER_FLD_NAMES:
-            hds_dict[fldName] = self.__dict__[fldName]
+            hds_dict[fldName] = (None if fldName == "is_key" and not self._key_explicit
+                                 else self.__dict__[fldName])
         return hds_dict
 
     def __getitem__(self, index):
@@ -1156,6 +1275,8 @@ class Header:
         if type(index) == int:
             index = HEADER_FLD_NAMES[index]
         self.__dict__[index] = value
+        if index == "is_key":
+            self._key_explicit = True
         self.changed = True
         self.changedFields.add(index)
 
@@ -1574,9 +1695,9 @@ class DBFactory:
             self.rootTypes = Types(self.scheme)
         return self.rootTypes
 
-    def appendType(self, name, parent: Type) -> Type:
+    def appendType(self, name, parent: Type, basic_type_id=None) -> Type:
         typesList: Types = parent.getChildren() if parent is not None else self.getRootTypes()
-        return typesList.addNode(name)
+        return typesList.addNode(name, basic_type_id)
 
     def createTypeByPath(self, path):
         pathAr = path.split()

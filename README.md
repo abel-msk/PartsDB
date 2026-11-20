@@ -102,7 +102,7 @@ test fails.
 Plugin sources are in `ElPartsPluginSrc/kicad`.
 The SDK defines `project_import`, `parts_order` and `shipment_tracking` types.
 Each plugin declares its type in the manifest and `get_plugin_type()`; it is
-validated before use and stored in SQLite `PLUGINS` (schema 6).
+validated before use and stored in SQLite `PLUGINS` (schema 7).
 
 
 Use `./build.sh -p` to build the KiCad plugin wheel in `dist/plugins/`, or
@@ -253,3 +253,6 @@ python tools/translations.py --check --compile
 Compilation requires Qt Linguist's `lrelease` (or `pyside6-lrelease`) on PATH or in Qt's binary folder.
 `build.sh -b` checks and compiles the catalogs and bundles them together with Qt's Russian standard-dialog
 translations. The extractor supports Python 3.14, where pylupdate6 6.10.0 still relies on removed AST APIs.
+
+Catalog matching keys, basic component types, shared list rendering and persisted
+project table widths: [catalog and layout documentation](docs/catalog-keys-and-layout.md) (Russian).

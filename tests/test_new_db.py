@@ -111,16 +111,24 @@ class TestNewDatabase(unittest.TestCase):
     def test_creation_failure_removes_partial_file(self):
         path = self.root / "broken.sqlite"
         with mock.patch.object(ElDBScheme.DBScheme, "createTables", side_effect=sqlite3.OperationalError("disk full")), \
-                mock.patch.object(QMessageBox, "critical") as error:
+                mock.patch.object(QMessageBox, "critical") as error, \
+                self.assertLogs("ElMainWindow", level="ERROR") as logs:
             self.create(path)
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsInstance(logs.records[0].exc_info[1], sqlite3.OperationalError)
+        self.assertEqual(str(logs.records[0].exc_info[1]), "disk full")
         error.assert_called_once()
         self.assertFalse(path.exists())
         self.assertIs(self.window.factory, self.old)
         self.assertEqual(self.old.scheme.db.conn.execute("SELECT count(*) FROM PARTS").fetchone()[0], 1)
 
     def test_invalid_parent_shows_error(self):
-        with mock.patch.object(QMessageBox, "critical") as error:
+        with mock.patch.object(QMessageBox, "critical") as error, \
+                self.assertLogs("ElMainWindow", level="ERROR") as logs:
             self.create(self.root / "missing" / "new.sqlite")
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsInstance(logs.records[0].exc_info[1], FileNotFoundError)
+        self.assertEqual(logs.records[0].exc_info[1].filename, str(self.root / "missing" / "new.sqlite"))
         error.assert_called_once()
         self.assertIs(self.window.factory, self.old)
 
@@ -138,8 +146,12 @@ class TestNewDatabase(unittest.TestCase):
     def test_open_invalid_database_keeps_current_ui(self):
         path = self.root / "invalid.sqlite"
         path.write_bytes(b"not sqlite")
-        with mock.patch.object(QMessageBox, "critical") as error:
+        with mock.patch.object(QMessageBox, "critical") as error, \
+                self.assertLogs("ElMainWindow", level="ERROR") as logs:
             self.assertFalse(self.window.loadDB(str(path), ElDBScheme.DOC_TYPE_DEFAULT))
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsInstance(logs.records[0].exc_info[1], sqlite3.DatabaseError)
+        self.assertEqual(str(logs.records[0].exc_info[1]), "file is not a database")
         error.assert_called_once()
         self.assertIs(self.window.factory, self.old)
         self.assertEqual(self.window.partsTable.getSelected()["part_num"], "OLD-001")

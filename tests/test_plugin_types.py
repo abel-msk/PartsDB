@@ -65,7 +65,7 @@ class PluginTableMigrationTests(unittest.TestCase):
     def test_migration_preserves_projects_and_positions_and_is_repeatable(self):
         self.make_v5()
         self.scheme.migrate()
-        self.assertEqual(self.scheme.getDBVersion(), 6)
+        self.assertEqual(self.scheme.getDBVersion(), db.DB_VERSION)
         self.assertEqual(self.conn.execute('SELECT name FROM PROJECTS').fetchall(), [('Keep project',)])
         self.assertEqual(self.conn.execute('SELECT reference FROM PROJECT_COMPONENTS').fetchall(), [('R1',)])
         self.assertEqual(self.conn.execute('SELECT count(*) FROM PLUGINS').fetchone(), (0,))
@@ -82,7 +82,7 @@ class PluginTableMigrationTests(unittest.TestCase):
         self.assertEqual(self.scheme.getDBVersion(), 5)
         self.assertEqual(list(self.conn.iterdump()), before)
         self.scheme.migrate()
-        self.assertEqual(self.scheme.getDBVersion(), 6)
+        self.assertEqual(self.scheme.getDBVersion(), db.DB_VERSION)
 
     def test_table_rejects_unknown_type(self):
         manifest = PluginManifest.from_dict(METADATA)

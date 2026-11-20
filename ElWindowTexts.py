@@ -155,3 +155,20 @@ def pluginTypeText(plugin_type):
         PLUGIN_TYPE_SHIPMENT_TRACKING: translate('PluginWorkflow', 'Shipment tracking'),
     }
     return names.get(plugin_type, plugin_type)
+
+
+def sectionDialogTexts(window):
+    """Apply section editor labels. @param window [SectionDialog] initialized dialog."""
+    window.setWindowTitle(translate('PartsDB', 'Section'))
+    window.nameLabel.setText(translate('PartsDB', 'Section name:'))
+    window.typeLabel.setText(translate('PartsDB', 'Basic type:'))
+
+
+def partValuesDialogTexts(window):
+    """Apply key input labels. @param window [PartValuesDialog] initialized dialog."""
+    from ElTranslations import defaultHeaderText
+    window.setWindowTitle(translate('PartsDB', 'Add part'))
+    window.prompt.setText(translate('PartsDB', 'Enter part nominal'))
+    for header in window.headers:
+        field = header['field_name']
+        window.labels[field].setText(defaultHeaderText(header, field))

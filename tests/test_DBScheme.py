@@ -91,7 +91,8 @@ class TestConnectionAndTables(SchemeTestCase):
 
     def test_new_db_headers_has_position(self):
         self.assertEqual(self.columns("HEADERS"), HEADER_FLD_NAMES)
-        self.assertEqual(HEADER_FLD_NAMES[-1], "position")
+        self.assertIn("position", HEADER_FLD_NAMES)
+        self.assertIn("is_key", HEADER_FLD_NAMES)
 
     def test_disconnect_closes_connection(self):
         self.scheme.disconnect()
@@ -382,7 +383,7 @@ class TestTypes(SchemeTestCase):
 
     def test_loadTypes_row_layout(self):
         theType = self.addType("X", path="P")
-        self.assertEqual(self.scheme.loadTypes(), [(theType.recId, "X", "P", 0)])
+        self.assertEqual(self.scheme.loadTypes(), [(theType.recId, "X", "P", 0, 1)])
 
     def test_updateType_name_only_keeps_path(self):
         theType = self.addType("Old", path="old/path")

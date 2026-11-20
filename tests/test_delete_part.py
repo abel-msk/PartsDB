@@ -1,5 +1,6 @@
 """Deletion through the main-window button, using temporary databases and files."""
 import os
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -131,8 +132,12 @@ class TestDeletePart(unittest.TestCase):
         self.db.execute("CREATE TRIGGER prevent_delete BEFORE DELETE ON PARTS "
                         "BEGIN SELECT RAISE(ABORT, 'blocked'); END;")
         self.db.commit()
-        with mock.patch("ElPartsTable.ErrorDialog") as error:
+        with mock.patch("ElPartsTable.ErrorDialog") as error, \
+                self.assertLogs("ElPartsTable", level="ERROR") as logs:
             self.confirm()
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsInstance(logs.records[0].exc_info[1], sqlite3.IntegrityError)
+        self.assertEqual(str(logs.records[0].exc_info[1]), "blocked")
         error.assert_called_once()
         self.assertEqual(self.exists("PARTS", "id"), 1)
         self.assertEqual(self.exists("DATASHEETS"), 2)
@@ -155,8 +160,11 @@ class TestDeletePart(unittest.TestCase):
 
     def test_icon_remove_failure_warns_after_deleting_database_records(self):
         with mock.patch("ElData.ElDBScheme.os.remove", side_effect=PermissionError("read-only")), \
-                mock.patch.object(QMessageBox, "warning") as warning:
+                mock.patch.object(QMessageBox, "warning") as warning, \
+                self.assertLogs("ElData.ElDBScheme", level="ERROR") as logs:
             self.confirm()
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsInstance(logs.records[0].exc_info[1], PermissionError)
         warning.assert_called_once()
         self.assertEqual(self.exists("PARTS", "id"), 0)
         self.assertEqual(self.table.tableModel.rowCount(), 1)

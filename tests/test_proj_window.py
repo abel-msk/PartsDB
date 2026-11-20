@@ -57,7 +57,7 @@ class TestProjWindow(unittest.TestCase):
         self.assertEqual(self.window.d_proj_name.text(), 'Zulu')
         self.assertEqual(self.window.d_proj_descr.text(), '<b>plain text</b>')
         self.assertEqual(self.window.d_proj_descr.textFormat(), Qt.TextFormat.PlainText)
-        self.assertEqual(self.window.d_proj_omp_date.text(), '2026-11-16T09:00:00Z')
+        self.assertEqual(self.window.d_proj_imp_date.text(), '2026-11-16T09:00:00Z')
         self.assertTrue(self.window.d_prj_reload_cmd.isEnabled())
 
     def test_refresh_preserves_id_and_updates_data_without_writing(self):
@@ -93,4 +93,4 @@ class TestProjWindow(unittest.TestCase):
         self.controller.setFactory(self.makeFactory('second'))
         self.assertEqual(self.controller.projList.model.rowCount(), 0)
         self.assertIsNone(self.controller.project)
-        self.assertEqual(self.window.d_proj_omp_date.text(), '--')
+        self.assertEqual(self.window.d_proj_imp_date.text(), '--')
