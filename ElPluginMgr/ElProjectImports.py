@@ -17,7 +17,15 @@ from ElTranslations import translate
 
 
 class ProjectImports(QObject):
+    """Connect project UI actions to validated imports, previews and persistence.
+
+    @attr window [MainWindow] Active database and project widgets.
+    @attr manager [PluginManager] Plugin registry and installation service."""
     def __init__(self, window):
+        """Connect project action signals and synchronize installed plugin metadata.
+
+        @param window [MainWindow] Owner supplying the active database and project UI.
+        @return [None] Update the owned UI or state without returning a value."""
         super().__init__(window)
         self.window = window
         config = window.config
@@ -33,6 +41,9 @@ class ProjectImports(QObject):
         self.refresh_plugins()
 
     def refresh_plugins(self):
+        """Refresh installed plugin metadata and project list subtitles.
+
+        @return [None] Update the owned UI or state without returning a value."""
         try:
             self.manager.sync(self.window.factory.scheme)
             self.window.projWindow.projList.model.setPlugins(self.manager.metadata())
@@ -40,6 +51,9 @@ class ProjectImports(QObject):
             self.window.statusbar.showMessage(str(exc))
 
     def choose_plugin(self):
+        """Choose an enabled project importer or explain why none is available.
+
+        @return [InstalledPlugin, None] Selected enabled importer, or None after cancellation or missing setup."""
         plugins = [p for p in self.manager.list_plugins() if p.enabled and p.manifest.plugin_type == PLUGIN_TYPE_IMPORT]
         if not plugins:
             QMessageBox.information(self.window, translate('PluginWorkflow', 'Import project'),
@@ -53,6 +67,9 @@ class ProjectImports(QObject):
         return plugins[choices.index(choice)] if accepted else None
 
     def add(self):
+        """Select an importer and source, then run the preview and import workflow.
+
+        @return [None] Update the owned UI or state without returning a value."""
         try:
             plugin = self.choose_plugin()
             if plugin is None:
@@ -71,6 +88,10 @@ class ProjectImports(QObject):
             self.error(exc)
 
     def reload(self, project):
+        """Import the selected project again using its current importer and source.
+
+        @param project [ImportedProject, Project] Imported preview data or saved project card, as required by the controller.
+        @return [None] Update the owned UI or state without returning a value."""
         try:
             plugin = self.manager.get(project.plugin_id, expected_type=PLUGIN_TYPE_IMPORT) if project.plugin_id else self.choose_plugin()
             if plugin:
@@ -79,6 +100,12 @@ class ProjectImports(QObject):
             self.error(exc)
 
     def import_source(self, plugin, source_uri, project_id=None):
+        """Run an importer, show the delta preview and persist an accepted result.
+
+        @param plugin [InstalledPlugin] Validated project importer installation.
+        @param source_uri [str] Source URI supported by the selected importer.
+        @param project_id [int, None] Existing project ID for repeat import; None creates a project.
+        @return [int, None] Saved project ID, or None after cancellation or failure."""
         factory = self.window.factory
         try:
             result = run_import_task(self.window, lambda cancel, emit:
@@ -104,6 +131,10 @@ class ProjectImports(QObject):
         return None
 
     def remove(self, project):
+        """Confirm removal of project data while retaining stock cards.
+
+        @param project [ImportedProject, Project] Imported preview data or saved project card, as required by the controller.
+        @return [None] Update the owned UI or state without returning a value."""
         if QMessageBox.question(self.window, translate('PluginWorkflow', 'Remove project'),
                                 translate('PluginWorkflow', 'Remove project {}? Stock parts will be kept.').format(project.name),
                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -116,4 +147,8 @@ class ProjectImports(QObject):
             self.error(exc)
 
     def error(self, exc):
+        """Show a project import failure in a localized error dialog.
+
+        @param exc [Exception] Failure whose message is shown to the user.
+        @return [None] Update the owned UI or state without returning a value."""
         QMessageBox.critical(self.window, translate('PluginWorkflow', 'Import error'), str(exc))

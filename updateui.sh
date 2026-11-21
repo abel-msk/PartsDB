@@ -13,6 +13,3 @@ pyuic6  ./qt/ElUnitsWnd.ui -o ElUnitsWnd.py
 
 pyside6-rcc  ./qt/resources.qrc -o resources.pyx
 cat resources.pyx | sed 's/PySide6/PyQt6/' > resources.py
-
-# Keep generated class/method descriptions reproducible; do not edit outputs by hand.
-python3 tools/document_generated_ui.py

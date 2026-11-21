@@ -99,8 +99,12 @@ p, li { white-space: pre-wrap; }
       <translation>Enable</translation>
     </message>
     <message>
-      <source>Instaled plugins</source>
-      <translation>Instaled plugins</translation>
+      <source>Install from file...</source>
+      <translation>Install from file...</translation>
+    </message>
+    <message>
+      <source>Installed plugins</source>
+      <translation>Installed plugins</translation>
     </message>
     <message>
       <source>Logs</source>
@@ -113,6 +117,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Plugin Name</source>
       <translation>Plugin Name</translation>
+    </message>
+    <message>
+      <source>Remove</source>
+      <translation>Remove</translation>
     </message>
     <message>
       <source>Settings</source>
@@ -130,13 +138,16 @@ p, li { white-space: pre-wrap; }
       <source>_</source>
       <translation>_</translation>
     </message>
+  </context>
+  <context>
+    <name>DialogButtons</name>
     <message>
-      <source>Удалить</source>
-      <translation>Удалить</translation>
+      <source>Cancel</source>
+      <translation>Cancel</translation>
     </message>
     <message>
-      <source>Установить из файла</source>
-      <translation>Установить из файла</translation>
+      <source>OK</source>
+      <translation>OK</translation>
     </message>
   </context>
   <context>
@@ -201,12 +212,12 @@ p, li { white-space: pre-wrap; }
       <translation>Imported by</translation>
     </message>
     <message>
-      <source>LInk Part</source>
-      <translation>LInk Part</translation>
-    </message>
-    <message>
       <source>Last Import</source>
       <translation>Last Import</translation>
+    </message>
+    <message>
+      <source>Link Part</source>
+      <translation>Link Part</translation>
     </message>
     <message>
       <source>Open App</source>
@@ -1012,6 +1023,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
   </context>
   <context>
     <name>PluginsDialog</name>
+    <message>
+      <source>&lt;p&gt;&lt;b&gt;Application path:&lt;/b&gt; Path to the application executable.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Arguments:&lt;/b&gt; Use {file} for the project file path. Quote arguments containing spaces.&lt;/p&gt;</source>
+      <translation>&lt;p&gt;&lt;b&gt;Application path:&lt;/b&gt; Path to the application executable.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Arguments:&lt;/b&gt; Use {file} for the project file path. Quote arguments containing spaces.&lt;/p&gt;</translation>
+    </message>
     <message>
       <source>Application bundle does not exist</source>
       <translation>Application bundle does not exist</translation>

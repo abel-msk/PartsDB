@@ -6,7 +6,7 @@ PartsDB (window title: *Electronic parts workbench*) is a small desktop applicat
 electronic components and their datasheets. It is written in Python with PyQt6 and keeps everything
 in a single SQLite file.
 
-![Catalog: N-channel MOSFETs with part pictures and an attached document](docs/images/catalog-view.png)
+![Catalog: Main window.](docs/images/main_win.png)
 
 Version 2.0 adds KiCad project imports, plugin management, editable SI units and
 basic component types, and external project application launch. Database schema: **9**.
@@ -59,7 +59,8 @@ See the [2.0 changelog](CHANGELOG.md#20--2026-11-21).
   an importer in **Setup → Plugins...**, then use **Open App** on its project. `{file}` is
   replaced with the project source path. The application keeps running after PartsDB closes.
 
-![Catalog: resistors with default SMD icons](docs/images/catalog-resistors.png)
+![Projects: window](docs/images/projects.png)
+![Plugin: Management](docs/images/plugin_mgr.png)
 
 ## Installation
 
@@ -193,7 +194,6 @@ are not stored in git: put a copy of your database into `tests/` and point `db_f
 | `ElConfig.py`, `constants.py`, `ElConstants.py`               | configuration file and its keys                           |
 | `ElAppList.py`, `ElAppPathDialog.py`, `ElProcess.py` | applications for opening documents               |
 | `ElUnitsDialog.py`, `ElData/ElDBDataUnits.py` | SI unit and basic component type reference editor |
-| `tools/document_generated_ui.py` | reproducible documentation for generated Qt classes and methods |
 | `ElHdrEditDialog.py`                        | column header editor                                      |
 | `ELImport.py`                               | import from an Excel list                                 |
 | `ElPartsPluginSrc/kicad/`                   | KiCad importer sources, manifest and wheel configuration |
@@ -214,8 +214,8 @@ Forms are edited in Qt Designer (`qt/*.ui`). The generated files `ElParts.py`, `
 ./updateui.sh
 ```
 
-The generator also adds class and method descriptions with YARD parameter tags through
-`tools/document_generated_ui.py`; keep these descriptions in the generation pipeline.
+Generated files contain only generator output. Do not add edits, comments or docstrings,
+including through postprocessing scripts; class and method documentation rules apply to handwritten code.
 
 ### Tests
 
@@ -238,8 +238,9 @@ after success or `--failed` after failure.
 - [Architecture and public API](docs/plugin-architecture-and-api.md).
 - [Plugin manager and Projects UI](docs/plugins-ui.md).
 - [SI references and external project applications](docs/units-and-project-applications.md).
-- [Database schema](docs/database-plugins-and-parts.md) and [import migration](docs/project-import-schema.md).
-- [Actual KiCad output and database field mapping](docs/kicad-import-output-and-database-mapping.md).
+- [All database tables and reference data](docs/database-schema.md).
+- [Database migrations](docs/database-migrations.md).
+- [KiCad importer and API output examples](docs/kicad-importer.md).
 - [KiCad importer sources and commands](ElPartsPluginSrc/kicad/README.md).
 
 ### Database access rules

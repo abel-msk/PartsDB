@@ -25,12 +25,24 @@ from ElOpenFileWnd import Ui_OpenFileWnd
 logger = ElLogger.setLogger(__name__)
 
 class Communicate(QObject):
+    """Emit a selected URI, document type and directory; stores Qt signal connections."""
     uriSelected = pyqtSignal(str, int, str)
 
 
 class OpenFileDialog(TranslatedDialogMixin, QDialog):
-    """Employee dialog."""
+    """Select a local file or URL and publish it to the calling controller.
+
+    @attr ui [Ui_OpenFileWnd] Generated selection widgets.
+    @attr userRoot [str] Current directory.
+    @attr dirModel [QFileSystemModel] Directory tree model.
+    @attr fileModel [QFileSystemModel] Current directory contents.
+    @attr comm [Communicate] URI selection signal carrier."""
     def __init__(self, parent, userRoot = None):
+        """Build local-file and URL selection modes with a starting directory.
+
+        @param parent [QWidget, QObject, None] Qt owner of the created object.
+        @param userRoot [str, None] Starting directory; None uses the current user home directory.
+        @return [None] Update the owned UI or state without returning a value."""
         super().__init__(parent)
         self.comm = Communicate()
         self.ui = Ui_OpenFileWnd()
@@ -70,21 +82,35 @@ class OpenFileDialog(TranslatedDialogMixin, QDialog):
         self.ui.isFilesOnly.stateChanged.connect(self.onFilesOnlyChanged)
 
     def retranslate(self):
+        """Refresh selector captions while preserving the path and URL inputs.
+
+        @return [None] Update the owned UI or state without returning a value."""
         openFileDialogTexts(self)
 
     def keyPressEvent(self, event: QKeyEvent):
+        """Keep path-input key handling local or forward it to QDialog.
+
+        @param event [QEvent, QKeyEvent] Qt change or keyboard event delivered to the handler.
+        @return [None] Update the owned UI or state without returning a value."""
         if self.ui.pathInput.hasFocus():
             event.accept()
         else:
             super().keyPressEvent(event)
 
     def on_clicked(self, index):
+        """Display the selected directory and update the current path.
+
+        @param index [QModelIndex] Qt model index supplied by the view; parent indices are ignored for flat counts.
+        @return [None] Update the owned UI or state without returning a value."""
         path = self.dirModel.fileInfo(index).absoluteFilePath()
         self.ui.listView.setRootIndex(self.fileModel.setRootPath(path))
         self.userRoot = path
         self.ui.pathInput.setText(path)
 
     def onFilesOnlyChanged(self):
+        """Update the current contents model filter after a checkbox change.
+
+        @return [None] Update the owned UI or state without returning a value."""
         fileViewMode = self.ui.listView.model()
         if (self.ui.isFilesOnly.isChecked()):
             fileViewMode.setFilter(QDir.Filter.AllDirs)
@@ -95,12 +121,18 @@ class OpenFileDialog(TranslatedDialogMixin, QDialog):
         # self.ui.listView.reset();
 
     def onChangeRoot(self):
+        """Navigate the directory and file views to the entered path.
+
+        @return [None] Update the owned UI or state without returning a value."""
         path = self.ui.pathInput.text()
         # self.ui.listView.setRootIndex(self.fileModel.setRootPath(path))
         self.ui.treeView.setRootIndex(self.dirModel.index(path))
         self.ui.listView.setRootIndex(self.fileModel.setRootPath(path))
 
     def onAccepted(self):
+        """Emit the selected local file or web URI and close the dialog.
+
+        @return [None] Update the owned UI or state without returning a value."""
         wName = self.ui.tabWidget.currentWidget().objectName()
         path = ""
         type = ""
@@ -122,6 +154,10 @@ class OpenFileDialog(TranslatedDialogMixin, QDialog):
         self.close()
 
     def onFileSelect(self, index: QModelIndex):
+        """Navigate into a directory or emit a selected file and close.
+
+        @param index [QModelIndex] Qt model index supplied by the view; parent indices are ignored for flat counts.
+        @return [None] Update the owned UI or state without returning a value."""
         path = self.fileModel.filePath(index)
         if os.path.isdir(path):
             self.ui.treeView.setRootIndex(self.dirModel.index(path))

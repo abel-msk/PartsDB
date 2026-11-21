@@ -9,7 +9,18 @@ from ElWindowTexts import importPreviewTexts
 
 
 class ImportPreview(TranslatedDialogMixin, QDialog):
+    """Preview imported components and their changes before database persistence.
+
+    @attr project [ImportedProject] Validated import result.
+    @attr changes [ImportChanges] Added, changed and removed references.
+    @attr ui [SimpleNamespace] Summary, component table, warnings and acceptance controls."""
     def __init__(self, project, changes, parent=None):
+        """Build a read-only component preview, warnings and confirmation controls.
+
+        @param project [ImportedProject, Project] Imported preview data or saved project card, as required by the controller.
+        @param changes [ImportChanges] Added, changed and removed component references.
+        @param parent [QWidget, QObject, None] Qt owner of the created object.
+        @return [None] Update the owned UI or state without returning a value."""
         super().__init__(parent)
         self.project = project
         self.changes = changes
@@ -37,4 +48,7 @@ class ImportPreview(TranslatedDialogMixin, QDialog):
         self.retranslate()
 
     def retranslate(self):
+        """Refresh the preview captions and state labels while keeping imported data.
+
+        @return [None] Update the owned UI or state without returning a value."""
         importPreviewTexts(self)

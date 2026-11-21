@@ -1,7 +1,7 @@
 """Install plugins and display their saved metadata in the manager window."""
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
-from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog, QFileDialog, QMessageBox, QPlainTextEdit, QVBoxLayout
 
 from ElPluginsWnd import Ui_Dialog
 from ElTranslations import TranslatedDialogMixin, translate
@@ -10,6 +10,40 @@ from ElPluginMgr.installer import PluginInstaller
 from ElPluginMgr.manager import PluginManager, plugin_record
 from ElData.ElDBDataPlagins import PluginData, PluginDataStore
 from ElImportTask import run_import_task
+
+
+class PluginLogsDialog(TranslatedDialogMixin, QDialog):
+    """Show installation logs with a title and empty-state text that follow the UI language.
+
+    @attr ui [PluginLogsDialog] Self-reference used by the translation mixin.
+    @attr logText [str] Original installation log, never translated.
+    @attr text [QPlainTextEdit] Read-only log viewer.
+    """
+
+    def __init__(self, log_text, parent=None):
+        """Create the read-only log window.
+
+        @param log_text [str, None] Raw log content; empty input displays a localized placeholder.
+        @param parent [QWidget, None] Owner of the dialog.
+        @return [None] Build the viewer and apply current window texts.
+        """
+        super().__init__(parent)
+        self.ui = self
+        self.logText = log_text or ''
+        self.resize(850, 500)
+        layout = QVBoxLayout(self)
+        self.text = QPlainTextEdit(self)
+        self.text.setReadOnly(True)
+        self.text.setPlainText(self.logText)
+        layout.addWidget(self.text)
+        self.retranslate()
+
+    def retranslate(self):
+        """Update captions and the empty-state placeholder without rewriting real log content.
+
+        @return [None] Preserve log data and its scroll position.
+        """
+        pluginLogsTexts(self)
 
 
 class PluginsDialog(TranslatedDialogMixin, QDialog):
@@ -244,16 +278,9 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         @return [None] No value is returned."""
         plugin = self.selected()
         if plugin:
-            from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout
-            dialog = QDialog(self)
-            pluginLogsTexts(dialog)
-            dialog.resize(850, 500)
-            layout = QVBoxLayout(dialog)
-            text = QPlainTextEdit(dialog)
-            text.setReadOnly(True)
-            text.setPlainText(self.manager.logs(plugin.id) or translate('PluginWorkflow', 'No log entries'))
-            layout.addWidget(text)
+            dialog = PluginLogsDialog(self.manager.logs(plugin.id), self)
             dialog.exec()
+            dialog.deleteLater()
 
     def error(self, exc):
         """Show a plugin error in the status label and a critical message box.

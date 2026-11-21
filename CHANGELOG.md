@@ -25,7 +25,6 @@
   unit links. Migrations 8 and 9 are atomic and preserve existing inventory and project data.
 - Centralized application SQL in `ElData/ElDBScheme.py` and SQLite infrastructure in
   `ElData/ElDBConnect.py`; added data modules and documented classes and methods with YARD tags.
-  Generated Qt documentation is reproduced by `updateui.sh`.
 - Added `./build.sh -p` for the KiCad wheel, local importer fixtures and regression coverage.
   Full test success cleans scratch databases and test backups; failure retains diagnostic data.
 - Updated English/Russian interface catalogs, README and workflow/schema documentation.

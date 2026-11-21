@@ -5,7 +5,7 @@
 
 Порядок работы: [Установка и запуск импортёров](plugin-runtime.md).
 API: [Архитектура плагинов](plugin-architecture-and-api.md).
-Схема: [Импорт проектов](project-import-schema.md).
+Схема: [Импорт проектов](database-migrations.md).
 
 ## Менеджер плагинов
 

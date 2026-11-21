@@ -25,8 +25,16 @@ logger = ElLogger.setLogger(__name__)
 
 
 class AppPathConfig(TranslatedDialogMixin, QDialog):
-    """Employee dialog."""
+    """Edit configured applications for opening part documents.
+
+    @attr ui [Ui_AppPathDialog] Generated form widgets.
+    @attr appList [AppList] Application rules and their configuration storage."""
     def __init__(self, parent, app_list: AppList):
+        """Populate application rules and connect the editor controls.
+
+        @param parent [QWidget, QObject, None] Qt owner of the created object.
+        @param app_list [AppList] Configured applications for opening part documents.
+        @return [None] Update the owned UI or state without returning a value."""
         super().__init__(parent)
         self.ui = Ui_AppPathDialog()
 
@@ -48,9 +56,16 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
         self.ui.saveBtn.clicked.connect(self.onSave)
 
     def retranslate(self):
+        """Refresh application editor captions without changing pending input.
+
+        @return [None] Update the owned UI or state without returning a value."""
         appPathDialogTexts(self)
 
     def onAppSelect(self, index):
+        """Display the selected application rule in the input fields.
+
+        @param index [QModelIndex] Qt model index supplied by the view; parent indices are ignored for flat counts.
+        @return [None] Update the owned UI or state without returning a value."""
         logger.debug("App Selected")
         items = self.ui.appNamesList.selectedItems()
         app = index.data(Qt.ItemDataRole.UserRole)
@@ -63,6 +78,9 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
             logger.error("Incorrect selection")
 
     def onAddApp(self):
+        """Ask for a rule name and append a new application rule.
+
+        @return [None] Update the owned UI or state without returning a value."""
         value, ok = QInputDialog.getText(self, translate("PartsDB", 'Add application'), translate("PartsDB", 'Enter application name'))
         if ok and value:
             app = self.appList.add(value)
@@ -71,10 +89,16 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
             self.ui.appNamesList.addItem(item)
 
     def onAccepted(self):
-        logger.debug("Dialog OK button ressed.")
+        """Save the application configuration on acceptance.
+
+        @return [None] Update the owned UI or state without returning a value."""
+        logger.debug("Dialog OK button pressed.")
         self.appList.save()
 
     def onDelApp(self):
+        """Remove selected application rules and persist their configuration.
+
+        @return [None] Update the owned UI or state without returning a value."""
         for item in self.ui.appNamesList.selectedItems():
             app: AppDef = item.data(Qt.ItemDataRole.UserRole)
             self.appList.remove(app.name)
@@ -85,14 +109,26 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
             self.appList.save()
 
     def onOpenApp(self):
+        """Choose an application executable using the file selection dialog.
+
+        @return [None] Update the owned UI or state without returning a value."""
         dlg = OpenFileDialog(self, "/Applications")
         dlg.comm.uriSelected.connect(self.onAddDocSelected)
         dlg.exec()
 
     def onAddDocSelected(self, uri, type, docRoot=None):
+        """Copy the selected application URI into the executable input.
+
+        @param uri [str] Chosen application file path or URI.
+        @param type [int] Document type returned by the selector; not used for this field.
+        @param docRoot [str, None] Legacy selector root argument; not used by this handler.
+        @return [None] Update the owned UI or state without returning a value."""
         self.ui.appExeInput.setText(uri)
 
     def onSave(self):
+        """Create or update the displayed application rule and save its fields.
+
+        @return [None] Update the owned UI or state without returning a value."""
         app = None
         items = self.ui.appNamesList.selectedItems()
         name = self.ui.appNameInput.text()

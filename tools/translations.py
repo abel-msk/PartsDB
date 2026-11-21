@@ -17,11 +17,9 @@ FORMS = ("ElPartsMain.ui", "AppsPathSetup.ui", "ElOpenFileWnd.ui", "ElHdrEditWnd
 
 
 def messages():
-    """Extract literal translate()/QT_TRANSLATE_NOOP() calls and Designer strings.
+    """Collect translation keys from maintained Python controllers and active Designer forms.
 
-    pylupdate6 6.10.0 uses ast.Str, removed in Python 3.14. This small extractor
-    supports our explicit-context calls using ast.Constant, without patching PyQt.
-    """
+    @return [set[tuple[str, str]]] Requested translated values or collected metadata."""
     result = set()
     # UI controllers also live in ElPluginMgr; plugin sources and tests are not scanned.
     sources = (list(ROOT.glob("*.py")) + list((ROOT / "ElPluginMgr").rglob("*.py"))
@@ -48,11 +46,18 @@ def messages():
 
 
 def catalogMessages(path):
+    """Read catalog entries indexed by translation context and source text.
+
+    @param path [Path] Existing Qt TS catalog path.
+    @return [dict[tuple[str, str], Element]] Requested translated values or collected metadata."""
     return {(context.findtext("name"), msg.findtext("source")): msg
             for context in ET.parse(path).findall("context") for msg in context.findall("message")}
 
 
 def update():
+    """Refresh English and Russian TS sources while retaining existing Russian translations.
+
+    @return [None] Updated captions or completed maintenance operation."""
     DIRECTORY.mkdir(exist_ok=True)
     for language in ("en", "ru"):
         path = DIRECTORY / ("partsdb_" + language + ".ts")
@@ -79,6 +84,9 @@ def update():
 
 
 def check():
+    """Require complete catalogs and matching format placeholders for every extracted source.
+
+    @return [None] Updated captions or completed maintenance operation."""
     expected = messages()
     for language in ("en", "ru"):
         path = DIRECTORY / ("partsdb_" + language + ".ts")
@@ -95,6 +103,9 @@ def check():
 
 
 def compileCatalogs():
+    """Compile maintained TS catalogs and copy Qt Russian standard-dialog translations.
+
+    @return [None] Updated captions or completed maintenance operation."""
     from PyQt6.QtCore import QLibraryInfo
     binary = "lrelease.exe" if os.name == "nt" else "lrelease"
     candidates = [Path(sys.executable).parent / binary,
@@ -112,6 +123,9 @@ def compileCatalogs():
 
 
 def main():
+    """Parse translation maintenance options and report extraction or compilation failures.
+
+    @return [None] Updated captions or completed maintenance operation."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--update", action="store_true", help="extract/update translation sources")
     parser.add_argument("--check", action="store_true", help="check catalogs for missing translations")

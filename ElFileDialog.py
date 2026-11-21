@@ -7,7 +7,17 @@ from PyQt6.QtCore import *
 
 
 class FileListW():
+    """Build a directory tree and file list for embedding in another widget.
+
+    @attr treeview [QTreeView] Directory navigation view.
+    @attr listview [QListView] Current directory contents.
+    @attr dirModel [QFileSystemModel] Directory model.
+    @attr fileModel [QFileSystemModel] File model."""
     def __init__(self, parent):
+        """Create embedded directory and file views rooted at the filesystem root.
+
+        @param parent [QWidget, QObject, None] Qt owner of the created object.
+        @return [None] Update the owned UI or state without returning a value."""
         self.verticalLayout = QtWidgets.QVBoxLayout(parent)
         self.verticalLayout.setObjectName("verticalLayout")
         self.widget = QtWidgets.QWidget(parent=parent)
@@ -40,5 +50,9 @@ class FileListW():
         self.treeview.clicked.connect(self.on_clicked)
 
     def on_clicked(self, index):
+        """Update the file view for the selected directory.
+
+        @param index [QModelIndex] Qt model index supplied by the view; parent indices are ignored for flat counts.
+        @return [None] Update the owned UI or state without returning a value."""
         path = self.dirModel.fileInfo(index).absoluteFilePath()
         self.listview.setRootIndex(self.fileModel.setRootPath(path))

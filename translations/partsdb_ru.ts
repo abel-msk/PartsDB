@@ -92,7 +92,11 @@ p, li { white-space: pre-wrap; }
       <translation>Включить</translation>
     </message>
     <message>
-      <source>Instaled plugins</source>
+      <source>Install from file...</source>
+      <translation>Установить из файла…</translation>
+    </message>
+    <message>
+      <source>Installed plugins</source>
       <translation>Установленные плагины</translation>
     </message>
     <message>
@@ -106,6 +110,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Plugin Name</source>
       <translation>Название плагина</translation>
+    </message>
+    <message>
+      <source>Remove</source>
+      <translation>Удалить</translation>
     </message>
     <message>
       <source>Settings</source>
@@ -123,13 +131,16 @@ p, li { white-space: pre-wrap; }
       <source>_</source>
       <translation>_</translation>
     </message>
+  </context>
+  <context>
+    <name>DialogButtons</name>
     <message>
-      <source>Удалить</source>
-      <translation>Удалить</translation>
+      <source>Cancel</source>
+      <translation>Отмена</translation>
     </message>
     <message>
-      <source>Установить из файла</source>
-      <translation>Установить из файла</translation>
+      <source>OK</source>
+      <translation>ОК</translation>
     </message>
   </context>
   <context>
@@ -194,12 +205,12 @@ p, li { white-space: pre-wrap; }
       <translation>Импортировано с помощью</translation>
     </message>
     <message>
-      <source>LInk Part</source>
-      <translation>Сопоставить деталь</translation>
-    </message>
-    <message>
       <source>Last Import</source>
       <translation>Последний импорт</translation>
+    </message>
+    <message>
+      <source>Link Part</source>
+      <translation>Сопоставить деталь</translation>
     </message>
     <message>
       <source>Open App</source>
@@ -1005,6 +1016,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
   </context>
   <context>
     <name>PluginsDialog</name>
+    <message>
+      <source>&lt;p&gt;&lt;b&gt;Application path:&lt;/b&gt; Path to the application executable.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Arguments:&lt;/b&gt; Use {file} for the project file path. Quote arguments containing spaces.&lt;/p&gt;</source>
+      <translation>&lt;p&gt;&lt;b&gt;Путь к приложению:&lt;/b&gt; Путь к исполняемому файлу приложения.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Параметры:&lt;/b&gt; Используйте {file} для пути к файлу проекта. Параметры с пробелами заключайте в кавычки.&lt;/p&gt;</translation>
+    </message>
     <message>
       <source>Application bundle does not exist</source>
       <translation>Приложение не найдено</translation>

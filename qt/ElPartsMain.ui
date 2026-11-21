@@ -1002,7 +1002,7 @@
                     <item>
                      <widget class="QPushButton" name="d_proj_link_cmd">
                       <property name="text">
-                       <string>LInk Part</string>
+                       <string>Link Part</string>
                       </property>
                      </widget>
                     </item>

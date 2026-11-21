@@ -5,7 +5,7 @@
 PartsDB (заголовок окна: *Electronic parts workbench*) — небольшое настольное приложение для учёта
 электронных компонентов и их документации. Написано на Python и PyQt6, все данные хранятся в одном файле SQLite.
 
-![Каталог: N-канальные MOSFET с картинками деталей и прикреплённым документом](docs/images/catalog-view.png)
+![Каталог: Основное окно](docs/images/main_win.png)
 
 Версия 2.0 добавляет импорт проектов KiCad, управление плагинами, редактируемые
 единицы СИ и базовые типы компонентов, запуск внешнего приложения для проекта.
@@ -57,7 +57,9 @@ PartsDB (заголовок окна: *Electronic parts workbench*) — небо
   и параметры приложения для импортёра. Кнопка **Открыть приложение** проекта подставляет
   его путь вместо `{file}`. Внешнее приложение продолжает работать после закрытия PartsDB.
 
-![Каталог: резисторы со значками SMD по умолчанию](docs/images/catalog-resistors.png)
+
+![Проекты: Основное окно](docs/images/projects.png)
+![Плагин: окно управления](docs/images/plugin_mgr.png)
 
 ## Установка
 
@@ -191,7 +193,6 @@ python main.py -c tests/elworks.test.conf -v
 | `ElConfig.py`, `constants.py`, `ElConstants.py`               | файл настроек и его ключи                                  |
 | `ElAppList.py`, `ElAppPathDialog.py`, `ElProcess.py` | приложения для открытия документов                |
 | `ElUnitsDialog.py`, `ElData/ElDBDataUnits.py` | редактор единиц СИ и базовых типов компонентов |
-| `tools/document_generated_ui.py` | воспроизводимые описания классов и методов генерируемых Qt-форм |
 | `ElHdrEditDialog.py`                        | редактор заголовков колонок                                |
 | `ELImport.py`                               | импорт из списка Excel                                     |
 | `ElPartsPluginSrc/kicad/`                   | исходники импортёра KiCad, манифест и настройки wheel      |
@@ -212,8 +213,9 @@ python main.py -c tests/elworks.test.conf -v
 ./updateui.sh
 ```
 
-Генератор добавляет описания классов и методов с параметрами в формате YARD
-через `tools/document_generated_ui.py`; эти описания сохраняются при перегенерации.
+Генерируемые файлы содержат только вывод генераторов. Не добавлять правки, комментарии
+или docstring, в том числе скриптами постобработки. Правила описания классов и методов
+применяются только к коду, написанному вручную.
 
 ### Тесты
 
@@ -237,8 +239,9 @@ python main.py -c tests/elworks.test.conf -v
 - [Архитектура и публичный API](docs/plugin-architecture-and-api.md).
 - [Менеджер плагинов и интерфейс проектов](docs/plugins-ui.md).
 - [Справочники единиц СИ и запуск приложения проекта](docs/units-and-project-applications.md).
-- [Схема БД](docs/database-plugins-and-parts.md) и [миграция импорта](docs/project-import-schema.md).
-- [Пример вывода KiCad и раскладка по полям БД](docs/kicad-import-output-and-database-mapping.md).
+- [Все таблицы и справочники БД](docs/database-schema.md).
+- [Миграции БД](docs/database-migrations.md).
+- [Импортёр KiCad и примеры результата API](docs/kicad-importer.md).
 - [Исходники и команды импортёра KiCad](ElPartsPluginSrc/kicad/README.md).
 
 ### Правила доступа к БД

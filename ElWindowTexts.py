@@ -43,6 +43,9 @@ def projWindowTexts(window):
     ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt2), translate("PluginWorkflow", "Unmatched parts"))
     ui.view.setTabText(ui.view.indexOf(ui.project_tab), translate("MainWindow", "Projects"))
     ui.label_2.setText(translate("MainWindow", "Last Import"))
+    ui.label_3.setText(translate("MainWindow", "Imported by"))
+    ui.label_5.setText(translate("MainWindow", "Refresh date"))
+    ui.d_proj_link_cmd.setText(translate("MainWindow", "Link Part"))
 
 
 def pluginsDialogTexts(window):
@@ -69,12 +72,19 @@ def pluginsDialogTexts(window):
     ui.pushButton.setText(translate("PluginsDialog", "Close"))
     ui.label_3.setText(translate('PluginsDialog', 'Application path'))
     ui.label_7.setText(translate('PluginsDialog', 'Arguments'))
+    ui.get_path_cmd.setToolTip(translate('PluginsDialog', 'Select application'))
+    ui.info.setHtml(translate('PluginsDialog', '<p><b>Application path:</b> Path to the application executable.</p>'
+                            '<p><b>Arguments:</b> Use {file} for the project file path. Quote arguments containing spaces.</p>'))
     ui.app_params_input.setToolTip(translate('PluginsDialog', 'Use {file} for the project file path. Quote arguments containing spaces.'))
     ui.pl_status.clear()
     ui.pushButton_3.setToolTip(translate("PluginWorkflow", "This plugin has no configurable settings"))
 
 
 def appPathDialogTexts(window):
+    """Apply document application editor labels, help and standard button captions.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     ui = window.ui
     window.setWindowTitle(translate("PartsDB", "Document applications"))
     ui.addBtn.setText(translate("AppPathDialog", "Add"))
@@ -93,9 +103,14 @@ def appPathDialogTexts(window):
     ui.label.setText(translate("AppPathDialog", "App name:"))
     ui.label_4.setText(translate("AppPathDialog", "Doc file extension:"))
     ui.label_3.setText(translate("AppPathDialog", "Params format:"))
+    dialogButtonTexts(ui.buttonBox)
 
 
 def openFileDialogTexts(window):
+    """Apply local file/URL selector labels and standard button captions.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     ui = window.ui
     window.setWindowTitle(translate("OpenFileWnd", "Select file or URL"))
     ui.label_2.setText(translate("OpenFileWnd", "Path"))
@@ -104,25 +119,42 @@ def openFileDialogTexts(window):
     ui.label.setText(translate("OpenFileWnd", "URL"))
     ui.clearBtn.setText(translate("OpenFileWnd", "X"))
     ui.tabWidget.setTabText(ui.tabWidget.indexOf(ui.webTab), translate("OpenFileWnd", "WEB URL"))
+    dialogButtonTexts(ui.buttonBox)
 
 
 def headerEditDialogTexts(window):
+    """Apply header editor labels, automatic icon text and standard button captions.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     ui = window.ui
     window.setWindowTitle(translate("HdrEditDialog", "Edit headers"))
     ui.label.setText(translate("HdrEditDialog", "Section:"))
     ui.label_2.setText(translate("HdrEditDialog", "Default part icon:"))
     ui.icon_selector.setItemText(0, translate("PartsDB", "Auto (from parent section / built-in rule)"))
+    dialogButtonTexts(ui.buttonBox)
 
 
 def importProgressTexts(window, installing=False):
+    """Apply progress title, operation label and cancellation availability.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @param installing [bool] True disables cancellation and displays plugin installation captions.
+    @return [None] Updated captions or completed maintenance operation."""
     window.setWindowTitle(translate('PluginWorkflow', 'Install plugin') if installing
                           else translate('PluginWorkflow', 'Import project'))
     window.setLabelText(translate('PluginWorkflow', 'Preparing plugin environment...') if installing
                         else translate('PluginWorkflow', 'Reading project...'))
-    window.setCancelButtonText(translate('PluginWorkflow', 'Cancel'))
+    if installing:
+        window.setCancelButton(None)
+    else:
+        window.setCancelButtonText(translate('PluginWorkflow', 'Cancel'))
 
 
 def componentHeaders():
+    """Build localized imported-component column captions.
+
+    @return [list[str]] Requested translated values or collected metadata."""
     return [translate('PluginWorkflow', 'Reference'), translate('PluginWorkflow', 'Kind'),
             translate('PluginWorkflow', 'Value'), translate('PluginWorkflow', 'Footprint'),
             translate('PluginWorkflow', 'In BOM'), translate('PluginWorkflow', 'On board'),
@@ -130,6 +162,10 @@ def componentHeaders():
 
 
 def importPreviewTexts(window):
+    """Apply preview captions and change labels without modifying the import result.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     from PyQt6.QtWidgets import QDialogButtonBox, QTableWidgetItem
     ui, project, changes = window.ui, window.project, window.changes
     window.setWindowTitle(translate('PluginWorkflow', 'Import preview'))
@@ -153,15 +189,30 @@ def importPreviewTexts(window):
 
 
 def projectMatchTexts(link, clear):
+    """Apply localized link and clear captions to component context-menu actions.
+
+    @param link [QAction] Action linking a project component to the selected stock part.
+    @param clear [QAction] Action clearing the selected component stock match.
+    @return [None] Updated captions or completed maintenance operation."""
     link.setText(translate('PluginWorkflow', 'Link selected stock part'))
     clear.setText(translate('PluginWorkflow', 'Clear stock match'))
 
 
 def pluginLogsTexts(window):
+    """Apply the log window title and localized empty-state text.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     window.setWindowTitle(translate('PluginWorkflow', 'Plugin logs'))
+    if not window.logText:
+        window.text.setPlainText(translate('PluginWorkflow', 'No log entries'))
 
 
 def pluginTypeText(plugin_type):
+    """Translate a known functional plugin type, retaining unknown type IDs.
+
+    @param plugin_type [str] Functional plugin type ID from validated metadata.
+    @return [str] Requested translated values or collected metadata."""
     from ElPartsPluginApi.constants import (
         PLUGIN_TYPE_IMPORT, PLUGIN_TYPE_PARTS_ORDER, PLUGIN_TYPE_SHIPMENT_TRACKING,
     )
@@ -174,17 +225,25 @@ def pluginTypeText(plugin_type):
 
 
 def sectionDialogTexts(window):
-    """Apply section editor labels. @param window [SectionDialog] initialized dialog."""
+    """Apply section editor captions and standard acceptance/cancellation texts.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     window.setWindowTitle(translate('PartsDB', 'Section'))
     window.nameLabel.setText(translate('PartsDB', 'Section name:'))
     window.typeLabel.setText(translate('PartsDB', 'Basic type:'))
+    dialogButtonTexts(window.buttons)
 
 
 def partValuesDialogTexts(window):
-    """Apply key input labels. @param window [PartValuesDialog] initialized dialog."""
+    """Apply key-input captions and preserve custom database header titles.
+
+    @param window [QWidget] Initialized window exposing the widgets required by this text function.
+    @return [None] Updated captions or completed maintenance operation."""
     from ElTranslations import defaultHeaderText
     window.setWindowTitle(translate('PartsDB', 'Add part'))
     window.prompt.setText(translate('PartsDB', 'Enter part nominal'))
+    dialogButtonTexts(window.buttons)
     for header in window.headers:
         field = header['field_name']
         window.labels[field].setText(defaultHeaderText(header, field))
@@ -234,3 +293,17 @@ def unitsDialogErrorText(message):
         'Cannot delete a basic type used by the catalog or its default type': translate('UnitsDialog', 'Cannot delete a basic type used by the catalog or its default type'),
     }
     return messages.get(message, message)
+
+
+def dialogButtonTexts(buttons):
+    """Apply localized standard acceptance/cancellation captions for handwritten dialogs.
+
+    @param buttons [QDialogButtonBox] Existing button box; absent button kinds are ignored.
+    @return [None] Update only the existing standard button captions.
+    """
+    from PyQt6.QtWidgets import QDialogButtonBox
+    for kind, text in ((QDialogButtonBox.StandardButton.Ok, translate('DialogButtons', 'OK')),
+                       (QDialogButtonBox.StandardButton.Cancel, translate('DialogButtons', 'Cancel'))):
+        button = buttons.button(kind)
+        if button is not None:
+            button.setText(text)

@@ -6,10 +6,21 @@ from ElWindowTexts import sectionDialogTexts, partValuesDialogTexts
 
 
 class SectionDialog(TranslatedDialogMixin, QDialog):
-    """Edit a section name and reference type; stores the name editor and reference combo."""
+    """Edit a section name and basic type while retaining user input across language changes.
+
+    @attr ui [SectionDialog] Self-reference for translation events.
+    @attr nameEdit [QLineEdit] Pending section name.
+    @attr typeCombo [QComboBox] Basic type names and persistent IDs.
+    @attr buttons [QDialogButtonBox] Acceptance/cancellation controls."""
 
     def __init__(self, parent, basic_types, name='', basic_type_id=1):
-        """Prepare input. @param parent [QWidget]; basic_types [list[tuple]]; name [str]; basic_type_id [int]."""
+        """Build editors from a section name and available basic type records.
+
+        @param parent [QWidget, QObject, None] Qt owner of the created object.
+        @param basic_types [list[tuple]] Basic type records: ID, name, designator and optional icon.
+        @param name [str] Initial section name, preserved as user data.
+        @param basic_type_id [int] Initial basic type ID; unknown IDs fall back to the first choice.
+        @return [None] Update the owned UI or state without returning a value."""
         super().__init__(parent)
         self.ui = self
         self.nameEdit = QLineEdit(name, self)
@@ -31,19 +42,32 @@ class SectionDialog(TranslatedDialogMixin, QDialog):
         self.retranslate()
 
     def validate(self):
-        """Enable acceptance only for a nonempty section name; takes no parameters."""
+        """Enable acceptance only when the pending name is nonempty.
+
+        @return [None] Update the owned UI or state without returning a value."""
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(bool(self.nameEdit.text().strip()))
 
     def retranslate(self):
-        """Refresh section labels without changing reference names or user input."""
+        """Refresh section captions without changing reference names or input.
+
+        @return [None] Update the owned UI or state without returning a value."""
         sectionDialogTexts(self)
 
 
 class PartValuesDialog(TranslatedDialogMixin, QDialog):
-    """Collect all configured key values; stores header metadata and labeled editors."""
+    """Collect configured key values for a new part.
+
+    @attr headers [list[Header]] Ordered key metadata.
+    @attr editors [dict[str, QLineEdit]] Pending values by field name.
+    @attr labels [dict[str, QLabel]] Localized field labels.
+    @attr buttons [QDialogButtonBox] Acceptance/cancellation controls."""
 
     def __init__(self, parent, headers):
-        """Build one field per key. @param parent [QWidget]; headers [list[Header]] ordered keys."""
+        """Build one editor for each configured key field.
+
+        @param parent [QWidget, QObject, None] Qt owner of the created object.
+        @param headers [list[Header]] Ordered metadata for the required key fields.
+        @return [None] Update the owned UI or state without returning a value."""
         super().__init__(parent)
         self.ui = self
         self.headers = headers
@@ -67,14 +91,20 @@ class PartValuesDialog(TranslatedDialogMixin, QDialog):
         self.retranslate()
 
     def values(self):
-        """Return all key values. @return [dict[str,str]] trimmed, nonempty values."""
+        """Read all pending key values with surrounding whitespace removed.
+
+        @return [dict[str, str]] Trimmed pending key values."""
         return {field: editor.text().strip() for field, editor in self.editors.items()}
 
     def validate(self):
-        """Require a value in every key editor; takes no parameters."""
+        """Enable acceptance only when every key field contains a value.
+
+        @return [None] Update the owned UI or state without returning a value."""
         valid = bool(self.editors) and all(self.values().values())
         self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(valid)
 
     def retranslate(self):
-        """Refresh prompt and displayed header labels while preserving editor content."""
+        """Refresh the prompt and field captions while preserving values.
+
+        @return [None] Update the owned UI or state without returning a value."""
         partValuesDialogTexts(self)
