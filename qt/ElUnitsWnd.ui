@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1080</width>
+    <width>738</width>
     <height>574</height>
    </rect>
   </property>
@@ -55,7 +55,7 @@
         <item>
          <widget class="QTabWidget" name="tabWidget">
           <property name="currentIndex">
-           <number>1</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="types_frame">
            <attribute name="title">
@@ -134,6 +134,9 @@
                  <property name="selectionBehavior">
                   <enum>QAbstractItemView::SelectRows</enum>
                  </property>
+                 <property name="sortingEnabled">
+                  <bool>true</bool>
+                 </property>
                  <property name="cornerButtonEnabled">
                   <bool>false</bool>
                  </property>
@@ -149,7 +152,7 @@
           </widget>
           <widget class="QWidget" name="units_frame">
            <attribute name="title">
-            <string>SI units</string>
+            <string>SI unit names</string>
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_5">
             <property name="leftMargin">
@@ -227,9 +230,15 @@
                  <property name="selectionBehavior">
                   <enum>QAbstractItemView::SelectRows</enum>
                  </property>
+                 <property name="sortingEnabled">
+                  <bool>true</bool>
+                 </property>
                  <property name="cornerButtonEnabled">
                   <bool>false</bool>
                  </property>
+                 <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+                  <bool>true</bool>
+                 </attribute>
                  <attribute name="verticalHeaderVisible">
                   <bool>false</bool>
                  </attribute>
@@ -252,6 +261,9 @@
        </property>
        <property name="standardButtons">
         <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+       </property>
+       <property name="centerButtons">
+        <bool>true</bool>
        </property>
       </widget>
      </item>

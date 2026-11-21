@@ -235,6 +235,7 @@ python main.py -c tests/elworks.test.conf -v
 
 ### Документация плагинов
 
+- [Автоматический поиск кандидатов в каталоге](docs/parts-matching.md).
 - [Установка, импорт, конфигурация и очистка тестовых БД](docs/plugin-runtime.md).
 - [Архитектура и публичный API](docs/plugin-architecture-and-api.md).
 - [Менеджер плагинов и интерфейс проектов](docs/plugins-ui.md).

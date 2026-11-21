@@ -1124,7 +1124,7 @@
                     <number>0</number>
                    </property>
                    <item>
-                    <widget class="QTableView" name="tableView_2">
+                    <widget class="QTableView" name="no_matched_tbl">
                      <property name="frameShape">
                       <enum>QFrame::StyledPanel</enum>
                      </property>

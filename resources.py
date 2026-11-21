@@ -29766,15 +29766,9 @@ qt_resource_struct = b"\
 "
 
 def qInitResources():
-    """Register the generated binary resources with Qt.
-
-    @return [None] Update the Qt resource registry."""
     QtCore.qRegisterResourceData(0x03, qt_resource_struct, qt_resource_name, qt_resource_data)
 
 def qCleanupResources():
-    """Unregister the generated binary resources from Qt.
-
-    @return [None] Update the Qt resource registry."""
     QtCore.qUnregisterResourceData(0x03, qt_resource_struct, qt_resource_name, qt_resource_data)
 
 qInitResources()

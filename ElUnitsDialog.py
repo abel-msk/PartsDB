@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
 from PyQt6.QtWidgets import QComboBox, QDialog, QMessageBox, QStyledItemDelegate
 
-from ElConstants import UNIT_FIELDS, BASIC_TYPE_FIELDS, UNIT_REFERENCE_ROLE
+from ElConstants import UNIT_FIELDS, BASIC_TYPE_FIELDS, UNIT_REFERENCE_ROLE, UNIT_ALIAS_COLUMN
 from ElData.ElDBDataUnits import UnitsDataStore
 from ElTranslations import TranslatedDialogMixin, translate
 from ElUnitsWnd import Ui_units_dialog
@@ -38,9 +38,17 @@ class BaseUnitDelegate(QStyledItemDelegate):
         # Native combo boxes can be transparent: cover the cell text while editing.
         editor.setAutoFillBackground(True)
         editor.addItem('', None)
-        for unit_id, label in self.dialog.baseUnits().items():
+        for unit_id, label in self.choices(index).items():
             editor.addItem(label, unit_id)
         return editor
+
+    def choices(self, index):
+        """Supply the current base unit choices.
+
+        @param index [QModelIndex] Cell being edited; unused for unit references.
+        @return [dict[int, str]] Available unit IDs and display labels.
+        """
+        return self.dialog.baseUnits()
 
     def setEditorData(self, editor, index):
         """Select the reference currently stored in the model.
@@ -63,6 +71,22 @@ class BaseUnitDelegate(QStyledItemDelegate):
         model.setData(index, editor.currentText(), Qt.ItemDataRole.DisplayRole)
 
 
+class BasicTypeAliasDelegate(BaseUnitDelegate):
+    """Edit alias targets using current non-alias types from the owner dialog.
+
+    @attr dialog [UnitsDialog] Owner supplying pending type rows and temporary IDs.
+    """
+
+    def choices(self, index):
+        """Exclude aliases and the edited row from available targets.
+
+        @param index [QModelIndex] Alias cell being edited.
+        @return [dict[int, str]] Canonical type IDs mapped to their current names.
+        """
+        own_id = index.model().item(index.row(), 0).data(Qt.ItemDataRole.UserRole)
+        return {key: name for key, name in self.dialog.basicTypes().items() if key != own_id}
+
+
 class UnitsDialog(TranslatedDialogMixin, QDialog):
     """Edit SI units and basic component types; commit on Save and discard on Cancel.
 
@@ -70,6 +94,8 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
     @attr ui [Ui_units_dialog] Generated form widgets.
     @attr unitsModel [QStandardItemModel] Pending SI unit rows with immutable IDs.
     @attr typesModel [QStandardItemModel] Pending basic type rows with immutable IDs.
+    @attr unitAliases [dict[int, tuple[str]]] Saved alternate spellings used to populate editable alias cells.
+    @attr nextTypeID [int] Next negative temporary ID for a newly added type.
     @attr nextUnitID [int] Next negative temporary ID for a newly added unit.
     @attr updatingReferences [bool] Guard against recursive reference label updates."""
 
@@ -81,16 +107,21 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         @return [None] No value is returned."""
         super().__init__(parent)
         self.store = UnitsDataStore(database)
+        self.unitAliases = self.store.aliases()
         self.nextUnitID = -1
+        self.nextTypeID = -1
         self.updatingReferences = False
         self.ui = Ui_units_dialog()
         self.ui.setupUi(self)
         self.unitsModel = self.makeModel(self.ui.si_units_tbl, self.store.units())
         self.typesModel = self.makeModel(self.ui.b_types_tbl, self.store.basicTypes())
         self.ui.si_units_tbl.setItemDelegateForColumn(len(UNIT_FIELDS) - 1, BaseUnitDelegate(self, self.ui.si_units_tbl))
-        self.ui.b_types_tbl.setItemDelegateForColumn(len(BASIC_TYPE_FIELDS) - 1, BaseUnitDelegate(self, self.ui.b_types_tbl))
+        self.ui.b_types_tbl.setItemDelegateForColumn(4, BaseUnitDelegate(self, self.ui.b_types_tbl))
+        self.ui.b_types_tbl.setItemDelegateForColumn(5, BasicTypeAliasDelegate(self, self.ui.b_types_tbl))
         self.unitsModel.itemChanged.connect(self.refreshReferences)
         self.unitsModel.rowsRemoved.connect(self.refreshReferences)
+        self.typesModel.itemChanged.connect(self.refreshReferences)
+        self.typesModel.rowsRemoved.connect(self.refreshReferences)
         self.refreshReferences()
         self.ui.add_unit_cmd.clicked.connect(self.addUnit)
         self.ui.del_unit_cmd.clicked.connect(self.deleteUnit)
@@ -100,10 +131,11 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         self.ui.si_units_tbl.resizeColumnsToContents()
         self.ui.b_types_tbl.resizeColumnsToContents()
         self.ui.si_units_tbl.setColumnWidth(len(UNIT_FIELDS) - 1, 260)
+        self.ui.si_units_tbl.setColumnWidth(UNIT_ALIAS_COLUMN, 260)
         self.ui.b_types_tbl.setColumnWidth(len(BASIC_TYPE_FIELDS) - 1, 260)
 
     def makeModel(self, view, rows):
-        """Attach and populate an editable reference model.
+        """Attach and populate an editable reference model with its ID column hidden.
 
         @param view [QTableView] Target reference table widget.
         @param rows [list[tuple]] Reference rows with the persistent ID in column zero.
@@ -112,21 +144,30 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         view.setModel(model)
         for row in rows:
             self.appendRow(model, row)
+        view.setColumnHidden(0, True)
         return model
 
     def appendRow(self, model, row):
         """Append an editable reference row while keeping its ID read-only.
 
         @param model [QStandardItemModel] Target reference model.
-        @param row [tuple] ID followed by field values; ID is None for an unsaved row.
+        @param row [tuple] ID followed by field values; ID None assigns a negative temporary ID for an unsaved row.
         @return [None] No value is returned."""
-        if row[0] is None and len(row) == len(UNIT_FIELDS):
+        unit_row = len(row) in (len(UNIT_FIELDS), len(UNIT_FIELDS) + 1)
+        if row[0] is None and unit_row:
             row = (self.nextUnitID, *row[1:])
             self.nextUnitID -= 1
+        if row[0] is None and len(row) == len(BASIC_TYPE_FIELDS):
+            row = (self.nextTypeID, *row[1:])
+            self.nextTypeID -= 1
+        if unit_row and len(row) == len(UNIT_FIELDS):
+            row = (*row, ', '.join(self.unitAliases.get(row[0], ())))
         items = [QStandardItem('' if value is None else str(value)) for value in row]
         if row[0] is not None and row[0] < 0:
             items[0].setText('')
-        items[-1].setData(row[-1], UNIT_REFERENCE_ROLE)
+        reference_columns = (6,) if unit_row else (4, 5)
+        for column in reference_columns:
+            items[column].setData(row[column], UNIT_REFERENCE_ROLE)
         items[0].setData(row[0], Qt.ItemDataRole.UserRole)
         items[0].setEditable(False)
         model.appendRow(items)
@@ -142,7 +183,7 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         """Append an unsaved basic type and start editing its name.
 
         @return [None] No value is returned."""
-        self.appendRow(self.typesModel, (None, '', '', '', None))
+        self.appendRow(self.typesModel, (None, '', '', '', None, None))
         self.editNewRow(self.ui.b_types_tbl, self.typesModel)
 
     def editNewRow(self, view, model):
@@ -188,11 +229,23 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
 
         @param model [QStandardItemModel] Reference model whose ID column stores the persistent ID.
         @param fields [tuple[str]] Ordered field names defining the number of columns.
-        @return [list[tuple]] ID and field values; unsaved rows have ID None."""
+        @return [list[tuple]] ID and field values; unsaved rows have negative temporary IDs."""
         return [(model.item(row, 0).data(Qt.ItemDataRole.UserRole),
-                 *(model.item(row, col).text() for col in range(1, len(fields) - 1)),
-                 model.item(row, len(fields) - 1).data(UNIT_REFERENCE_ROLE))
+                 *(model.item(row, col).data(UNIT_REFERENCE_ROLE) if fields[col].endswith('_id')
+                   else model.item(row, col).text() for col in range(1, len(fields))))
                 for row in range(model.rowCount())]
+
+    def aliasRows(self):
+        """Collect editable alternate unit spellings without changing pending reference IDs.
+
+        @return [dict[int, list[str]]] Saved or temporary unit IDs mapped to comma/semicolon-separated aliases.
+        """
+        result = {}
+        for row in range(self.unitsModel.rowCount()):
+            unit_id = self.unitsModel.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            text = self.unitsModel.item(row, UNIT_ALIAS_COLUMN).text().replace(';', ',')
+            result[unit_id] = [marker.strip() for marker in text.split(',') if marker.strip()]
+        return result
 
     def baseUnits(self):
         """Collect valid pending base units, including unsaved rows with temporary IDs.
@@ -213,8 +266,18 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
                                                            self.unitsModel.item(row, 3).text())
         return choices
 
+    def basicTypes(self):
+        """Collect named non-alias types, including unsaved rows.
+
+        @return [dict[int, str]] Persistent or temporary type IDs mapped to names.
+        """
+        return {self.typesModel.item(row, 0).data(Qt.ItemDataRole.UserRole): self.typesModel.item(row, 1).text()
+                for row in range(self.typesModel.rowCount())
+                if self.typesModel.item(row, 5).data(UNIT_REFERENCE_ROLE) is None
+                and self.typesModel.item(row, 1).text().strip()}
+
     def refreshReferences(self, *args):
-        """Refresh labels after a unit edit without altering stored reference IDs.
+        """Refresh labels after a reference edit without altering stored reference IDs.
 
         @param args [tuple] Qt model-change arguments; their values are not used.
         @return [None] Show names for valid links and IDs for unresolved links.
@@ -224,7 +287,8 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         self.updatingReferences = True
         try:
             choices = self.baseUnits()
-            for model, column in ((self.unitsModel, 6), (self.typesModel, 4)):
+            for model, column, choices in ((self.unitsModel, 6, choices), (self.typesModel, 4, choices),
+                                           (self.typesModel, 5, self.basicTypes())):
                 for row in range(model.rowCount()):
                     item = model.item(row, column)
                     unit_id = item.data(UNIT_REFERENCE_ROLE)
@@ -241,7 +305,7 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         # Transfer the active cell editor's text to its model before reading it.
         self.ui.buttonBox.setFocus()
         try:
-            self.store.save(self.rows(self.unitsModel, UNIT_FIELDS), self.rows(self.typesModel, BASIC_TYPE_FIELDS))
+            self.store.save(self.rows(self.unitsModel, UNIT_FIELDS), self.rows(self.typesModel, BASIC_TYPE_FIELDS), self.aliasRows())
         except Exception as exc:
             QMessageBox.critical(self, translate('UnitsDialog', 'Cannot save reference data'), unitsDialogErrorText(str(exc)))
             return

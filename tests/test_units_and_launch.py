@@ -288,3 +288,101 @@ class UnitsAndLaunchTests(unittest.TestCase):
         before = list(self.conn.iterdump())
         self.scheme.migrate()
         self.assertEqual(list(self.conn.iterdump()), before)
+
+    def test_alias_roundtrip_and_invalid_targets(self):
+        """Resolve pending alias IDs and reject chains, self-links and removed targets.
+
+        @return [None] Verify valid links persist and invalid edits roll back both tables.
+        """
+        types = self.store.basicTypes()
+        self.store.save(self.store.units(), types + [
+            (-2, 'Alias target', 'X', None, None, None),
+            (-1, 'Alias name', 'X', None, None, -2)])
+        saved = {row[1]: row for row in self.store.basicTypes()}
+        target_id = saved['Alias target'][0]
+        alias_id = saved['Alias name'][0]
+        self.assertEqual(saved['Alias name'][5], target_id)
+        before = list(self.conn.iterdump())
+        for bad_id in (alias_id, 999999):
+            changed = [(*row[:5], bad_id) if row[0] == alias_id else row
+                       for row in self.store.basicTypes()]
+            with self.subTest(bad_id=bad_id), self.assertRaises(ValueError):
+                self.store.save(self.store.units(), changed)
+        with self.assertRaises(ValueError):
+            self.store.save(self.store.units(), [(*row[:5], alias_id) if row[0] == target_id else row
+                                                for row in self.store.basicTypes()])
+        with self.assertRaises(ValueError):
+            self.store.save(self.store.units(), [row for row in self.store.basicTypes() if row[0] != target_id])
+        self.assertEqual(list(self.conn.iterdump()), before)
+        self.store.save(self.store.units(), [(*row[:5], None) if row[0] == alias_id else row
+                                            for row in self.store.basicTypes()])
+        self.assertIsNone(self.store.basicTypes()[-1][5])
+
+    def test_alias_selector_pending_rows_cancel_and_save(self):
+        """Filter alias choices using pending rows and persist the selected temporary ID.
+
+        @return [None] Verify labels follow renames, cancellation discards edits and Save resolves IDs.
+        """
+        from ElConstants import UNIT_REFERENCE_ROLE
+        from PyQt6.QtCore import Qt
+        dialog = UnitsDialog(self.scheme)
+        initial = list(self.conn.iterdump())
+        dialog.appendRow(dialog.typesModel, (None, 'Pending target', 'X', None, None, None))
+        dialog.appendRow(dialog.typesModel, (None, 'Pending alias', 'X', None, None, None))
+        target_row = dialog.typesModel.rowCount() - 2
+        alias_row = target_row + 1
+        target_id = dialog.typesModel.item(target_row, 0).data(Qt.ItemDataRole.UserRole)
+        alias_id = dialog.typesModel.item(alias_row, 0).data(Qt.ItemDataRole.UserRole)
+        delegate = dialog.ui.b_types_tbl.itemDelegateForColumn(5)
+        index = dialog.typesModel.index(alias_row, 5)
+        editor = delegate.createEditor(dialog, None, index)
+        self.assertGreaterEqual(editor.findData(target_id), 0)
+        self.assertEqual(editor.findData(alias_id), -1)
+        editor.setCurrentIndex(editor.findData(target_id))
+        delegate.setModelData(editor, dialog.typesModel, index)
+        self.assertEqual(index.data(UNIT_REFERENCE_ROLE), target_id)
+        dialog.typesModel.item(target_row, 1).setText('Renamed target')
+        self.assertEqual(index.data(), 'Renamed target')
+        self.assertNotIn(alias_id, dialog.basicTypes())
+        dialog.retranslate()
+        self.assertEqual(index.data(UNIT_REFERENCE_ROLE), target_id)
+        dialog.reject()
+        self.assertEqual(list(self.conn.iterdump()), initial)
+        with mock.patch.object(QMessageBox, 'critical') as error:
+            dialog.accept()
+        self.assertFalse(error.called, error.call_args)
+        types = {row[1]: row for row in self.store.basicTypes()}
+        self.assertEqual(types['Pending alias'][5], types['Renamed target'][0])
+        dialog.deleteLater()
+
+    def test_v10_alias_migration_is_atomic_and_preserves_rows(self):
+        """Upgrade v9 with an empty alias column and roll back a failure after DDL.
+
+        @return [None] Verify preserved data, current version and repeatable migration.
+        """
+        types = [row[:5] for row in self.store.basicTypes()]
+        with self.conn:
+            self.conn.execute('ALTER TABLE BASIC_TYPES DROP COLUMN alias_of_id')
+            self.conn.execute("UPDATE ENVIRONMENT SET value='9' WHERE name='db_version'")
+        before = list(self.conn.iterdump())
+        original = db._createBasicTypeAliases
+
+        def fail_after_ddl(conn):
+            """Inject failure after the alias column is created.
+
+            @param conn [SQLiteConnector] Disposable test database connector.
+            @return [None] Raise a deliberate migration failure.
+            """
+            original(conn)
+            raise RuntimeError('Injected alias migration failure')
+
+        with mock.patch.object(db, '_createBasicTypeAliases', side_effect=fail_after_ddl):
+            with self.assertRaises(RuntimeError):
+                self.scheme.migrate()
+        self.assertEqual(list(self.conn.iterdump()), before)
+        self.scheme.migrate()
+        self.assertEqual(self.scheme.getDBVersion(), db.DB_VERSION)
+        self.assertEqual(self.store.basicTypes(), [(*row, None) for row in types])
+        before = list(self.conn.iterdump())
+        self.scheme.migrate()
+        self.assertEqual(list(self.conn.iterdump()), before)

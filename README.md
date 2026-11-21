@@ -234,6 +234,7 @@ after success or `--failed` after failure.
 
 ### Plugin documentation
 
+- [Automatic candidate matching](docs/parts-matching.md).
 - [Installation, imports, configuration and test cleanup](docs/plugin-runtime.md).
 - [Architecture and public API](docs/plugin-architecture-and-api.md).
 - [Plugin manager and Projects UI](docs/plugins-ui.md).

@@ -837,6 +837,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Cancel</translation>
     </message>
     <message>
+      <source>Catalog match found</source>
+      <translation>Catalog match found</translation>
+    </message>
+    <message>
       <source>Change</source>
       <translation>Change</translation>
     </message>
@@ -855,6 +859,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Footprint</source>
       <translation>Footprint</translation>
+    </message>
+    <message>
+      <source>Found in catalog: {}</source>
+      <translation>Found in catalog: {}</translation>
     </message>
     <message>
       <source>Import cancelled</source>
@@ -905,8 +913,20 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Link selected stock part</translation>
     </message>
     <message>
-      <source>Link {} to stock part #{}?</source>
-      <translation>Link {} to stock part #{}?</translation>
+      <source>Link {} to the selected stock part?</source>
+      <translation>Link {} to the selected stock part?</translation>
+    </message>
+    <message>
+      <source>Matching status</source>
+      <translation>Matching status</translation>
+    </message>
+    <message>
+      <source>NO</source>
+      <translation>NO</translation>
+    </message>
+    <message>
+      <source>No catalog match found</source>
+      <translation>No catalog match found</translation>
     </message>
     <message>
       <source>No log entries</source>
@@ -997,10 +1017,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Stock match</translation>
     </message>
     <message>
-      <source>Stock part</source>
-      <translation>Stock part</translation>
-    </message>
-    <message>
       <source>This plugin has no configurable settings</source>
       <translation>This plugin has no configurable settings</translation>
     </message>
@@ -1015,6 +1031,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Value</source>
       <translation>Value</translation>
+    </message>
+    <message>
+      <source>YES</source>
+      <translation>YES</translation>
     </message>
     <message>
       <source>{}: {} components. Added: {}; changed: {}; removed: {}.</source>
@@ -1127,6 +1147,22 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Add unit</translation>
     </message>
     <message>
+      <source>Alias of</source>
+      <translation>Alias of</translation>
+    </message>
+    <message>
+      <source>Aliases</source>
+      <translation>Aliases</translation>
+    </message>
+    <message>
+      <source>An SI alias must reference an existing or pending unit</source>
+      <translation>An SI alias must reference an existing or pending unit</translation>
+    </message>
+    <message>
+      <source>An alias must reference another existing non-alias type</source>
+      <translation>An alias must reference another existing non-alias type</translation>
+    </message>
+    <message>
       <source>Base SI unit</source>
       <translation>Base SI unit</translation>
     </message>
@@ -1211,6 +1247,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Reference data changed; reopen the dialog</translation>
     </message>
     <message>
+      <source>SI aliases must be a list of nonempty spellings</source>
+      <translation>SI aliases must be a list of nonempty spellings</translation>
+    </message>
+    <message>
       <source>SI units</source>
       <translation>SI units</translation>
     </message>
@@ -1258,8 +1298,8 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Delete Unit</translation>
     </message>
     <message>
-      <source>SI units</source>
-      <translation>SI units</translation>
+      <source>SI unit names</source>
+      <translation>SI unit names</translation>
     </message>
     <message>
       <source>Units setup</source>

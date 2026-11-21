@@ -17,24 +17,45 @@ PROJECT_TABLE_UNMATCHED = 'project_unmatched'
 
 # Reference editor columns and initial SI units; multiply converts to the base unit.
 UNIT_FIELDS = ('id', 'name', 'name_ru', 'marker', 'marker_ru', 'multiply', 'base_unit_id')
-BASIC_TYPE_FIELDS = ('id', 'name', 'designator', 'icon', 'base_unit_id')
+BASIC_TYPE_FIELDS = ('id', 'name', 'designator', 'icon', 'base_unit_id', 'alias_of_id')
 BASIC_TYPE_SI_UNITS = {2: 'Farad', 3: 'Ohm', 7: 'Henry'}
 UNIT_REFERENCE_ROLE = Qt.ItemDataRole.UserRole + 2
 SI_PREFIXES = (
-    ('atto', 'атто', 'a', 'а', 1e-18), ('femto', 'фемто', 'f', 'ф', 1e-15),
-    ('pico', 'пико', 'p', 'п', 1e-12), ('nano', 'нано', 'n', 'н', 1e-9),
-    ('micro', 'микро', 'u', 'мк', 1e-6), ('milli', 'милли', 'm', 'м', 1e-3),
-    ('centi', 'санти', 'c', 'с', 1e-2), ('deci', 'деци', 'd', 'д', 1e-1),
-    ('', '', '', '', 1.0), ('deca', 'дека', 'da', 'да', 1e1),
-    ('hecto', 'гекто', 'h', 'г', 1e2), ('kilo', 'кило', 'k', 'к', 1e3),
-    ('mega', 'мега', 'M', 'М', 1e6), ('giga', 'гига', 'G', 'Г', 1e9),
-    ('tera', 'тера', 'T', 'Т', 1e12), ('peta', 'пета', 'P', 'П', 1e15),
-    ('exa', 'экса', 'E', 'Э', 1e18), ('zetta', 'зетта', 'Z', 'З', 1e21),
-    ('yotta', 'иотта', 'Y', 'И', 1e24), ('ronna', 'ронна', 'R', 'Р', 1e27),
-    ('quetta', 'кветта', 'Q', 'Кв', 1e30), ('ronto', 'ронто', 'r', 'р', 1e-27),
-    ('quecto', 'квекто', 'q', 'кв', 1e-30), ('yocto', 'иокто', 'y', 'и', 1e-24),
-    ('zepto', 'зепто', 'z', 'з', 1e-21),
+    ('pico', 'пико', 'p', 'п', 1e-12),
+    ('nano', 'нано', 'n', 'н', 1e-9),
+    ('micro', 'микро', 'u', 'мк', 1e-6),
+    ('milli', 'милли', 'm', 'м', 1e-3),
+    ('', '', '', '', 1.0),
+    ('kilo', 'кило', 'k', 'к', 1e3),
+    ('mega', 'мега', 'M', 'М', 1e6),
 )
 SI_BASE_UNITS = (('farad', 'фарад', 'F', 'Ф'), ('henry', 'генри', 'H', 'Г'),
                  ('ohm', 'ом', 'R', 'Ом'), ('volt', 'вольт', 'V', 'В'),
                  ('ampere', 'ампер', 'A', 'А'))
+
+
+# Candidate matching uses database basic types and SI references rather than section names.
+MATCHING_CANDIDATES_ROLE = Qt.ItemDataRole.UserRole + 3
+MATCHING_KIND_NAMES = {
+    'ic': ('Integrated circuit',), 'connector': ('Jack', 'Plug'),
+    'led': ('LED', 'Diode'), 'module': ('Sub-assembly or module',),
+    'crystal': ('Crystal or oscillator',), 'mounting_hole': ('Hardware',),
+    'other': ('Miscellaneous',),
+}
+MATCHING_NUMBER_PATTERN = r'[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:[eE][+-]?\d+)?'
+MATCHING_QUANTITY_PATTERN = r'\s*(' + MATCHING_NUMBER_PATTERN + r')\s*(\S(?:.*\S)?)\s*'
+MATCHING_MOUNTING_PATTERN = r'(SMD|THT|TNT)'
+SI_OHM_UNIT_NAMES = ('ohm', 'ом')
+SI_OHM_ALIAS_SUFFIXES = ('R', 'Ω', 'Ohm', 'Ом')
+UNIT_ALIAS_COLUMN = len(UNIT_FIELDS)
+MATCHING_KEY_METADATA = ('units', 'package')
+MATCHING_MOUNTING_TRANSLATION = {'Т': 'T', 'Н': 'H', 'С': 'S', 'М': 'M', 'Д': 'D'}
+MATCHING_SYMBOL_TRANSLATION = {'µ': 'u', 'μ': 'u', 'Ω': 'Ω'}
+
+
+PROJECT_MATCH_STATUS_COLUMN = PROJECT_TABLE_FIELDS.index('stock_part')
+MATCHING_STATUS_ROLE = Qt.ItemDataRole.UserRole + 4
+MATCHING_LABEL_ROLE = Qt.ItemDataRole.UserRole + 5
+PROJECT_MATCHED_COLOR = '#008000'
+PROJECT_UNMATCHED_COLOR = '#d32f2f'
+PROJECT_MATCH_BUTTON_STYLE = 'QPushButton {{ color: {}; padding: 0px 3px; }}'

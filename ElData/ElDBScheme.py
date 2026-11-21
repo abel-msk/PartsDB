@@ -205,6 +205,59 @@ def _createUnitLinks(conn):
                     conn.execute('UPDATE BASIC_TYPES SET base_unit_id=? WHERE id=?', (bases[name], type_id))
 
 
+def _createBasicTypeAliases(conn):
+    """Add an optional deferred reference to the canonical basic type.
+
+    @param conn [SQLiteConnector] Connected database; caller owns the transaction.
+    @return [None] Preserve existing rows and alias assignments.
+    """
+    if 'alias_of_id' not in {row[1] for row in conn.table_info('BASIC_TYPES')}:
+        conn.execute('ALTER TABLE BASIC_TYPES ADD COLUMN alias_of_id INTEGER '
+                     'REFERENCES BASIC_TYPES(id) DEFERRABLE INITIALLY DEFERRED '
+                     'CHECK(alias_of_id IS NULL OR alias_of_id != id)')
+
+
+SI_UNIT_ALIASES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS SI_UNIT_ALIASES (
+    unit_id INTEGER NOT NULL REFERENCES SI_UNITS(id) ON DELETE CASCADE,
+    marker TEXT NOT NULL CHECK(length(trim(marker)) > 0),
+    PRIMARY KEY(unit_id, marker)
+);
+"""
+
+
+def _createSiUnitAliases(conn):
+    """Create editable unit spellings once without restoring user-deleted aliases later.
+
+    @param conn [SQLiteConnector] Connected new or migrating database; caller owns the transaction.
+    @return [None] Create the alias relation and seed full resistance spellings for existing units.
+    """
+    from ElConstants import SI_OHM_UNIT_NAMES, SI_OHM_ALIAS_SUFFIXES
+    if conn.table_definition('SI_UNIT_ALIASES') is not None:
+        return
+    conn.execute(SI_UNIT_ALIASES_TABLE_SQL)
+    units = conn.select_all('SELECT id,name,marker,marker_ru,base_unit_id FROM SI_UNITS ORDER BY id;')
+    by_id = {row[0]: row for row in units}
+    aliases = set()
+    for unit_id, name, marker, marker_ru, base_id in units:
+        base = by_id.get(base_id or unit_id)
+        if base is None or base[1].casefold() not in SI_OHM_UNIT_NAMES:
+            continue
+        if base_id is None:
+            aliases.update((unit_id, suffix) for suffix in SI_OHM_ALIAS_SUFFIXES
+                           if suffix not in (marker, marker_ru))
+            continue
+        for spelling in (marker, marker_ru):
+            prefix = spelling
+            for base_marker in (base[2], base[3]):
+                if base_marker and prefix.endswith(base_marker):
+                    prefix = prefix[:-len(base_marker)]
+                    break
+            aliases.update((unit_id, prefix + suffix) for suffix in SI_OHM_ALIAS_SUFFIXES
+                           if prefix + suffix not in (marker, marker_ru))
+    conn.executemany('INSERT INTO SI_UNIT_ALIASES(unit_id,marker) VALUES (?,?)', sorted(aliases))
+
+
 PROJECT_COLUMN_WIDTHS_SQL = (
     "CREATE TABLE IF NOT EXISTS PROJECT_COLUMN_WIDTHS ("
     "table_name TEXT NOT NULL, field_name TEXT NOT NULL, width INTEGER NOT NULL CHECK(width > 0), "
@@ -388,7 +441,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 9
+DB_VERSION = 11
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -412,8 +465,15 @@ PLUGIN_COLUMNS = ('id', 'plugin_type', 'name', 'version', 'api_version', 'system
 
 
 class DBScheme:
-    """Own database access, SQL and transactions; stores a connector and type cache."""
+    """Own domain SQL and migrations through the active SQLite connector.
+
+    @attr db [SQLiteConnector] Connected database driver; all domain queries are executed here.
+    @attr Types [Types, None] Optional cached section tree."""
     def __init__(self, db_file: str):
+        """Prepare a disconnected domain schema and empty section cache.
+
+        @param db_file [str] SQLite database path.
+        @return [None] Initialize connector ownership."""
         self.db: SQLiteConnector = SQLiteConnector(db_file)
         self.Types = None
 
@@ -421,9 +481,16 @@ class DBScheme:
     #     self.db.connect()
 
     def connect(self):
+        """Open the schema connector if necessary.
+
+        @return [None] Establish the database connection."""
         self.db.connect()
 
     def createTables(self):
+        """Create and seed the current schema on the active connection.
+
+        @return [None] Commit the initialized tables and reference data.
+        """
         if self.db.isConnect():
             # Create reference data before sections.
             self.db.exec(BASIC_TYPES_TABLE_SQL)
@@ -438,6 +505,8 @@ class DBScheme:
             if self.db.table_definition('SI_UNITS') is None:
                 _createSiUnits(self.db)
             _createUnitLinks(self.db)
+            _createBasicTypeAliases(self.db)
+            _createSiUnitAliases(self.db)
             self.db.exec(PROJECTS_TABLE_SQL)
             _createProjectImportTables(self.db)
             self.db.exec(EL_BY_PROJECT_TABLE_SQL)
@@ -574,29 +643,93 @@ class DBScheme:
         return recId
 
     def loadBasicTypes(self):
-        """Return reference rows (id, English name, designator, icon). @return [list[tuple]]"""
+        """Read basic type names and designators in stable ID order.
+
+        @return [list[tuple]] Rows: id, name, designator, icon."""
         return self.db.select_all("SELECT id,name,designator,icon FROM BASIC_TYPES ORDER BY id;")
 
     def loadUnitBasicTypes(self):
         """Read basic types with optional SI references for the reference editor.
 
-        @return [list[tuple]] Rows: id, name, designator, icon, base_unit_id.
+        @return [list[tuple]] Rows: id, name, designator, icon, base_unit_id, alias_of_id.
         """
-        return self.db.select_all('SELECT id,name,designator,icon,base_unit_id FROM BASIC_TYPES ORDER BY id;')
+        return self.db.select_all('SELECT id,name,designator,icon,base_unit_id,alias_of_id FROM BASIC_TYPES ORDER BY id;')
 
     def getBasicTypeId(self, type_id):
-        """Resolve a section's reference ID. @param type_id [int] section ID."""
+        """Read the basic type associated with a section.
+
+        @param type_id [int] Catalog section ID.
+        @return [int] Basic type ID, or Miscellaneous for a missing section."""
         row = self.db.select_params("SELECT basic_type_id FROM TYPES WHERE id=?;", (type_id,)).fetchone()
         return row[0] if row else 1
 
     def setBasicTypeId(self, type_id, basic_type_id):
-        """Assign an existing basic type. @param type_id, basic_type_id [int] valid IDs."""
+        """Assign an existing basic type to one section and persist it.
+
+        @param type_id [int] Catalog section ID.
+        @param basic_type_id [int] Existing basic type reference ID.
+        @return [None] Commit the section update."""
         self.db.exec_insert("UPDATE TYPES SET basic_type_id=? WHERE id=?;", (basic_type_id, type_id))
         self.db.commit()
 
     def defaultKeyField(self, type_id):
-        """Choose the nominal for R/C, part number otherwise. @param type_id [int] section ID."""
+        """Choose the default matching key for the section basic type.
+
+        @param type_id [int] Catalog section ID.
+        @return [str] value for capacitors/resistors, otherwise part_num."""
         return 'value' if self.getBasicTypeId(type_id) in (2, 3) else 'part_num'
+
+    def loadMatchingCatalog(self, basic_type_ids):
+        """Read candidate cards from matching basic types and every descendant section.
+
+        @param basic_type_ids [list[int], tuple[int]] Basic type IDs, including configured aliases.
+        @return [list[dict]] Cards with raw values, visible key fields and matching metadata; no writes.
+        """
+        identifiers = tuple(dict.fromkeys(int(value) for value in basic_type_ids))
+        if not identifiers:
+            return []
+        placeholders = ','.join('?' for _ in identifiers)
+        rows = self.db.select_params(
+            'WITH RECURSIVE sections(id) AS ('
+            'SELECT id FROM TYPES WHERE basic_type_id IN (' + placeholders + ') '
+            'UNION SELECT child.id FROM TYPES child JOIN sections parent ON child.parent_id=parent.id) '
+            'SELECT ' + ','.join('p.' + field for field in ELEMENT_FLD_NAMES) +
+            ' FROM PARTS p JOIN sections s ON p.type_id=s.id ORDER BY p.id;', identifiers).fetchall()
+        return self._matchingCardRows(rows)
+
+    def loadMatchingPart(self, part_id):
+        """Read one stock card with its visible key configuration.
+
+        @param part_id [int] Existing catalog ID; absent IDs produce None.
+        @return [dict, None] Raw stock values, ordered key fields and visible matching metadata.
+        """
+        row = self.db.select_params('SELECT ' + get_parts_fld_str() + ' FROM PARTS WHERE id=?;',
+                                    (int(part_id),)).fetchone()
+        return self._matchingCardRows([row])[0] if row is not None else None
+
+    def _matchingCardRows(self, rows):
+        """Attach inherited key settings without modifying catalog records.
+
+        @param rows [list[tuple]] PARTS rows in ELEMENT_FLD_NAMES order.
+        @return [list[dict]] Cards; hidden columns are excluded from keys and unit/package metadata.
+        """
+        from ElConstants import MATCHING_KEY_METADATA
+        configurations = {}
+        cards = []
+        for row in rows:
+            values = dict(zip(ELEMENT_FLD_NAMES, row))
+            section_id = values['type_id']
+            if section_id not in configurations:
+                headers = Headers(self, section_id)
+                visible = [field for field in ELEMENT_FLD_NAMES[2:] if not headers[field]['hidden']]
+                keys = tuple(sorted((field for field in visible if headers[field]['is_key']),
+                                    key=lambda field: (headers[field]['position'], ELEMENT_FLD_NAMES.index(field))))
+                configurations[section_id] = (keys, {field for field in MATCHING_KEY_METADATA if field in visible})
+            keys, metadata = configurations[section_id]
+            cards.append({'id': values['id'], 'type_id': section_id, 'values': values, 'keys': keys,
+                          'units': values['units'] if 'units' in metadata else None,
+                          'package': values['package'] if 'package' in metadata else None})
+        return cards
 
     def loadProjectColumnWidths(self, table_name):
         """Read minimum widths. @param table_name [str] stable project table identifier."""
@@ -792,7 +925,11 @@ class DBScheme:
 
     @classmethod
     def using(cls, database) -> 'DBScheme':
-        """Accept DBScheme or a borrowed sqlite3.Connection; never open or copy a DB."""
+        """Use an existing scheme or borrow a live connection without reopening the database.
+
+        @param database [DBScheme, sqlite3.Connection] Existing domain schema or connected SQLite handle.
+        @return [DBScheme] Existing scheme or a non-owning wrapper; no migration or write is performed.
+        """
         if isinstance(database, cls):
             return database
         scheme = cls('')
@@ -949,16 +1086,29 @@ class DBScheme:
         @return [list[tuple]] Rows: id, name, name_ru, marker, marker_ru, multiply, base_unit_id."""
         return self.db.select_all('SELECT id,name,name_ru,marker,marker_ru,multiply,base_unit_id FROM SI_UNITS ORDER BY id;')
 
-    def saveUnitReferences(self, units, basic_types):
+    def loadSiUnitAliases(self):
+        """Read editable alternate spellings grouped by their owning unit.
+
+        @return [dict[int, tuple[str]]] Unit IDs mapped to aliases in deterministic text order.
+        """
+        result = {}
+        for unit_id, marker in self.db.select_all('SELECT unit_id,marker FROM SI_UNIT_ALIASES ORDER BY unit_id,marker;'):
+            result.setdefault(unit_id, []).append(marker)
+        return {unit_id: tuple(markers) for unit_id, markers in result.items()}
+
+    def saveUnitReferences(self, units, basic_types, aliases=None):
         """Commit reference rows and resolve temporary IDs in one transaction.
 
         @param units [list[tuple]] Validated seven-field SI rows; negative IDs identify pending rows.
-        @param basic_types [list[tuple]] Validated five-field type rows; None creates a new type.
+        @param aliases [dict[int, tuple[str]], None] Alternate spellings per unit, including temporary IDs; None preserves saved aliases.
+        @param basic_types [list[tuple]] Validated six-field type rows; negative IDs identify pending types.
         @return [None] Persist references or roll back all changes on failure.
         """
         import uuid
         with self.transaction(foreign_keys=True):
             unit_ids = {}
+            type_ids = {}
+            alias_links = []
             removed = {}
             for table, fields, rows in (
                     ('SI_UNITS', ('name', 'name_ru', 'marker', 'marker_ru', 'multiply'), units),
@@ -971,7 +1121,11 @@ class DBScheme:
                 for record_id in retained:
                     self.db.execute('UPDATE ' + table + ' SET name=? WHERE id=?', (str(uuid.uuid4()), record_id))
                 pending_links = []
-                for record_id, *values, base_unit_id in rows:
+                for record in rows:
+                    if table == 'BASIC_TYPES':
+                        record_id, *values, base_unit_id, alias_of_id = record
+                    else:
+                        record_id, *values, base_unit_id = record
                     if record_id is None or record_id < 0:
                         saved_id = self.db.execute('INSERT INTO ' + table + '(' + ','.join(fields) + ') VALUES (' +
                                                    ','.join('?' for _ in fields) + ')', values).lastrowid
@@ -984,12 +1138,18 @@ class DBScheme:
                         if record_id is not None:
                             unit_ids[record_id] = saved_id
                     if table == 'BASIC_TYPES':
+                        if record_id is not None:
+                            type_ids[record_id] = saved_id
+                        alias_links.append((saved_id, alias_of_id))
                         self.db.execute('UPDATE BASIC_TYPES SET base_unit_id=? WHERE id=?',
                                         (unit_ids.get(base_unit_id, base_unit_id), saved_id))
                 if table == 'SI_UNITS':
                     for saved_id, base_unit_id in pending_links:
                         self.db.execute('UPDATE SI_UNITS SET base_unit_id=? WHERE id=?',
                                         (unit_ids.get(base_unit_id, base_unit_id), saved_id))
+            for saved_id, alias_of_id in alias_links:
+                self.db.execute('UPDATE BASIC_TYPES SET alias_of_id=? WHERE id=?',
+                                (type_ids.get(alias_of_id, alias_of_id), saved_id))
             for record_id in removed['BASIC_TYPES']:
                 if record_id == 1 or self.db.execute(
                         'SELECT 1 FROM TYPES WHERE basic_type_id=? LIMIT 1', (record_id,)).fetchone():
@@ -997,6 +1157,11 @@ class DBScheme:
                 self.db.execute('DELETE FROM BASIC_TYPES WHERE id=?', (record_id,))
             for record_id in removed['SI_UNITS']:
                 self.db.execute('DELETE FROM SI_UNITS WHERE id=?', (record_id,))
+            if aliases is not None:
+                self.db.execute('DELETE FROM SI_UNIT_ALIASES')
+                self.db.executemany('INSERT INTO SI_UNIT_ALIASES(unit_id,marker) VALUES (?,?)',
+                                    [(unit_ids.get(unit_id, unit_id), marker)
+                                     for unit_id, markers in aliases.items() for marker in markers])
 
     def deletePluginMetadata(self, plugin_id: str):
         """Delete a PLUGINS metadata row by string ID; keep projects and do not commit."""
@@ -1021,7 +1186,22 @@ class DBScheme:
 
 
 class Type:
+    """Represent a catalog section, parent relationship and effective column settings.
+
+    @attr recId [int] Internal section ID, retained for data operations.
+    @attr basic_type_id [int] Selected basic component type.
+    @attr scheme [DBScheme] Domain data access.
+    @attr headers [Headers, None] Cached effective column settings."""
     def __init__(self, scheme: DBScheme, recId: int, name: str, path: str, parent, basic_type_id=None):
+        """Create a section representation without modifying the database.
+
+        @param scheme [DBScheme] Domain data access layer.
+        @param recId [int] Internal section ID.
+        @param name [str] Display name.
+        @param path [str] Full stored section path.
+        @param parent [Type, None] Parent section, or None for a root.
+        @param basic_type_id [int, None] Explicit basic type, or inherit from parent/default.
+        @return [None] Initialize section state."""
         self.recId = recId
         self.name = name
         self.path = path
@@ -1033,15 +1213,26 @@ class Type:
         self.headers: Headers = None
 
     def __eq__(self, other):
+        """Compare section identities.
+
+        @param other [Type] Section to compare.
+        @return [bool] Whether internal section IDs match."""
         return self.recId == other.recId
         # if type(other).__name__ == type(self).__name__:
         #     return self.recId == other.recID
         # return self.name == other
 
     def __repr__(self):
+        """Represent a section by its user-facing name.
+
+        @return [str] Section display name."""
         return self.name
 
     def __gt__(self, other):
+        """Compare section names for sorting.
+
+        @param other [Type] Section to compare.
+        @return [bool] Whether this name sorts after the other name."""
         return self.name > other.name
 
     def __ge__(self, other):
@@ -1386,6 +1577,28 @@ def _migrate_to_9(scheme: DBScheme):
         scheme.db.execute("UPDATE ENVIRONMENT SET value='9' WHERE name=?", (ENV_DB_VERSION,))
 
 
+def _migrate_to_10(scheme: DBScheme):
+    """Add self-referencing basic type aliases atomically.
+
+    @param scheme [DBScheme] Connected version 9 database with no pending transaction.
+    @return [None] Commit the alias column and schema version together.
+    """
+    with scheme.db.transaction(require_idle=True, immediate=True):
+        _createBasicTypeAliases(scheme.db)
+        scheme.db.execute("UPDATE ENVIRONMENT SET value='10' WHERE name=?", (ENV_DB_VERSION,))
+
+
+def _migrate_to_11(scheme: DBScheme):
+    """Add editable SI aliases and initial full resistance spellings atomically.
+
+    @param scheme [DBScheme] Connected version 10 database with no pending transaction.
+    @return [None] Commit alias table, seed rows and version together; failures roll back the whole step.
+    """
+    with scheme.db.transaction(require_idle=True, immediate=True):
+        _createSiUnitAliases(scheme.db)
+        scheme.db.execute("UPDATE ENVIRONMENT SET value='11' WHERE name=?", (ENV_DB_VERSION,))
+
+
 MIGRATIONS = {
     2: _migrate_to_2,
     3: _migrate_to_3,
@@ -1395,11 +1608,25 @@ MIGRATIONS = {
     7: _migrate_to_7,
     8: _migrate_to_8,
     9: _migrate_to_9,
+    10: _migrate_to_10,
+    11: _migrate_to_11,
 }
 
 
 class Header:
+    """Store one catalog column setting and its pending local edits.
+
+    @attr scheme [DBScheme] Schema used to load or save the setting.
+    @attr type_id [int] Catalog section whose effective setting is represented.
+    @attr field_name [str] Catalog column name.
+    @attr changedFields [set[str]] Locally edited fields pending save."""
     def __init__(self, scheme: DBScheme, type_id, field_name):
+        """Initialize defaults for one effective column setting.
+
+        @param scheme [DBScheme, None] Domain query layer; None uses generic defaults.
+        @param type_id [int] Catalog section ID.
+        @param field_name [str] Name from the header/part schema.
+        @return [None] Create an unsaved, unmodified header."""
         self.scheme = scheme
         self.id = -1
         for key in HEADER_FLD_NAMES:
@@ -1420,6 +1647,10 @@ class Header:
         self._key_explicit = False
 
     def setFields(self, el):
+        """Load persisted settings and retain default handling for unspecified keys.
+
+        @param el [list, tuple] Header values in HEADER_FLD_NAMES order.
+        @return [None] Populate the effective settings without marking edits."""
         for fldName in HEADER_FLD_NAMES:
             value = el[int(HEADER_FLD_NAMES.index(fldName))]
             if fldName == "is_key":
@@ -1436,6 +1667,9 @@ class Header:
                 self.__dict__[fldName] = value
 
     def getFields(self) -> dict:
+        """Serialize header values, preserving an unspecified default key flag.
+
+        @return [dict] Values keyed by HEADER_FLD_NAMES."""
         hds_dict: dict = {}
         for fldName in HEADER_FLD_NAMES:
             hds_dict[fldName] = (None if fldName == "is_key" and not self._key_explicit
@@ -1443,6 +1677,10 @@ class Header:
         return hds_dict
 
     def __getitem__(self, index):
+        """Read a header setting by name or schema-column position.
+
+        @param index [str, int] Known field name or position in HEADER_FLD_NAMES.
+        @return [object] Stored effective setting."""
         if type(index) == int:
             return self.__dict__[HEADER_FLD_NAMES[index]]
         else:
@@ -1450,6 +1688,11 @@ class Header:
 
     def __setitem__(self, index, value):
         # def setFiled(self, name, value):
+        """Edit a setting and mark only that field for persistence.
+
+        @param index [str, int] Known header field name or schema-column position.
+        @param value [object] New value appropriate for the header field.
+        @return [None] Mark the setting as changed."""
         if type(index) == int:
             index = HEADER_FLD_NAMES[index]
         self.__dict__[index] = value
@@ -1459,9 +1702,9 @@ class Header:
         self.changedFields.add(index)
 
     def save(self):
-        """Write the header. An existing one writes only the fields set since it was loaded,
-        so a stale copy (e.g. the parts table saving a column width) does not overwrite
-        fields changed elsewhere (e.g. 'hidden' in the header edit dialog)."""
+        """Persist only changed settings so unrelated inherited/edited fields remain intact.
+
+        @return [None] Insert a local override or update changed columns and clear pending edits."""
         if self.changed:
             if self.id < 0:
                 self.id = self.scheme.addHeader(self.getFields())
@@ -1475,7 +1718,17 @@ class Header:
 
 
 class Headers:
+    """Resolve effective section column settings through the ancestor chain.
+
+    @attr scheme [DBScheme] Domain query layer.
+    @attr type_id [int] Selected catalog section.
+    @attr headersAr [dict[str, Header]] Explicit or inherited settings cached by field name."""
     def __init__(self, scheme: DBScheme, type_id: int):
+        """Load each column from the nearest ancestor defining it.
+
+        @param scheme [DBScheme] Domain query layer.
+        @param type_id [int] Catalog section ID for effective defaults and inherited settings.
+        @return [None] Populate the effective header cache without writes."""
         self.scheme = scheme
         self.type_id: int = type_id
         self.headersAr = {}
@@ -1504,9 +1757,15 @@ class Headers:
             current_id = parent[0] if parent and parent[0] else None
 
     def __len__(self):
+        """Count explicit or inherited settings currently cached.
+
+        @return [int] Number of cached header columns."""
         return len(self.headersAr.keys())
 
     def __iter__(self):
+        """Prepare iteration over the cached effective headers.
+
+        @return [Headers] This collection with its iterator reset."""
         self.index = 0
         self.IterAr = []
         for item in self.headersAr.keys():
@@ -1514,6 +1773,10 @@ class Headers:
         return self
 
     def __next__(self) -> Header:
+        """Read the next cached header during iteration.
+
+        @return [Header] Next effective setting.
+        @raise [StopIteration] No cached settings remain."""
         if self.index < len(self.IterAr):
             res = self.IterAr[self.index]
             self.index += 1
@@ -1523,6 +1786,10 @@ class Headers:
             raise StopIteration
 
     def __getitem__(self, field_name) -> Header:
+        """Read an effective header and create a default setting when absent.
+
+        @param field_name [str] Known catalog field name.
+        @return [Header] Explicit, inherited or default header."""
         try:
             hdr = self.headersAr[field_name]
             return hdr

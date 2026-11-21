@@ -342,13 +342,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.languageActions[language] = action
 
     def onUnits(self):
-        """Open the reference editor for the active database and refresh catalog subtitles on Save.
+        """Edit active reference data and refresh catalog subtitles and project candidates on Save.
 
         @return [None] No value is returned."""
         dialog = UnitsDialog(self.factory.scheme, self)
         try:
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self.typesTree.load()
+                self.projWindow.refresh()
         finally:
             dialog.deleteLater()
 

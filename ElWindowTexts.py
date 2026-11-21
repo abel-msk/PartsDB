@@ -161,6 +161,29 @@ def componentHeaders():
             translate('PluginWorkflow', 'DNP')]
 
 
+def projectComponentHeaders():
+    """Build localized component table captions including the matching action column.
+
+    @return [list[str]] Base fields followed by matching status and review requirement.
+    """
+    return componentHeaders() + [translate('PluginWorkflow', 'Matching status'),
+                                  translate('PluginWorkflow', 'Review needed')]
+
+
+def projectMatchingButtonTexts(button, found, label=''):
+    """Apply the matching action caption and a status tooltip without exposing IDs.
+
+    @param button [QPushButton] Matching action in either project component table.
+    @param found [bool] True when candidates or a confirmed catalog link exist.
+    @param label [str] Human-readable catalog key of the preferred match; may be empty.
+    @return [None] Update text while preserving button metadata and click connections.
+    """
+    button.setText(translate('PluginWorkflow', 'YES') if found else translate('PluginWorkflow', 'NO'))
+    button.setToolTip(translate('PluginWorkflow', 'Found in catalog: {}').format(label) if found and label
+                      else translate('PluginWorkflow', 'Catalog match found') if found
+                      else translate('PluginWorkflow', 'No catalog match found'))
+
+
 def importPreviewTexts(window):
     """Apply preview captions and change labels without modifying the import result.
 
@@ -267,11 +290,11 @@ def unitsDialogTexts(window):
         translate('UnitsDialog', 'ID'), translate('UnitsDialog', 'Name (English)'),
         translate('UnitsDialog', 'Name (Russian)'), translate('UnitsDialog', 'Marker (English)'),
         translate('UnitsDialog', 'Marker (Russian)'), translate('UnitsDialog', 'Multiplier'),
-        translate('UnitsDialog', 'Base SI unit')])
+        translate('UnitsDialog', 'Base SI unit'), translate('UnitsDialog', 'Aliases')])
     window.typesModel.setHorizontalHeaderLabels([
         translate('UnitsDialog', 'ID'), translate('UnitsDialog', 'Name'),
         translate('UnitsDialog', 'Designator'), translate('UnitsDialog', 'Icon'),
-        translate('UnitsDialog', 'Base SI unit')])
+        translate('UnitsDialog', 'Base SI unit'), translate('UnitsDialog', 'Alias of')])
     ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(translate('UnitsDialog', 'Save'))
     ui.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText(translate('UnitsDialog', 'Cancel'))
 
@@ -282,6 +305,9 @@ def unitsDialogErrorText(message):
     @param message [str] Data-layer validation or database error text.
     @return [str] Localized known message, otherwise the original diagnostic."""
     messages = {
+        'An SI alias must reference an existing or pending unit': translate('UnitsDialog', 'An SI alias must reference an existing or pending unit'),
+        'SI aliases must be a list of nonempty spellings': translate('UnitsDialog', 'SI aliases must be a list of nonempty spellings'),
+        'An alias must reference another existing non-alias type': translate('UnitsDialog', 'An alias must reference another existing non-alias type'),
         'A base unit must not reference another unit': translate('UnitsDialog', 'A base unit must not reference another unit'),
         'Select an existing base unit with multiplier 1 for each prefixed unit': translate('UnitsDialog', 'Select an existing base unit with multiplier 1 for each prefixed unit'),
         'A basic type may reference only a base unit with multiplier 1': translate('UnitsDialog', 'A basic type may reference only a base unit with multiplier 1'),

@@ -830,6 +830,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Отмена</translation>
     </message>
     <message>
+      <source>Catalog match found</source>
+      <translation>Соответствие в каталоге найдено</translation>
+    </message>
+    <message>
       <source>Change</source>
       <translation>Изменение</translation>
     </message>
@@ -848,6 +852,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Footprint</source>
       <translation>Посадочное место</translation>
+    </message>
+    <message>
+      <source>Found in catalog: {}</source>
+      <translation>Найдено в каталоге: {}</translation>
     </message>
     <message>
       <source>Import cancelled</source>
@@ -898,8 +906,20 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Сопоставить с выбранной деталью склада</translation>
     </message>
     <message>
-      <source>Link {} to stock part #{}?</source>
-      <translation>Сопоставить {} с деталью склада №{}?</translation>
+      <source>Link {} to the selected stock part?</source>
+      <translation>Сопоставить {} с выбранной деталью склада?</translation>
+    </message>
+    <message>
+      <source>Matching status</source>
+      <translation>Статус сопоставления</translation>
+    </message>
+    <message>
+      <source>NO</source>
+      <translation>NO</translation>
+    </message>
+    <message>
+      <source>No catalog match found</source>
+      <translation>Соответствие в каталоге не найдено</translation>
     </message>
     <message>
       <source>No log entries</source>
@@ -990,10 +1010,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Сопоставление со складом</translation>
     </message>
     <message>
-      <source>Stock part</source>
-      <translation>Деталь склада</translation>
-    </message>
-    <message>
       <source>This plugin has no configurable settings</source>
       <translation>У этого плагина нет изменяемых настроек</translation>
     </message>
@@ -1008,6 +1024,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Value</source>
       <translation>Значение</translation>
+    </message>
+    <message>
+      <source>YES</source>
+      <translation>YES</translation>
     </message>
     <message>
       <source>{}: {} components. Added: {}; changed: {}; removed: {}.</source>
@@ -1120,6 +1140,22 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Добавить единицу</translation>
     </message>
     <message>
+      <source>Alias of</source>
+      <translation>Алиас типа</translation>
+    </message>
+    <message>
+      <source>Aliases</source>
+      <translation>Алиасы</translation>
+    </message>
+    <message>
+      <source>An SI alias must reference an existing or pending unit</source>
+      <translation>Алиас СИ должен относиться к существующей или добавленной единице</translation>
+    </message>
+    <message>
+      <source>An alias must reference another existing non-alias type</source>
+      <translation>Алиас должен ссылаться на другой существующий тип, который не является алиасом</translation>
+    </message>
+    <message>
       <source>Base SI unit</source>
       <translation>Основная единица СИ</translation>
     </message>
@@ -1204,6 +1240,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Справочники изменились. Откройте диалог заново</translation>
     </message>
     <message>
+      <source>SI aliases must be a list of nonempty spellings</source>
+      <translation>Алиасы СИ должны быть списком непустых обозначений</translation>
+    </message>
+    <message>
       <source>SI units</source>
       <translation>Единицы СИ</translation>
     </message>
@@ -1251,8 +1291,8 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Удалить единицу</translation>
     </message>
     <message>
-      <source>SI units</source>
-      <translation>Единицы СИ</translation>
+      <source>SI unit names</source>
+      <translation>Названия единиц СИ</translation>
     </message>
     <message>
       <source>Units setup</source>
