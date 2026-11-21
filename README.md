@@ -1,4 +1,4 @@
-# PartsDB 1.3
+# PartsDB 2.0
 
 [Русская версия](README.ru.md)
 
@@ -7,6 +7,10 @@ electronic components and their datasheets. It is written in Python with PyQt6 a
 in a single SQLite file.
 
 ![Catalog: N-channel MOSFETs with part pictures and an attached document](docs/images/catalog-view.png)
+
+Version 2.0 adds KiCad project imports, plugin management, editable SI units and
+basic component types, and external project application launch. Database schema: **9**.
+See the [2.0 changelog](CHANGELOG.md#20--2026-11-21).
 
 ## Features
 
@@ -46,6 +50,14 @@ in a single SQLite file.
 - **Plugin management.** Install and update from wheel, replace an importer for the same external system,
   enable/disable or remove it, and view its log. Plugins run in separate Python environments and processes.
   The standalone application needs an installed Python 3.9+ to create plugin environments.
+
+- **Units and basic types.** **Setup → Units and basic types...** edits the SI unit and
+  component type references. Each prefixed unit points to its base unit; a component type
+  can have a base unit or no unit. Deletions require confirmation; Save commits both tables
+  together and Cancel discards edits. [Reference editor and schema](docs/units-and-project-applications.md).
+- **Open projects in an external application.** Set the application path and arguments for
+  an importer in **Setup → Plugins...**, then use **Open App** on its project. `{file}` is
+  replaced with the project source path. The application keeps running after PartsDB closes.
 
 ![Catalog: resistors with default SMD icons](docs/images/catalog-resistors.png)
 
@@ -102,7 +114,7 @@ test fails.
 Plugin sources are in `ElPartsPluginSrc/kicad`.
 The SDK defines `project_import`, `parts_order` and `shipment_tracking` types.
 Each plugin declares its type in the manifest and `get_plugin_type()`; it is
-validated before use and stored in SQLite `PLUGINS` (schema 7).
+validated before use and stored in SQLite `PLUGINS` (current database schema: 9).
 
 
 Use `./build.sh -p` to build the KiCad plugin wheel in `dist/plugins/`, or
@@ -178,8 +190,10 @@ are not stored in git: put a copy of your database into `tests/` and point `db_f
 | `ElIconListWidget.py`                       | list of part documents                                    |
 | `ElData/ElDBConnect.py` | SQLite connection, transactions and system metadata |
 | `ElData/ElDBScheme.py`                             | database schema and access (`DBFactory`, `Type`, `Part`, …) |
-| `ElConfig.py`, `constants.py`               | configuration file and its keys                           |
+| `ElConfig.py`, `constants.py`, `ElConstants.py`               | configuration file and its keys                           |
 | `ElAppList.py`, `ElAppPathDialog.py`, `ElProcess.py` | applications for opening documents               |
+| `ElUnitsDialog.py`, `ElData/ElDBDataUnits.py` | SI unit and basic component type reference editor |
+| `tools/document_generated_ui.py` | reproducible documentation for generated Qt classes and methods |
 | `ElHdrEditDialog.py`                        | column header editor                                      |
 | `ELImport.py`                               | import from an Excel list                                 |
 | `ElPartsPluginSrc/kicad/`                   | KiCad importer sources, manifest and wheel configuration |
@@ -194,11 +208,14 @@ are not stored in git: put a copy of your database into `tests/` and point `db_f
 ### Changing the UI
 
 Forms are edited in Qt Designer (`qt/*.ui`). The generated files `ElParts.py`, `ElAppPathWnd.py`,
-`ElOpenFileWnd.py`, `ElHdrEditWnd.py` and `resources.py` must not be edited by hand. Regenerate them:
+`ElOpenFileWnd.py`, `ElHdrEditWnd.py`, `ElPluginsWnd.py`, `ElUnitsWnd.py` and `resources.py` must not be edited by hand. Regenerate them:
 
 ```bash
 ./updateui.sh
 ```
+
+The generator also adds class and method descriptions with YARD parameter tags through
+`tools/document_generated_ui.py`; keep these descriptions in the generation pipeline.
 
 ### Tests
 
@@ -220,6 +237,7 @@ after success or `--failed` after failure.
 - [Installation, imports, configuration and test cleanup](docs/plugin-runtime.md).
 - [Architecture and public API](docs/plugin-architecture-and-api.md).
 - [Plugin manager and Projects UI](docs/plugins-ui.md).
+- [SI references and external project applications](docs/units-and-project-applications.md).
 - [Database schema](docs/database-plugins-and-parts.md) and [import migration](docs/project-import-schema.md).
 - [Actual KiCad output and database field mapping](docs/kicad-import-output-and-database-mapping.md).
 - [KiCad importer sources and commands](ElPartsPluginSrc/kicad/README.md).

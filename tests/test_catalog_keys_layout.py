@@ -10,7 +10,7 @@ from PyQt6.QtGui import QStandardItemModel
 
 from ElConfig import ElConfig
 from ElConstants import PROJECT_TABLE_FIELDS, SUBTITLE_ROLE
-from ElData.ElDBScheme import DBFactory, ELEMENT_FLD_NAMES
+from ElData.ElDBScheme import DBFactory, ELEMENT_FLD_NAMES, DB_VERSION
 from ElData import ElDBDataParts, ElDBDataProj
 from ElCatalogDialogs import PartValuesDialog, SectionDialog
 from ElHdrEditDialog import HeaderEditDialog
@@ -180,7 +180,7 @@ class CatalogKeysTests(unittest.TestCase):
         self.assertEqual(migrated.getHeaders()['value']['display'], 'Ёмкость')
         self.assertEqual(migrated.getHeaders()['value']['width'], 145)
         self.assertEqual(self.factory.loadElementById(part.id)['part_num'], 'old')
-        self.assertEqual(self.factory.scheme.getDBVersion(), 7)
+        self.assertEqual(self.factory.scheme.getDBVersion(), DB_VERSION)
 
     def test_default_key_tracks_basic_type_after_saving_width(self):
         section = self.factory.appendType('Generic', None)
@@ -208,7 +208,7 @@ class CatalogKeysTests(unittest.TestCase):
         self.assertNotIn('BASIC_TYPES', names)
         self.assertNotIn('is_key', [row[1] for row in conn.execute('PRAGMA table_info(HEADERS)')])
         self.factory.scheme.migrate()
-        self.assertEqual(self.factory.scheme.getDBVersion(), 7)
+        self.assertEqual(self.factory.scheme.getDBVersion(), DB_VERSION)
 
     def test_shared_delegate_tree_subtitle_and_config(self):
         section = self.factory.appendType('Custom', None, 4)

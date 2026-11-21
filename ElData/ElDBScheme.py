@@ -134,6 +134,77 @@ BASIC_TYPE_ROWS = (
 BASIC_TYPES_TABLE_SQL = (
     "CREATE TABLE IF NOT EXISTS BASIC_TYPES (id INTEGER PRIMARY KEY, "
     "name TEXT NOT NULL UNIQUE, designator TEXT NOT NULL, icon TEXT);")
+SI_UNITS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS SI_UNITS (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    name_ru TEXT NOT NULL,
+    marker TEXT NOT NULL,
+    marker_ru TEXT NOT NULL,
+    multiply REAL NOT NULL CHECK(multiply > 0)
+);
+"""
+
+
+def _createPluginApplications(conn):
+    """Add missing plugin application fields without committing.
+
+    @param conn [SQLiteConnector] Connected new or migrating database; caller owns the transaction.
+    @return [None] No value is returned."""
+    columns = {row[1] for row in conn.table_info('PLUGINS')}
+    for field in ('app_path', 'app_params'):
+        if field not in columns:
+            conn.execute('ALTER TABLE PLUGINS ADD COLUMN ' + field + " TEXT NOT NULL DEFAULT ''")
+
+
+def _createSiUnits(conn):
+    """Create and seed the SI reference table only when it does not exist.
+
+    Existing reference data is retained unchanged, including user edits and deleted units.
+
+    @param conn [SQLiteConnector] Connected database; caller owns the transaction.
+    @return [None] No value is returned."""
+    from ElConstants import SI_PREFIXES, SI_BASE_UNITS
+    if conn.table_definition('SI_UNITS') is not None:
+        return
+    conn.execute(SI_UNITS_TABLE_SQL)
+    rows = []
+    for name, name_ru, marker, marker_ru in SI_BASE_UNITS:
+        for prefix, prefix_ru, symbol, symbol_ru, factor in SI_PREFIXES:
+            english_marker = symbol if name == 'ohm' and factor >= 1e3 else symbol + marker
+            russian_marker = symbol_ru if name == 'ohm' and factor >= 1e3 else symbol_ru + marker_ru
+            rows.append(((prefix + name).capitalize(), (prefix_ru + name_ru).capitalize(),
+                         english_marker, russian_marker, factor))
+    conn.executemany('INSERT OR IGNORE INTO SI_UNITS(name,name_ru,marker,marker_ru,multiply) VALUES(?,?,?,?,?)', rows)
+
+
+def _createUnitLinks(conn):
+    """Add nullable references and initialize known unit families without overwriting edits.
+
+    @param conn [SQLiteConnector] Connected database; caller owns the transaction.
+    @return [None] Add deferred foreign keys and seed links only when their column is new.
+    """
+    from ElConstants import SI_BASE_UNITS, SI_PREFIXES, BASIC_TYPE_SI_UNITS
+    for table in ('SI_UNITS', 'BASIC_TYPES'):
+        if 'base_unit_id' in {row[1] for row in conn.table_info(table)}:
+            continue
+        conn.execute('ALTER TABLE ' + table + ' ADD COLUMN base_unit_id INTEGER '
+                     'REFERENCES SI_UNITS(id) DEFERRABLE INITIALLY DEFERRED')
+        bases = dict(conn.execute('SELECT name,id FROM SI_UNITS WHERE multiply=1'))
+        if table == 'SI_UNITS':
+            for name, *_ in SI_BASE_UNITS:
+                base_id = bases.get(name.capitalize())
+                if base_id is not None:
+                    for prefix, _, _, _, factor in SI_PREFIXES:
+                        if factor != 1:
+                            conn.execute('UPDATE SI_UNITS SET base_unit_id=? WHERE name=? AND multiply=?',
+                                         (base_id, (prefix + name).capitalize(), factor))
+        else:
+            for type_id, name in BASIC_TYPE_SI_UNITS.items():
+                if name in bases:
+                    conn.execute('UPDATE BASIC_TYPES SET base_unit_id=? WHERE id=?', (bases[name], type_id))
+
+
 PROJECT_COLUMN_WIDTHS_SQL = (
     "CREATE TABLE IF NOT EXISTS PROJECT_COLUMN_WIDTHS ("
     "table_name TEXT NOT NULL, field_name TEXT NOT NULL, width INTEGER NOT NULL CHECK(width > 0), "
@@ -317,7 +388,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 7
+DB_VERSION = 9
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -363,6 +434,10 @@ class DBScheme:
             self.db.exec(GET_PARTS_TABLE_SQL())
             self.db.exec(DATASHEETS_TABLE_SQL)
             self.db.exec(PLUGINS_TABLE_SQL)
+            _createPluginApplications(self.db)
+            if self.db.table_definition('SI_UNITS') is None:
+                _createSiUnits(self.db)
+            _createUnitLinks(self.db)
             self.db.exec(PROJECTS_TABLE_SQL)
             _createProjectImportTables(self.db)
             self.db.exec(EL_BY_PROJECT_TABLE_SQL)
@@ -501,6 +576,13 @@ class DBScheme:
     def loadBasicTypes(self):
         """Return reference rows (id, English name, designator, icon). @return [list[tuple]]"""
         return self.db.select_all("SELECT id,name,designator,icon FROM BASIC_TYPES ORDER BY id;")
+
+    def loadUnitBasicTypes(self):
+        """Read basic types with optional SI references for the reference editor.
+
+        @return [list[tuple]] Rows: id, name, designator, icon, base_unit_id.
+        """
+        return self.db.select_all('SELECT id,name,designator,icon,base_unit_id FROM BASIC_TYPES ORDER BY id;')
 
     def getBasicTypeId(self, type_id):
         """Resolve a section's reference ID. @param type_id [int] section ID."""
@@ -834,10 +916,12 @@ class DBScheme:
         return tuple(metadata[key] for key in PLUGIN_COLUMNS)
 
     def loadPluginMetadata(self) -> list:
-        """Return PLUGINS metadata dicts ordered by name/ID; takes no parameters."""
-        rows = self.db.execute('SELECT ' + ','.join(PLUGIN_COLUMNS) +
+        """Read saved plugin metadata including application launch settings.
+
+        @return [list[dict]] Plugin records ordered by case-insensitive name and ID."""
+        rows = self.db.execute('SELECT ' + ','.join(PLUGIN_COLUMNS) + ',app_path,app_params' +
                                ' FROM PLUGINS ORDER BY name COLLATE NOCASE, id')
-        return [dict(zip(PLUGIN_COLUMNS, row)) for row in rows]
+        return [dict(zip((*PLUGIN_COLUMNS, 'app_path', 'app_params'), row)) for row in rows]
 
     def storePluginMetadata(self, metadata: dict):
         """Upsert one validated PLUGINS record inside the caller's transaction; no commit."""
@@ -845,6 +929,74 @@ class DBScheme:
                              ','.join('?' for _ in PLUGIN_COLUMNS) + ') ON CONFLICT(id) DO UPDATE SET ' +
                              ','.join(key + '=excluded.' + key for key in PLUGIN_COLUMNS if key != 'id'),
                              self._pluginValues(metadata))
+
+    def savePluginApplications(self, settings):
+        """Commit plugin launch settings atomically.
+
+        Reject missing plugin IDs and roll back the whole batch on failure.
+
+        @param settings [dict[str, tuple[str, str]]] Existing plugin IDs mapped to application paths and parameter templates.
+        @return [None] No value is returned."""
+        with self.transaction():
+            for plugin_id, (path, params) in settings.items():
+                if self.db.execute('UPDATE PLUGINS SET app_path=?,app_params=? WHERE id=?',
+                                   (path, params, plugin_id)).rowcount != 1:
+                    raise ValueError('Plugin no longer exists: ' + plugin_id)
+
+    def loadSiUnits(self):
+        """Read unit reference rows in persistent ID order.
+
+        @return [list[tuple]] Rows: id, name, name_ru, marker, marker_ru, multiply, base_unit_id."""
+        return self.db.select_all('SELECT id,name,name_ru,marker,marker_ru,multiply,base_unit_id FROM SI_UNITS ORDER BY id;')
+
+    def saveUnitReferences(self, units, basic_types):
+        """Commit reference rows and resolve temporary IDs in one transaction.
+
+        @param units [list[tuple]] Validated seven-field SI rows; negative IDs identify pending rows.
+        @param basic_types [list[tuple]] Validated five-field type rows; None creates a new type.
+        @return [None] Persist references or roll back all changes on failure.
+        """
+        import uuid
+        with self.transaction(foreign_keys=True):
+            unit_ids = {}
+            removed = {}
+            for table, fields, rows in (
+                    ('SI_UNITS', ('name', 'name_ru', 'marker', 'marker_ru', 'multiply'), units),
+                    ('BASIC_TYPES', ('name', 'designator', 'icon'), basic_types)):
+                existing = {row[0] for row in self.db.execute('SELECT id FROM ' + table)}
+                retained = {row[0] for row in rows if row[0] is not None and row[0] > 0}
+                if not retained <= existing:
+                    raise ValueError('Reference data changed; reopen the dialog')
+                removed[table] = existing - retained
+                for record_id in retained:
+                    self.db.execute('UPDATE ' + table + ' SET name=? WHERE id=?', (str(uuid.uuid4()), record_id))
+                pending_links = []
+                for record_id, *values, base_unit_id in rows:
+                    if record_id is None or record_id < 0:
+                        saved_id = self.db.execute('INSERT INTO ' + table + '(' + ','.join(fields) + ') VALUES (' +
+                                                   ','.join('?' for _ in fields) + ')', values).lastrowid
+                    else:
+                        saved_id = record_id
+                        self.db.execute('UPDATE ' + table + ' SET ' + ','.join(field + '=?' for field in fields) +
+                                        ' WHERE id=?', (*values, record_id))
+                    if table == 'SI_UNITS':
+                        pending_links.append((saved_id, base_unit_id))
+                        if record_id is not None:
+                            unit_ids[record_id] = saved_id
+                    if table == 'BASIC_TYPES':
+                        self.db.execute('UPDATE BASIC_TYPES SET base_unit_id=? WHERE id=?',
+                                        (unit_ids.get(base_unit_id, base_unit_id), saved_id))
+                if table == 'SI_UNITS':
+                    for saved_id, base_unit_id in pending_links:
+                        self.db.execute('UPDATE SI_UNITS SET base_unit_id=? WHERE id=?',
+                                        (unit_ids.get(base_unit_id, base_unit_id), saved_id))
+            for record_id in removed['BASIC_TYPES']:
+                if record_id == 1 or self.db.execute(
+                        'SELECT 1 FROM TYPES WHERE basic_type_id=? LIMIT 1', (record_id,)).fetchone():
+                    raise ValueError('Cannot delete a basic type used by the catalog or its default type')
+                self.db.execute('DELETE FROM BASIC_TYPES WHERE id=?', (record_id,))
+            for record_id in removed['SI_UNITS']:
+                self.db.execute('DELETE FROM SI_UNITS WHERE id=?', (record_id,))
 
     def deletePluginMetadata(self, plugin_id: str):
         """Delete a PLUGINS metadata row by string ID; keep projects and do not commit."""
@@ -1210,6 +1362,30 @@ def _migrate_to_7(scheme: DBScheme):
         conn.set_foreign_keys(foreign_keys)
 
 
+def _migrate_to_8(scheme: DBScheme):
+    """Migrate version 7 to version 8 with SI references and plugin launch fields.
+
+    Start an immediate transaction before DDL; commit schema and version together or roll both back.
+
+    @param scheme [DBScheme] Connected version 7 database with no pending transaction.
+    @return [None] No value is returned."""
+    with scheme.db.transaction(require_idle=True, immediate=True):
+        _createSiUnits(scheme.db)
+        _createPluginApplications(scheme.db)
+        scheme.db.execute("UPDATE ENVIRONMENT SET value='8' WHERE name=?", (ENV_DB_VERSION,))
+
+
+def _migrate_to_9(scheme: DBScheme):
+    """Link prefixed SI units and basic types to their base units atomically.
+
+    @param scheme [DBScheme] Connected version 8 database with no pending transaction.
+    @return [None] Commit both reference columns, initial links and schema version together.
+    """
+    with scheme.db.transaction(require_idle=True, immediate=True):
+        _createUnitLinks(scheme.db)
+        scheme.db.execute("UPDATE ENVIRONMENT SET value='9' WHERE name=?", (ENV_DB_VERSION,))
+
+
 MIGRATIONS = {
     2: _migrate_to_2,
     3: _migrate_to_3,
@@ -1217,6 +1393,8 @@ MIGRATIONS = {
     5: _migrate_to_5,
     6: _migrate_to_6,
     7: _migrate_to_7,
+    8: _migrate_to_8,
+    9: _migrate_to_9,
 }
 
 

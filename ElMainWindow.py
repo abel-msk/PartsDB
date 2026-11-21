@@ -26,6 +26,7 @@ from ElFileDialog import FileListW
 from ElHdrEditDialog import HeaderEditDialog
 from ElOpenFileDialog import OpenFileDialog
 from ElProjWindow import ProjWindow
+from ElUnitsDialog import UnitsDialog
 from ElPluginsDialog import PluginsDialog
 from ElPluginMgr.ElProjectImports import ProjectImports
 from ElParts import Ui_MainWindow
@@ -70,7 +71,22 @@ def showWarn(parent, text):
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 
+    """Own the catalog and Projects tabs, application menus and active database UI.
+
+    @attr factory [DBFactory] Factory for the active database.
+    @attr config [ElConfig] Application and window preferences.
+    @attr typesTree [TypesTree] Catalog section navigation.
+    @attr partsTable [TableView] Catalog part and document views.
+    @attr projWindow [ProjWindow] Project tab controller.
+    @attr languageManager [LanguageManager] Application language and translation state."""
     def __init__(self, dbFactory: DBFactory, config: ElConfig, *args, **kwargs):
+        """Create the main form, attach tab controllers and connect application actions.
+
+        @param dbFactory [DBFactory] Connected database factory.
+        @param config [ElConfig] Application configuration.
+        @param args [tuple] Positional arguments forwarded to QMainWindow.
+        @param kwargs [dict] Keyword arguments forwarded to QMainWindow.
+        @return [None] No value is returned."""
         super(MainWindow, self).__init__(*args, **kwargs)
         self.languageManager = LanguageManager.forApplication(config)
         self.setupUi(self)
@@ -129,6 +145,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.retranslate()
 
     def retranslate(self):
+        """Refresh main window, project tab and menu captions for the current language.
+
+        @return [None] No value is returned."""
         mainWindowTexts(self)
         self.projWindow.retranslate()
         for language, action in self.languageActions.items():
@@ -303,6 +322,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pluginsAction.triggered.connect(self.onPlugins)
         setup.addAction(self.pluginsAction)
 
+        self.unitsAction = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Units and basic types...'), self)
+        self.unitsAction.triggered.connect(self.onUnits)
+        setup.addAction(self.unitsAction)
+
         self.languageMenu = setup.addMenu("")
         self.languageActions = {}
         group = QActionGroup(self)
@@ -317,6 +340,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             group.addAction(action)
             self.languageMenu.addAction(action)
             self.languageActions[language] = action
+
+    def onUnits(self):
+        """Open the reference editor for the active database and refresh catalog subtitles on Save.
+
+        @return [None] No value is returned."""
+        dialog = UnitsDialog(self.factory.scheme, self)
+        try:
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self.typesTree.load()
+        finally:
+            dialog.deleteLater()
 
     def onPlugins(self):
         dialog = PluginsDialog(self, manager=self.projectImports.manager, conn=self.factory.scheme)
@@ -556,13 +590,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dlg.exec()
 
     def loadDB(self, uri, type, docRoot=None):
-        """
-        Reload DBFactory. Called from OpenFileDialog.
-        :param uri: Path to DB file
-        :param type:
-        :param docRoot:
-        :return:
-        """
+        """Validate and open a local database, then replace the active tab data sources.
+
+        @param uri [str] Local database filename; home-directory expansion is supported.
+        @param type [int] Document type; DOC_TYPE_URL is rejected.
+        @param docRoot [str, None] Legacy dialog argument; not used.
+        @return [bool] True after switching databases; False if validation or opening fails."""
         if type == ElDBScheme.DOC_TYPE_URL:
             logger.warning("Selected file '%s' not local.", uri)
             return False

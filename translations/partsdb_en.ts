@@ -61,6 +61,28 @@ p, li { white-space: pre-wrap; }
   <context>
     <name>Dialog</name>
     <message>
+      <source>...</source>
+      <translation>...</translation>
+    </message>
+    <message>
+      <source>&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name="qrichtext" content="1" /&gt;&lt;style type="text/css"&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;"&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;App exec path:&lt;/span&gt; The path to application executable file&lt;/p&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;Params format: &lt;/span&gt; the string will send to executables  use {file} placeholder for insert document file path&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+      <translation>&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name="qrichtext" content="1" /&gt;&lt;style type="text/css"&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;"&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;App exec path:&lt;/span&gt; The path to application executable file&lt;/p&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;Params format: &lt;/span&gt; the string will send to executables  use {file} placeholder for insert document file path&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+      <source>App path</source>
+      <translation>App path</translation>
+    </message>
+    <message>
       <source>Author</source>
       <translation>Author</translation>
     </message>
@@ -83,6 +105,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Logs</source>
       <translation>Logs</translation>
+    </message>
+    <message>
+      <source>Params format</source>
+      <translation>Params format</translation>
     </message>
     <message>
       <source>Plugin Name</source>
@@ -757,6 +783,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Unit</translation>
     </message>
     <message>
+      <source>Units and basic types...</source>
+      <translation>Units and basic types...</translation>
+    </message>
+    <message>
       <source>Unsaved changes</source>
       <translation>Unsaved changes</translation>
     </message>
@@ -983,12 +1013,36 @@ Document files will remain on disk. The icon file in the icons folder will be de
   <context>
     <name>PluginsDialog</name>
     <message>
+      <source>Application bundle does not exist</source>
+      <translation>Application bundle does not exist</translation>
+    </message>
+    <message>
+      <source>Application launch error</source>
+      <translation>Application launch error</translation>
+    </message>
+    <message>
+      <source>Application path</source>
+      <translation>Application path</translation>
+    </message>
+    <message>
+      <source>Arguments</source>
+      <translation>Arguments</translation>
+    </message>
+    <message>
       <source>Author</source>
       <translation>Author</translation>
     </message>
     <message>
       <source>Close</source>
       <translation>Close</translation>
+    </message>
+    <message>
+      <source>Configure the application path in Settings → Plugins.</source>
+      <translation>Configure the application path in Settings → Plugins.</translation>
+    </message>
+    <message>
+      <source>Could not start the application</source>
+      <translation>Could not start the application</translation>
     </message>
     <message>
       <source>Enabled</source>
@@ -1019,6 +1073,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Select a plugin</translation>
     </message>
     <message>
+      <source>Select application</source>
+      <translation>Select application</translation>
+    </message>
+    <message>
       <source>Settings</source>
       <translation>Settings</translation>
     </message>
@@ -1027,8 +1085,170 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Type</translation>
     </message>
     <message>
+      <source>Use {file} for the project file path. Quote arguments containing spaces.</source>
+      <translation>Use {file} for the project file path. Quote arguments containing spaces.</translation>
+    </message>
+    <message>
       <source>Version</source>
       <translation>Version</translation>
+    </message>
+  </context>
+  <context>
+    <name>UnitsDialog</name>
+    <message>
+      <source>A base unit must not reference another unit</source>
+      <translation>A base unit must not reference another unit</translation>
+    </message>
+    <message>
+      <source>A basic type may reference only a base unit with multiplier 1</source>
+      <translation>A basic type may reference only a base unit with multiplier 1</translation>
+    </message>
+    <message>
+      <source>Add type</source>
+      <translation>Add type</translation>
+    </message>
+    <message>
+      <source>Add unit</source>
+      <translation>Add unit</translation>
+    </message>
+    <message>
+      <source>Base SI unit</source>
+      <translation>Base SI unit</translation>
+    </message>
+    <message>
+      <source>Basic component types</source>
+      <translation>Basic component types</translation>
+    </message>
+    <message>
+      <source>Basic type names must not be empty</source>
+      <translation>Basic type names must not be empty</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Cancel</translation>
+    </message>
+    <message>
+      <source>Cannot delete a basic type used by the catalog or its default type</source>
+      <translation>Cannot delete a basic type used by the catalog or its default type</translation>
+    </message>
+    <message>
+      <source>Cannot save reference data</source>
+      <translation>Cannot save reference data</translation>
+    </message>
+    <message>
+      <source>Delete entry</source>
+      <translation>Delete entry</translation>
+    </message>
+    <message>
+      <source>Delete type</source>
+      <translation>Delete type</translation>
+    </message>
+    <message>
+      <source>Delete unit</source>
+      <translation>Delete unit</translation>
+    </message>
+    <message>
+      <source>Delete {}?</source>
+      <translation>Delete {}?</translation>
+    </message>
+    <message>
+      <source>Designator</source>
+      <translation>Designator</translation>
+    </message>
+    <message>
+      <source>English unit names and markers must use ASCII characters</source>
+      <translation>English unit names and markers must use ASCII characters</translation>
+    </message>
+    <message>
+      <source>ID</source>
+      <translation>ID</translation>
+    </message>
+    <message>
+      <source>Icon</source>
+      <translation>Icon</translation>
+    </message>
+    <message>
+      <source>Marker (English)</source>
+      <translation>Marker (English)</translation>
+    </message>
+    <message>
+      <source>Marker (Russian)</source>
+      <translation>Marker (Russian)</translation>
+    </message>
+    <message>
+      <source>Multiplier</source>
+      <translation>Multiplier</translation>
+    </message>
+    <message>
+      <source>Name</source>
+      <translation>Name</translation>
+    </message>
+    <message>
+      <source>Name (English)</source>
+      <translation>Name (English)</translation>
+    </message>
+    <message>
+      <source>Name (Russian)</source>
+      <translation>Name (Russian)</translation>
+    </message>
+    <message>
+      <source>Reference data changed; reopen the dialog</source>
+      <translation>Reference data changed; reopen the dialog</translation>
+    </message>
+    <message>
+      <source>SI units</source>
+      <translation>SI units</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Save</translation>
+    </message>
+    <message>
+      <source>Select an existing base unit with multiplier 1 for each prefixed unit</source>
+      <translation>Select an existing base unit with multiplier 1 for each prefixed unit</translation>
+    </message>
+    <message>
+      <source>The multiplier must be a finite number greater than zero</source>
+      <translation>The multiplier must be a finite number greater than zero</translation>
+    </message>
+    <message>
+      <source>Unit names and markers must not be empty</source>
+      <translation>Unit names and markers must not be empty</translation>
+    </message>
+    <message>
+      <source>Units and basic types</source>
+      <translation>Units and basic types</translation>
+    </message>
+  </context>
+  <context>
+    <name>units_dialog</name>
+    <message>
+      <source>Add New Type</source>
+      <translation>Add New Type</translation>
+    </message>
+    <message>
+      <source>Add Unit</source>
+      <translation>Add Unit</translation>
+    </message>
+    <message>
+      <source>Basic component types</source>
+      <translation>Basic component types</translation>
+    </message>
+    <message>
+      <source>Delete Type</source>
+      <translation>Delete Type</translation>
+    </message>
+    <message>
+      <source>Delete Unit</source>
+      <translation>Delete Unit</translation>
+    </message>
+    <message>
+      <source>SI units</source>
+      <translation>SI units</translation>
+    </message>
+    <message>
+      <source>Units setup</source>
+      <translation>Units setup</translation>
     </message>
   </context>
 </TS>

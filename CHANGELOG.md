@@ -1,39 +1,34 @@
 # Changelog
 
-## Unreleased — 2026-11-19
+## 2.0 — 2026-11-21
 
-- Connected the plugin manager list and details to saved `PLUGINS` cards through
-  `ElData/ElDBDataPlagins.py`. Refresh preserves selection and installation selects
-  the saved card. Added a real wheel installation/UI/reopen check and coverage
-  for all three plugin types, disabled cards, cancellation and install errors.
-- Split database access into `ElData/ElDBScheme.py` (application SQL and migrations)
-  and `ElData/ElDBConnect.py` (SQLite connection, transactions and system metadata).
-  Removed the root `connector.py` and updated import/architecture checks.
-- Recorded six project architecture rules in `AGENTS.md`; existing data-class and
-  general-constant moves remain separate follow-up actions.
-
-- Added three global plugin types and the common `get_plugin_type()` API.
-  Installation checks the method against the manifest; project imports reject other types.
-- Schema 6 adds the `PLUGINS` metadata table with a checked `plugin_type` column.
-  Migration from v5 preserves projects, components and stock.
-
-- Added the KiCad importer and API 1: local project/schematic reading, recursive sheets,
-  one record per physical position, R/C/L nominal normalization and BOM/DNP flags.
-- Added wheel installation and updates, same-system replacement, enabled state,
-  removal and logs. Imports run in private environments and separate processes
-  with progress, cancellation and timeouts.
-- Connected the Projects tab to import preview, atomic database persistence,
-  repeat import, component tables and confirmed stock matches. Schema 5 stores
-  projects, positions and matches while preserving legacy project links on migration.
-- Moved plugin sources to `ElPartsPluginSrc`; `./build.sh -p` builds the KiCad wheel
-  in `dist/plugins/`. `-tp` tests before building; `-tpb` also builds the application.
-- Added the local 49-position KiCad fixture in `tests/input` and plugin tests in
-  `tests/kikad_plugin`, independent of the original project directory.
-- Successful full test runs remove the scratch DB and test backups; failed runs
-  retain the scratch DB and the three newest backups per database. Input fixtures
-  and archived databases are preserved.
-- Updated Russian/English workflow texts and documentation. The full check on
-  2026-11-19 passed 343 tests, including test cleanup and backup rotation.
+- Added the KiCad importer and API 1: recursive project/schematic reading, one row per physical
+  position, R/C/L normalization and BOM/DNP flags. Imports run in isolated environments and
+  processes with progress, cancellation and timeouts.
+- Added plugin wheel installation, updates, same-system replacement, enable/disable, removal
+  and logs. Saved plugin cards declare `project_import`, `parts_order` or `shipment_tracking`;
+  only importers are offered for project import.
+- Connected the Projects tab to preview, atomic persistence, repeat imports and stock matches.
+  Importing preserves inventory quantities; changed requirements mark existing matches for review.
+- Added basic component types, inherited matching keys, shared two-line list presentation and
+  saved widths for project tables. Main window tab and panel settings persist across launches.
+- Added the SI unit and basic type editor under Setup. The initial 125 units cover farads,
+  henries, ohms, volts and amperes with SI prefixes. Prefixed units and component types link
+  to base units through `base_unit_id`; types without a unit retain NULL.
+- Reference editing supports confirmed deletion, validation, atomic Save and Cancel. Base units
+  still referenced by remaining rows cannot be deleted. Reference cells use named selectors;
+  fixed text overlap while editing them.
+- Added per-plugin application paths and argument templates, saved on closing the manager.
+  Projects can launch the configured executable or macOS .app independently of PartsDB;
+  `{file}` substitution preserves paths containing spaces.
+- Database schema 9 includes project/import tables, plugin metadata, catalog references and SI
+  unit links. Migrations 8 and 9 are atomic and preserve existing inventory and project data.
+- Centralized application SQL in `ElData/ElDBScheme.py` and SQLite infrastructure in
+  `ElData/ElDBConnect.py`; added data modules and documented classes and methods with YARD tags.
+  Generated Qt documentation is reproduced by `updateui.sh`.
+- Added `./build.sh -p` for the KiCad wheel, local importer fixtures and regression coverage.
+  Full test success cleans scratch databases and test backups; failure retains diagnostic data.
+- Updated English/Russian interface catalogs, README and workflow/schema documentation.
 
 ## 1.3 — 2026-11-15
 

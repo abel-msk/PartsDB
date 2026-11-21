@@ -13,20 +13,37 @@ from ElImportTask import run_import_task
 
 
 class PluginsDialog(TranslatedDialogMixin, QDialog):
-    """Manage installation actions and display saved plugin cards for the active DB."""
+    """Manage installed plugin cards and edit database-specific launch settings.
+
+    @attr manager [PluginManager] Installation and registry manager.
+    @attr conn [DBScheme, sqlite3.Connection, None] Borrowed database; None disables persisted application editing.
+    @attr applicationDrafts [dict[str, tuple[str, str]]] Unsaved executable paths and argument templates keyed by plugin ID.
+    @attr loadingApplication [bool] Guard preventing programmatic field updates from creating drafts.
+    @attr ui [Ui_Dialog] Generated plugin manager widgets.
+    @attr pluginsModel [QStandardItemModel] Displayed plugin cards."""
 
     def __init__(self, parent=None, manager=None, conn=None):
-        """Build the form; parent is QWidget, manager is PluginManager, conn is optional DB."""
+        """Build the plugin manager, connect actions and load saved cards.
+
+        @param parent [QWidget, None] Qt owner of the dialog.
+        @param manager [PluginManager, None] Installation manager; None creates the default manager.
+        @param conn [DBScheme, sqlite3.Connection, None] Borrowed active database; None displays installation metadata only.
+        @return [None] No value is returned."""
         super().__init__(parent)
         self.manager = manager or PluginManager()
         self.conn = conn
+        self.applicationDrafts = {}
+        self.loadingApplication = False
         self.ui = Ui_Dialog()
         self.ui.setupUi(self)
         self.pluginsModel = QStandardItemModel(self)
         self.ui.pl_list.setModel(self.pluginsModel)
         self.ui.pl_list.selectionModel().currentChanged.connect(self.onSelection)
         self.ui.pl_list.setEditTriggers(self.ui.pl_list.EditTrigger.NoEditTriggers)
-        self.ui.pushButton.clicked.connect(self.reject)
+        self.ui.pushButton.clicked.connect(self.accept)
+        self.ui.get_path_cmd.clicked.connect(self.chooseApplication)
+        self.ui.app_path_input.textChanged.connect(self.editApplication)
+        self.ui.app_params_input.textChanged.connect(self.editApplication)
         self.ui.pl_add_file_cmd.clicked.connect(self.installFile)
         self.ui.pl_delete.clicked.connect(self.removePlugin)
         self.ui.pl_enable.setTristate(False)
@@ -42,11 +59,16 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
         self.refresh()
 
     def selected(self):
-        """Return the selected PluginData card, or None for an empty list."""
+        """Read the selected plugin card.
+
+        @return [PluginData, None] Selected card or None when no row is current."""
         return self.ui.pl_list.currentIndex().data(Qt.ItemDataRole.UserRole)
 
     def refresh(self, selected_id=None):
-        """Reload saved cards; selected_id is an optional ID to select after refreshing."""
+        """Synchronize installation metadata and reload plugin cards.
+
+        @param selected_id [str, None] Plugin ID to reselect; None retains the previous selection if available.
+        @return [bool] True on success; False after displaying an error."""
         previous = self.selected()
         selected_id = selected_id or (previous.id if previous else None)
         try:
@@ -73,7 +95,10 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             return False
 
     def onSelection(self, *args):
-        """Fill the detail form from the selected card; Qt selection arguments are ignored."""
+        """Display the current plugin card and restore its pending application edits.
+
+        @param args [tuple] Qt selection-change arguments; ignored.
+        @return [None] No value is returned."""
         plugin = self.selected()
         self.ui.pl_data_frame.setEnabled(plugin is not None)
         self.ui.pl_delete.setEnabled(plugin is not None)
@@ -87,12 +112,57 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             self.ui.pl_name.setText(translate('PluginsDialog', 'Select a plugin'))
             for label in (self.ui.pl_descr, self.ui.pl_author, self.ui.pl_type, self.ui.pl_version):
                 label.clear()
+        self.loadingApplication = True
+        path, params = self.applicationDrafts.get(plugin.id, (plugin.app_path, plugin.app_params)) if plugin else ('', '')
+        self.ui.app_path_input.setText(path)
+        self.ui.app_params_input.setText(params)
+        self.loadingApplication = False
+        for widget in (self.ui.app_path_input, self.ui.app_params_input, self.ui.get_path_cmd):
+            widget.setEnabled(plugin is not None and self.conn is not None)
         self.ui.pl_enable.blockSignals(True)
         self.ui.pl_enable.setChecked(bool(plugin and plugin.enabled))
         self.ui.pl_enable.blockSignals(False)
 
+    def chooseApplication(self):
+        """Open the native file picker and copy the chosen application path into the form.
+
+        @return [None] No value is returned."""
+        filename, _ = QFileDialog.getOpenFileName(self, translate('PluginsDialog', 'Select application'),
+                                                self.ui.app_path_input.text())
+        if filename:
+            self.ui.app_path_input.setText(filename)
+
+    def editApplication(self, text):
+        """Store edited application fields in the selected plugin draft.
+
+        @param text [str] Changed field text supplied by Qt; values are read from both inputs.
+        @return [None] No value is returned."""
+        plugin = self.selected()
+        if not self.loadingApplication and plugin is not None and self.conn is not None:
+            self.applicationDrafts[plugin.id] = (self.ui.app_path_input.text(), self.ui.app_params_input.text())
+
+    def done(self, result):
+        """Save pending application settings before accepting, rejecting or closing the dialog.
+
+        Ignore drafts for removed plugins. On a database error, report it and leave the dialog open.
+
+        @param result [int] QDialog result code, normally Accepted or Rejected.
+        @return [None] No value is returned."""
+        try:
+            if self.conn is not None and self.applicationDrafts:
+                existing = {plugin.id for plugin in PluginDataStore(self.conn).all()}
+                PluginDataStore(self.conn).saveApplications(
+                    {key: value for key, value in self.applicationDrafts.items() if key in existing})
+                self.applicationDrafts.clear()
+        except Exception as exc:
+            self.error(exc)
+            return
+        super().done(result)
+
     def installFile(self):
-        """Choose and validate a wheel, install it in the background, then select its card."""
+        """Choose and validate a plugin wheel, confirm installation and select the new card.
+
+        @return [None] No value is returned."""
         filename, _ = QFileDialog.getOpenFileName(self, translate('PluginWorkflow', 'Install plugin'), '',
                                                 translate('PluginWorkflow', 'Plugin wheels (*.whl)'))
         if not filename:
@@ -136,7 +206,9 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             self.error(exc)
 
     def removePlugin(self):
-        """Confirm removal of the selected plugin; preserve imported project data."""
+        """Confirm and remove the selected installation while retaining project data.
+
+        @return [None] No value is returned."""
         plugin = self.selected()
         if not plugin:
             return
@@ -153,7 +225,10 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             self.error(exc)
 
     def enablePlugin(self, enabled):
-        """Persist enabled (bool) for the selected plugin and reload its saved state."""
+        """Persist the selected plugin enabled state and reload its saved card.
+
+        @param enabled [bool] True enables the installation; False disables it.
+        @return [None] No value is returned."""
         plugin = self.selected()
         if plugin:
             try:
@@ -164,7 +239,9 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
                 self.refresh(plugin.id)
 
     def showLogs(self):
-        """Display the selected installation log in a read-only dialog."""
+        """Open a read-only log viewer for the selected plugin installation.
+
+        @return [None] No value is returned."""
         plugin = self.selected()
         if plugin:
             from PyQt6.QtWidgets import QPlainTextEdit, QVBoxLayout
@@ -179,12 +256,17 @@ class PluginsDialog(TranslatedDialogMixin, QDialog):
             dialog.exec()
 
     def error(self, exc):
-        """Display an Exception in the status label and an error message box."""
+        """Show a plugin error in the status label and a critical message box.
+
+        @param exc [Exception] Failure whose text is presented to the user.
+        @return [None] No value is returned."""
         self.ui.pl_status.setText(str(exc))
         QMessageBox.critical(self, translate('PluginWorkflow', 'Plugin error'), str(exc))
 
     def retranslate(self):
-        """Update localized captions and card type labels without accessing the database."""
+        """Update localized captions and plugin labels, retaining pending application edits.
+
+        @return [None] No value is returned."""
         pluginsDialogTexts(self)
         for row in range(self.pluginsModel.rowCount()):
             item = self.pluginsModel.item(row)

@@ -54,6 +54,28 @@ p, li { white-space: pre-wrap; }
   <context>
     <name>Dialog</name>
     <message>
+      <source>...</source>
+      <translation>…</translation>
+    </message>
+    <message>
+      <source>&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name="qrichtext" content="1" /&gt;&lt;style type="text/css"&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;"&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;App exec path:&lt;/span&gt; The path to application executable file&lt;/p&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;Params format: &lt;/span&gt; the string will send to executables  use {file} placeholder for insert document file path&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+      <translation>&lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd"&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name="qrichtext" content="1" /&gt;&lt;style type="text/css"&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=" font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;"&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;Путь к приложению:&lt;/span&gt; Путь к исполняемому файлу приложения&lt;/p&gt;
+&lt;p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"&gt;&lt;span style=" font-weight:600;"&gt;Формат параметров: &lt;/span&gt; параметры запуска; используйте {file} для пути к документу&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+    </message>
+    <message>
+      <source>App path</source>
+      <translation>Путь к приложению</translation>
+    </message>
+    <message>
       <source>Author</source>
       <translation>Автор</translation>
     </message>
@@ -76,6 +98,10 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Logs</source>
       <translation>Журнал</translation>
+    </message>
+    <message>
+      <source>Params format</source>
+      <translation>Формат параметров</translation>
     </message>
     <message>
       <source>Plugin Name</source>
@@ -750,6 +776,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Единица</translation>
     </message>
     <message>
+      <source>Units and basic types...</source>
+      <translation>Единицы измерения и базовые типы…</translation>
+    </message>
+    <message>
       <source>Unsaved changes</source>
       <translation>Несохранённые изменения</translation>
     </message>
@@ -976,12 +1006,36 @@ Document files will remain on disk. The icon file in the icons folder will be de
   <context>
     <name>PluginsDialog</name>
     <message>
+      <source>Application bundle does not exist</source>
+      <translation>Приложение не найдено</translation>
+    </message>
+    <message>
+      <source>Application launch error</source>
+      <translation>Ошибка запуска приложения</translation>
+    </message>
+    <message>
+      <source>Application path</source>
+      <translation>Путь к приложению</translation>
+    </message>
+    <message>
+      <source>Arguments</source>
+      <translation>Параметры</translation>
+    </message>
+    <message>
       <source>Author</source>
       <translation>Автор</translation>
     </message>
     <message>
       <source>Close</source>
       <translation>Закрыть</translation>
+    </message>
+    <message>
+      <source>Configure the application path in Settings → Plugins.</source>
+      <translation>Укажите путь к приложению в меню Настройки → Плагины.</translation>
+    </message>
+    <message>
+      <source>Could not start the application</source>
+      <translation>Не удалось запустить приложение</translation>
     </message>
     <message>
       <source>Enabled</source>
@@ -1012,6 +1066,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Выберите плагин</translation>
     </message>
     <message>
+      <source>Select application</source>
+      <translation>Выбор приложения</translation>
+    </message>
+    <message>
       <source>Settings</source>
       <translation>Настройки</translation>
     </message>
@@ -1020,8 +1078,170 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Тип</translation>
     </message>
     <message>
+      <source>Use {file} for the project file path. Quote arguments containing spaces.</source>
+      <translation>Используйте {file} для пути к файлу проекта. Параметры с пробелами заключайте в кавычки.</translation>
+    </message>
+    <message>
       <source>Version</source>
       <translation>Версия</translation>
+    </message>
+  </context>
+  <context>
+    <name>UnitsDialog</name>
+    <message>
+      <source>A base unit must not reference another unit</source>
+      <translation>Основная единица не должна ссылаться на другую единицу</translation>
+    </message>
+    <message>
+      <source>A basic type may reference only a base unit with multiplier 1</source>
+      <translation>Базовый тип может ссылаться только на основную единицу с множителем 1</translation>
+    </message>
+    <message>
+      <source>Add type</source>
+      <translation>Добавить тип</translation>
+    </message>
+    <message>
+      <source>Add unit</source>
+      <translation>Добавить единицу</translation>
+    </message>
+    <message>
+      <source>Base SI unit</source>
+      <translation>Основная единица СИ</translation>
+    </message>
+    <message>
+      <source>Basic component types</source>
+      <translation>Базовые типы компонентов</translation>
+    </message>
+    <message>
+      <source>Basic type names must not be empty</source>
+      <translation>Название базового типа не должно быть пустым</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Отмена</translation>
+    </message>
+    <message>
+      <source>Cannot delete a basic type used by the catalog or its default type</source>
+      <translation>Нельзя удалить используемый в каталоге базовый тип или тип по умолчанию</translation>
+    </message>
+    <message>
+      <source>Cannot save reference data</source>
+      <translation>Не удалось сохранить справочники</translation>
+    </message>
+    <message>
+      <source>Delete entry</source>
+      <translation>Удаление записи</translation>
+    </message>
+    <message>
+      <source>Delete type</source>
+      <translation>Удалить тип</translation>
+    </message>
+    <message>
+      <source>Delete unit</source>
+      <translation>Удалить единицу</translation>
+    </message>
+    <message>
+      <source>Delete {}?</source>
+      <translation>Удалить {}?</translation>
+    </message>
+    <message>
+      <source>Designator</source>
+      <translation>Обозначение</translation>
+    </message>
+    <message>
+      <source>English unit names and markers must use ASCII characters</source>
+      <translation>Английские названия и обозначения должны содержать символы ASCII</translation>
+    </message>
+    <message>
+      <source>ID</source>
+      <translation>ID</translation>
+    </message>
+    <message>
+      <source>Icon</source>
+      <translation>Иконка</translation>
+    </message>
+    <message>
+      <source>Marker (English)</source>
+      <translation>Обозначение (англ.)</translation>
+    </message>
+    <message>
+      <source>Marker (Russian)</source>
+      <translation>Обозначение (рус.)</translation>
+    </message>
+    <message>
+      <source>Multiplier</source>
+      <translation>Множитель</translation>
+    </message>
+    <message>
+      <source>Name</source>
+      <translation>Название</translation>
+    </message>
+    <message>
+      <source>Name (English)</source>
+      <translation>Название (англ.)</translation>
+    </message>
+    <message>
+      <source>Name (Russian)</source>
+      <translation>Название (рус.)</translation>
+    </message>
+    <message>
+      <source>Reference data changed; reopen the dialog</source>
+      <translation>Справочники изменились. Откройте диалог заново</translation>
+    </message>
+    <message>
+      <source>SI units</source>
+      <translation>Единицы СИ</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Сохранить</translation>
+    </message>
+    <message>
+      <source>Select an existing base unit with multiplier 1 for each prefixed unit</source>
+      <translation>Для каждой единицы с приставкой выберите основную единицу с множителем 1</translation>
+    </message>
+    <message>
+      <source>The multiplier must be a finite number greater than zero</source>
+      <translation>Множитель должен быть конечным числом больше нуля</translation>
+    </message>
+    <message>
+      <source>Unit names and markers must not be empty</source>
+      <translation>Названия и обозначения единиц не должны быть пустыми</translation>
+    </message>
+    <message>
+      <source>Units and basic types</source>
+      <translation>Единицы измерения и базовые типы</translation>
+    </message>
+  </context>
+  <context>
+    <name>units_dialog</name>
+    <message>
+      <source>Add New Type</source>
+      <translation>Добавить тип</translation>
+    </message>
+    <message>
+      <source>Add Unit</source>
+      <translation>Добавить единицу</translation>
+    </message>
+    <message>
+      <source>Basic component types</source>
+      <translation>Базовые типы компонентов</translation>
+    </message>
+    <message>
+      <source>Delete Type</source>
+      <translation>Удалить тип</translation>
+    </message>
+    <message>
+      <source>Delete Unit</source>
+      <translation>Удалить единицу</translation>
+    </message>
+    <message>
+      <source>SI units</source>
+      <translation>Единицы СИ</translation>
+    </message>
+    <message>
+      <source>Units setup</source>
+      <translation>Настройка единиц измерения</translation>
     </message>
   </context>
 </TS>

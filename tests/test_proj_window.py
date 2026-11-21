@@ -18,11 +18,23 @@ app = application()
 
 
 class ProjectTestWindow(QMainWindow, Ui_MainWindow):
+    """Provide the generated project form for isolated controller tests.
+
+    @attr proj_list [QListView] Project navigation widget created by the inherited form."""
     pass
 
 
 class TestProjWindow(unittest.TestCase):
+    """Verify project navigation and UI state against disposable databases.
+
+    @attr root [Path] Temporary test directory.
+    @attr factory [DBFactory] Active temporary database factory.
+    @attr window [ProjectTestWindow] Main form used by the test.
+    @attr controller [ProjWindow] Project tab controller under test."""
     def setUp(self):
+        """Create a temporary database, generated form and project controller.
+
+        @return [None] No value is returned."""
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
@@ -33,11 +45,18 @@ class TestProjWindow(unittest.TestCase):
         self.controller = ProjWindow(self.factory, self.window)
 
     def makeFactory(self, name):
+        """Create a database and register its connection for test cleanup.
+
+        @param name [str] Database basename within the temporary directory.
+        @return [DBFactory] Connected factory for the temporary SQLite file."""
         factory = DBFactory(str(self.root / (name + '.sqlite')))
         self.addCleanup(factory.disconnect)
         return factory
 
     def seed(self):
+        """Insert two project cards and refresh the controller selection.
+
+        @return [None] No value is returned."""
         conn = self.factory.scheme.db.conn
         with conn:
             conn.execute("INSERT INTO PROJECTS(id, name, descr, source_uri, last_imported_at) "
@@ -46,6 +65,9 @@ class TestProjWindow(unittest.TestCase):
         self.controller.refresh()
 
     def test_empty_list_and_navigation_updates_details(self):
+        """Verify empty-state controls and detail updates after current-row navigation.
+
+        @return [None] No value is returned."""
         self.assertIsNone(self.controller.project)
         self.assertFalse(self.window.proj_remove_cmd.isEnabled())
         self.assertEqual(self.window.d_proj_descr.text(), '')
@@ -61,6 +83,9 @@ class TestProjWindow(unittest.TestCase):
         self.assertTrue(self.window.d_prj_reload_cmd.isEnabled())
 
     def test_refresh_preserves_id_and_updates_data_without_writing(self):
+        """Verify retained selection, refreshed values and read-only reload behavior.
+
+        @return [None] No value is returned."""
         self.seed()
         self.controller.projList.selectByID(1)
         conn = self.factory.scheme.db.conn
@@ -80,6 +105,9 @@ class TestProjWindow(unittest.TestCase):
         self.assertFalse(self.window.det_frm.isEnabled())
 
     def test_switch_database_and_button_requests(self):
+        """Verify action requests and clearing old project data on a database switch.
+
+        @return [None] No value is returned."""
         self.seed()
         self.controller.projList.selectByID(1)
         requests = []

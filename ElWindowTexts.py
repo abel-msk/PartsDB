@@ -7,6 +7,10 @@ from ElTranslations import translate
 
 
 def mainWindowTexts(window):
+    """Apply localized main window captions without changing user data.
+
+    @param window [MainWindow] Initialized main form with its application menus.
+    @return [None] No value is returned."""
     ui = window
     window.setWindowTitle(translate("PartsDB", "Electronic parts workbench"))
     ui.searchBtn.setText(translate("MainWindow", "Search"))
@@ -25,10 +29,15 @@ def mainWindowTexts(window):
 
 
 def projWindowTexts(window):
+    """Apply localized captions to the Projects tab.
+
+    @param window [MainWindow] Main form containing project actions, labels and tables.
+    @return [None] No value is returned."""
     ui = window
     ui.label.setText(translate("MainWindow", "Projects Folders"))
     ui.proj_remove_cmd.setText(translate("MainWindow", "Remove project"))
     ui.proj_add_cmd.setText(translate("MainWindow", "Add Project"))
+    ui.d_prj_open_cmd.setText(translate('MainWindow', 'Open App'))
     ui.d_prj_reload_cmd.setText(translate("MainWindow", "Reload Data"))
     ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt1), translate("MainWindow", "Used Parts"))
     ui.prj_parts.setItemText(ui.prj_parts.indexOf(ui.prj_parts_lt2), translate("PluginWorkflow", "Unmatched parts"))
@@ -37,6 +46,10 @@ def projWindowTexts(window):
 
 
 def pluginsDialogTexts(window):
+    """Apply plugin manager captions before the selected card is redisplayed.
+
+    @param window [PluginsDialog] Initialized plugin dialog containing its generated ui object.
+    @return [None] No value is returned."""
     ui = window.ui
     window.setWindowTitle(translate("PluginsDialog", "Plugins"))
     ui.label.setText(translate("PluginsDialog", "Installed plugins"))
@@ -54,6 +67,9 @@ def pluginsDialogTexts(window):
     ui.pushButton_3.setText(translate("PluginsDialog", "Settings"))
     ui.pushButton_2.setText(translate("PluginsDialog", "Logs"))
     ui.pushButton.setText(translate("PluginsDialog", "Close"))
+    ui.label_3.setText(translate('PluginsDialog', 'Application path'))
+    ui.label_7.setText(translate('PluginsDialog', 'Arguments'))
+    ui.app_params_input.setToolTip(translate('PluginsDialog', 'Use {file} for the project file path. Quote arguments containing spaces.'))
     ui.pl_status.clear()
     ui.pushButton_3.setToolTip(translate("PluginWorkflow", "This plugin has no configurable settings"))
 
@@ -172,3 +188,49 @@ def partValuesDialogTexts(window):
     for header in window.headers:
         field = header['field_name']
         window.labels[field].setText(defaultHeaderText(header, field))
+
+
+def unitsDialogTexts(window):
+    """Apply localized reference editor captions, column headers and button texts.
+
+    @param window [UnitsDialog] Initialized dialog with unit/type models and generated widgets.
+    @return [None] No value is returned."""
+    from PyQt6.QtWidgets import QDialogButtonBox
+    ui = window.ui
+    window.setWindowTitle(translate('UnitsDialog', 'Units and basic types'))
+    ui.add_type_cmd.setText(translate('UnitsDialog', 'Add type'))
+    ui.del_type_cmd.setText(translate('UnitsDialog', 'Delete type'))
+    ui.add_unit_cmd.setText(translate('UnitsDialog', 'Add unit'))
+    ui.del_unit_cmd.setText(translate('UnitsDialog', 'Delete unit'))
+    ui.tabWidget.setTabText(ui.tabWidget.indexOf(ui.types_frame), translate('UnitsDialog', 'Basic component types'))
+    ui.tabWidget.setTabText(ui.tabWidget.indexOf(ui.units_frame), translate('UnitsDialog', 'SI units'))
+    window.unitsModel.setHorizontalHeaderLabels([
+        translate('UnitsDialog', 'ID'), translate('UnitsDialog', 'Name (English)'),
+        translate('UnitsDialog', 'Name (Russian)'), translate('UnitsDialog', 'Marker (English)'),
+        translate('UnitsDialog', 'Marker (Russian)'), translate('UnitsDialog', 'Multiplier'),
+        translate('UnitsDialog', 'Base SI unit')])
+    window.typesModel.setHorizontalHeaderLabels([
+        translate('UnitsDialog', 'ID'), translate('UnitsDialog', 'Name'),
+        translate('UnitsDialog', 'Designator'), translate('UnitsDialog', 'Icon'),
+        translate('UnitsDialog', 'Base SI unit')])
+    ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(translate('UnitsDialog', 'Save'))
+    ui.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText(translate('UnitsDialog', 'Cancel'))
+
+
+def unitsDialogErrorText(message):
+    """Translate known reference validation failures and retain unknown diagnostics.
+
+    @param message [str] Data-layer validation or database error text.
+    @return [str] Localized known message, otherwise the original diagnostic."""
+    messages = {
+        'A base unit must not reference another unit': translate('UnitsDialog', 'A base unit must not reference another unit'),
+        'Select an existing base unit with multiplier 1 for each prefixed unit': translate('UnitsDialog', 'Select an existing base unit with multiplier 1 for each prefixed unit'),
+        'A basic type may reference only a base unit with multiplier 1': translate('UnitsDialog', 'A basic type may reference only a base unit with multiplier 1'),
+        'Unit names and markers must not be empty': translate('UnitsDialog', 'Unit names and markers must not be empty'),
+        'English unit names and markers must use ASCII characters': translate('UnitsDialog', 'English unit names and markers must use ASCII characters'),
+        'The multiplier must be a finite number greater than zero': translate('UnitsDialog', 'The multiplier must be a finite number greater than zero'),
+        'Basic type names must not be empty': translate('UnitsDialog', 'Basic type names must not be empty'),
+        'Reference data changed; reopen the dialog': translate('UnitsDialog', 'Reference data changed; reopen the dialog'),
+        'Cannot delete a basic type used by the catalog or its default type': translate('UnitsDialog', 'Cannot delete a basic type used by the catalog or its default type'),
+    }
+    return messages.get(message, message)

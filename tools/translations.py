@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DIRECTORY = ROOT / "translations"
-FORMS = ("ElPartsMain.ui", "AppsPathSetup.ui", "ElOpenFileWnd.ui", "ElHdrEditWnd.ui", "ElPluginsWnd.ui")
+FORMS = ("ElPartsMain.ui", "AppsPathSetup.ui", "ElOpenFileWnd.ui", "ElHdrEditWnd.ui", "ElPluginsWnd.ui", "ElUnitsWnd.ui")
 
 
 def messages():
@@ -27,7 +27,7 @@ def messages():
     sources = (list(ROOT.glob("*.py")) + list((ROOT / "ElPluginMgr").rglob("*.py"))
                + list((ROOT / "ElData").rglob("*.py")))
     for path in sorted(sources):
-        if path.name in ("resources.py", "ElParts.py", "ElAppPathWnd.py", "ElOpenFileWnd.py", "ElHdrEditWnd.py", "ElPluginsWnd.py"):
+        if path.name in ("resources.py", "ElParts.py", "ElAppPathWnd.py", "ElOpenFileWnd.py", "ElHdrEditWnd.py", "ElPluginsWnd.py", "ElUnitsWnd.py"):
             continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if not isinstance(node, ast.Call):

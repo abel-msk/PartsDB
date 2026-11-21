@@ -6,9 +6,13 @@ pyuic6  ./qt/AppsPathSetup.ui -o ElAppPathWnd.py
 pyuic6  ./qt/ElOpenFileWnd.ui -o ElOpenFileWnd.py
 pyuic6  ./qt/ElHdrEditWnd.ui -o ElHdrEditWnd.py
 pyuic6  ./qt/ElPluginsWnd.ui -o ElPluginsWnd.py
+pyuic6  ./qt/ElUnitsWnd.ui -o ElUnitsWnd.py
 #pyuic5  qt/ElPartAddDialog.ui -o ElPartAddDialog.py
 #pyuic5  qt/ElPartHeaders.ui -o ElPartHeaders.py
 #pyuic5  qt/ElAddTypeDlg.ui -o ElAddTypeDlg.py
 
 pyside6-rcc  ./qt/resources.qrc -o resources.pyx
 cat resources.pyx | sed 's/PySide6/PyQt6/' > resources.py
+
+# Keep generated class/method descriptions reproducible; do not edit outputs by hand.
+python3 tools/document_generated_ui.py
