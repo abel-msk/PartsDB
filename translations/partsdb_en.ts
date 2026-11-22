@@ -111,12 +111,20 @@ p, li { white-space: pre-wrap; }
       <translation>Logs</translation>
     </message>
     <message>
+      <source>Logs:</source>
+      <translation>Logs:</translation>
+    </message>
+    <message>
       <source>Params format</source>
       <translation>Params format</translation>
     </message>
     <message>
       <source>Plugin Name</source>
       <translation>Plugin Name</translation>
+    </message>
+    <message>
+      <source>Processing</source>
+      <translation>Processing</translation>
     </message>
     <message>
       <source>Remove</source>
@@ -212,6 +220,10 @@ p, li { white-space: pre-wrap; }
       <translation>Imported by</translation>
     </message>
     <message>
+      <source>LInk Part</source>
+      <translation>LInk Part</translation>
+    </message>
+    <message>
       <source>Last Import</source>
       <translation>Last Import</translation>
     </message>
@@ -273,41 +285,45 @@ p, li { white-space: pre-wrap; }
     </message>
   </context>
   <context>
-    <name>OpenFileWnd</name>
+    <name>MatchingLog</name>
     <message>
-      <source>Local file</source>
-      <translation>Local file</translation>
+      <source>Cancelled</source>
+      <translation>Cancelled</translation>
     </message>
     <message>
-      <source>Path</source>
-      <translation>Path</translation>
+      <source>Close</source>
+      <translation>Close</translation>
     </message>
     <message>
-      <source>Select file or URL</source>
-      <translation>Select file or URL</translation>
+      <source>Completed</source>
+      <translation>Completed</translation>
     </message>
     <message>
-      <source>Show files only</source>
-      <translation>Show files only</translation>
+      <source>Component matching</source>
+      <translation>Component matching</translation>
     </message>
     <message>
-      <source>URL</source>
-      <translation>URL</translation>
+      <source>Error: {}</source>
+      <translation>Error: {}</translation>
     </message>
     <message>
-      <source>WEB URL</source>
-      <translation>WEB URL</translation>
+      <source>Found: {}</source>
+      <translation>Found: {}</translation>
     </message>
     <message>
-      <source>X</source>
-      <translation>X</translation>
+      <source>Log:</source>
+      <translation>Log:</translation>
+    </message>
+    <message>
+      <source>No match</source>
+      <translation>No match</translation>
     </message>
   </context>
   <context>
     <name>PartsDB</name>
     <message>
-      <source>Add Child Type</source>
-      <translation>Add Child Type</translation>
+      <source>Add Child Section</source>
+      <translation>Add Child Section</translation>
     </message>
     <message>
       <source>Add Document link {}</source>
@@ -318,8 +334,8 @@ p, li { white-space: pre-wrap; }
       <translation>Add Part</translation>
     </message>
     <message>
-      <source>Add Type</source>
-      <translation>Add Type</translation>
+      <source>Add Section</source>
+      <translation>Add Section</translation>
     </message>
     <message>
       <source>Add application</source>
@@ -520,6 +536,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Edit Headers</translation>
     </message>
     <message>
+      <source>Edit Section</source>
+      <translation>Edit Section</translation>
+    </message>
+    <message>
       <source>Edit headers</source>
       <translation>Edit headers</translation>
     </message>
@@ -592,6 +612,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Icon Link</translation>
     </message>
     <message>
+      <source>Image not found:&lt;br&gt;{}</source>
+      <translation>Image not found:&lt;br&gt;{}</translation>
+    </message>
+    <message>
       <source>Incorrect file extension {}</source>
       <translation>Incorrect file extension {}</translation>
     </message>
@@ -634,6 +658,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>No application configured to open this document</source>
       <translation>No application configured to open this document</translation>
+    </message>
+    <message>
+      <source>No picture: default icon for the section</source>
+      <translation>No picture: default icon for the section</translation>
     </message>
     <message>
       <source>Nominal</source>
@@ -700,10 +728,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Reduced Value</translation>
     </message>
     <message>
-      <source>Rename Type</source>
-      <translation>Rename Type</translation>
-    </message>
-    <message>
       <source>Rename selected 'Type' object.</source>
       <translation>Rename selected 'Type' object.</translation>
     </message>
@@ -734,6 +758,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Select Document</source>
       <translation>Select Document</translation>
+    </message>
+    <message>
+      <source>Select application</source>
+      <translation>Select application</translation>
     </message>
     <message>
       <source>Select at least one key column.</source>
@@ -971,6 +999,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Project import</source>
       <translation>Project import</translation>
+    </message>
+    <message>
+      <source>Quantity</source>
+      <translation>Quantity</translation>
     </message>
     <message>
       <source>Reading project...</source>

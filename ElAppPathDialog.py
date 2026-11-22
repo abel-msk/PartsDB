@@ -1,3 +1,4 @@
+from PyQt6.QtWidgets import QFileDialog
 from ElTranslations import translate
 from ElTranslations import TranslatedDialogMixin
 from ElWindowTexts import appPathDialogTexts
@@ -5,7 +6,7 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QListWidgetItem, QInputDialog, QWidget
 
-import ElLogger
+import ElCommon as ElCommon
 from ElAppList import AppList, AppDef
 from ElAppPathWnd import Ui_AppPathDialog
 import logging
@@ -13,8 +14,7 @@ import os
 import sys
 
 from ElConfig import ElConfig
-from ElOpenFileDialog import OpenFileDialog
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -112,9 +112,9 @@ class AppPathConfig(TranslatedDialogMixin, QDialog):
         """Choose an application executable using the file selection dialog.
 
         @return [None] Update the owned UI or state without returning a value."""
-        dlg = OpenFileDialog(self, "/Applications")
-        dlg.comm.uriSelected.connect(self.onAddDocSelected)
-        dlg.exec()
+        filename, _ = QFileDialog.getOpenFileName(self, translate('PartsDB', 'Select application'), '/Applications')
+        if filename:
+            self.ui.appExeInput.setText(filename)
 
     def onAddDocSelected(self, uri, type, docRoot=None):
         """Copy the selected application URI into the executable input.

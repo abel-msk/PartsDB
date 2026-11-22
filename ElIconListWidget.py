@@ -9,12 +9,12 @@ from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QM
     QToolButton, QVBoxLayout, QListWidget, QListWidgetItem, QSizePolicy, QGraphicsView, QFrame, QGraphicsScene, \
     QAbstractItemView
 
-import ElLogger
+import ElCommon as ElCommon
 import ElTypesTree
 from ElData.ElDBScheme import DBFactory, Type, Parts, Part, Documents, Document
 import resources   ###  Do Not delete
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 # handler = logging.StreamHandler(stream=sys.stderr)

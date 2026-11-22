@@ -104,12 +104,20 @@ p, li { white-space: pre-wrap; }
       <translation>Журнал</translation>
     </message>
     <message>
+      <source>Logs:</source>
+      <translation>Журнал:</translation>
+    </message>
+    <message>
       <source>Params format</source>
       <translation>Формат параметров</translation>
     </message>
     <message>
       <source>Plugin Name</source>
       <translation>Название плагина</translation>
+    </message>
+    <message>
+      <source>Processing</source>
+      <translation>Обработка</translation>
     </message>
     <message>
       <source>Remove</source>
@@ -205,6 +213,10 @@ p, li { white-space: pre-wrap; }
       <translation>Импортировано с помощью</translation>
     </message>
     <message>
+      <source>LInk Part</source>
+      <translation>Сопоставить детали</translation>
+    </message>
+    <message>
       <source>Last Import</source>
       <translation>Последний импорт</translation>
     </message>
@@ -266,40 +278,44 @@ p, li { white-space: pre-wrap; }
     </message>
   </context>
   <context>
-    <name>OpenFileWnd</name>
+    <name>MatchingLog</name>
     <message>
-      <source>Local file</source>
-      <translation>Локальный файл</translation>
+      <source>Cancelled</source>
+      <translation>Отменено</translation>
     </message>
     <message>
-      <source>Path</source>
-      <translation>Путь</translation>
+      <source>Close</source>
+      <translation>Закрыть</translation>
     </message>
     <message>
-      <source>Select file or URL</source>
-      <translation>Выберите файл или ссылку</translation>
+      <source>Completed</source>
+      <translation>Завершено</translation>
     </message>
     <message>
-      <source>Show files only</source>
-      <translation>Только файлы</translation>
+      <source>Component matching</source>
+      <translation>Сопоставление компонентов</translation>
     </message>
     <message>
-      <source>URL</source>
-      <translation>URL</translation>
+      <source>Error: {}</source>
+      <translation>Ошибка: {}</translation>
     </message>
     <message>
-      <source>WEB URL</source>
-      <translation>Веб-ссылка</translation>
+      <source>Found: {}</source>
+      <translation>Найдено: {}</translation>
     </message>
     <message>
-      <source>X</source>
-      <translation>X</translation>
+      <source>Log:</source>
+      <translation>Журнал:</translation>
+    </message>
+    <message>
+      <source>No match</source>
+      <translation>Не найдено</translation>
     </message>
   </context>
   <context>
     <name>PartsDB</name>
     <message>
-      <source>Add Child Type</source>
+      <source>Add Child Section</source>
       <translation>Добавить подраздел</translation>
     </message>
     <message>
@@ -311,7 +327,7 @@ p, li { white-space: pre-wrap; }
       <translation>Добавить деталь</translation>
     </message>
     <message>
-      <source>Add Type</source>
+      <source>Add Section</source>
       <translation>Добавить раздел</translation>
     </message>
     <message>
@@ -513,6 +529,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Редактировать колонки</translation>
     </message>
     <message>
+      <source>Edit Section</source>
+      <translation>Редактировать раздел</translation>
+    </message>
+    <message>
       <source>Edit headers</source>
       <translation>Редактировать колонки</translation>
     </message>
@@ -585,6 +605,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Иконка</translation>
     </message>
     <message>
+      <source>Image not found:&lt;br&gt;{}</source>
+      <translation>Изображение не найдено:&lt;br&gt;{}</translation>
+    </message>
+    <message>
       <source>Incorrect file extension {}</source>
       <translation>Недопустимое расширение файла {}</translation>
     </message>
@@ -627,6 +651,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>No application configured to open this document</source>
       <translation>Не настроено приложение для открытия документа</translation>
+    </message>
+    <message>
+      <source>No picture: default icon for the section</source>
+      <translation>Нет изображения: используется значок раздела</translation>
     </message>
     <message>
       <source>Nominal</source>
@@ -693,10 +721,6 @@ Document files will remain on disk. The icon file in the icons folder will be de
       <translation>Приведённое значение</translation>
     </message>
     <message>
-      <source>Rename Type</source>
-      <translation>Переименовать раздел</translation>
-    </message>
-    <message>
       <source>Rename selected 'Type' object.</source>
       <translation>Переименовать выбранный раздел.</translation>
     </message>
@@ -727,6 +751,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Select Document</source>
       <translation>Выберите документ</translation>
+    </message>
+    <message>
+      <source>Select application</source>
+      <translation>Выберите приложение</translation>
     </message>
     <message>
       <source>Select at least one key column.</source>
@@ -964,6 +992,10 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Project import</source>
       <translation>Импорт проектов</translation>
+    </message>
+    <message>
+      <source>Quantity</source>
+      <translation>Количество</translation>
     </message>
     <message>
       <source>Reading project...</source>

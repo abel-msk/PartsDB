@@ -24,13 +24,16 @@ class ImportPreview(TranslatedDialogMixin, QDialog):
         super().__init__(parent)
         self.project = project
         self.changes = changes
+        from ElPluginMgr.repository import component_row
+        from ElData.ElDBDataProj import groupedComponents
+        self.components = groupedComponents([component_row(component) for component in project.components])
         self.ui = SimpleNamespace()
         self.resize(1050, 620)
         layout = QVBoxLayout(self)
         self.ui.summary = QLabel(self)
         self.ui.summary.setTextFormat(Qt.TextFormat.PlainText)
         layout.addWidget(self.ui.summary)
-        self.ui.table = QTableWidget(len(project.components) + len(changes.removed), 7, self)
+        self.ui.table = QTableWidget(len(self.components) + len(changes.removed), 7, self)
         self.ui.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.ui.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.ui.table.horizontalHeader().setStretchLastSection(True)

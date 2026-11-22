@@ -132,11 +132,11 @@ class PartsMatchingTests(unittest.TestCase):
         section = self.section('Power ICs', 6)
         self.keys(section, ['device_code', 'part_num'])
         expected = self.part(section, part_num='Different model', device_code='AMS1117-3.3', package='SOT-223')
-        self.part(section, part_num='AMS1117-3.3-extra')
+        suffix = self.part(section, part_num='AMS1117-3.3-extra')
         self.part(section, part_num='Other', description='AMS1117-3.3')
         before = list(self.conn.iterdump())
         found = self.candidates('ic', 'ams1117-3.3', 'Package_SOT:SOT223')
-        self.assertEqual([item.part_id for item in found], [expected.id])
+        self.assertEqual([item.part_id for item in found], [expected.id, suffix.id])
         self.assertEqual((found[0].key_text, found[0].matched_fields), ('AMS1117-3.3', ('device_code',)))
         self.assertEqual(list(self.conn.iterdump()), before)
 
@@ -265,6 +265,10 @@ class PartsMatchingTests(unittest.TestCase):
         window.setupUi(window)
         self.addCleanup(window.close)
         controller = ProjWindow(self.factory, window)
+        controller.runMatching()
+        for _ in range(30):
+            app.processEvents()
+        self.addCleanup(controller.matchingLog.close)
         model = controller.componentsModel
         self.assertEqual(model.item(0, 7).text(), 'YES')
         self.assertEqual(model.item(0, 7).data(MATCHING_LABEL_ROLE), '100.0')
@@ -298,6 +302,10 @@ class PartsMatchingTests(unittest.TestCase):
         window.setupUi(window)
         self.addCleanup(window.close)
         controller = ProjWindow(self.factory, window)
+        controller.runMatching()
+        for _ in range(30):
+            app.processEvents()
+        self.addCleanup(controller.matchingLog.close)
         requested = []
         controller.matchingRequested.connect(requested.append)
         self.assertEqual(controller.componentsModel.rowCount(), 3)
@@ -328,3 +336,21 @@ class PartsMatchingTests(unittest.TestCase):
         controller.onProjectSelected(None)
         self.assertEqual(controller.componentsModel.rowCount(), 0)
         self.assertEqual(controller.unmatchedModel.rowCount(), 0)
+
+    def test_part_number_compares_shortest_nonempty_value_in_both_directions(self):
+        """Ignore a longer model suffix only for part_num, including SI-like source values.
+
+        @return [None] Verify two-way prefix equality, empty guards and other key exactness.
+        """
+        section = self.section('IC', 6)
+        self.keys(section, ['part_num', 'device_code'])
+        short = self.part(section, part_num='AMS1117')
+        long = self.part(section, part_num='AMS1117-3.3-extra')
+        self.part(section, part_num='', device_code='AMS1117-3.3-extra')
+        self.assertEqual([item.part_id for item in self.candidates('ic','AMS1117-3.3')], [short.id,long.id])
+        self.assertEqual(self.candidates('ic',''), [])
+        self.assertEqual(self.candidates('ic','XYZ1117'), [])
+        resistors = self.section('R models', 3)
+        self.keys(resistors,['part_num'])
+        expected = self.part(resistors,part_num='1K-0603')
+        self.assertEqual([item.part_id for item in self.candidates('resistor','1K')], [expected.id])

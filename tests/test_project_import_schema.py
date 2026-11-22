@@ -59,7 +59,7 @@ class TestProjectImportSchema(unittest.TestCase):
         self.assertEqual(self.conn.execute('SELECT last_imported_at, needs_reload, properties_json '
                                           'FROM PROJECTS').fetchone(), (None, 1, '{}'))
         self.conn.execute("UPDATE PROJECT_COMPONENTS SET nominal_value='0.002', nominal_unit='ohm'")
-        self.assertEqual(self.conn.execute('SELECT kind, nominal_value, in_bom, on_board, dnp '
+        self.assertEqual(self.conn.execute('SELECT kind, nominal_value, quantity, on_board, dnp '
                                           'FROM PROJECT_COMPONENTS').fetchone(), ('unknown', '0.002', 1, 1, 0))
         self.assertTrue(self.conn.execute('SELECT matched_at FROM PROJECT_COMPONENT_MATCHES').fetchone()[0].endswith('Z'))
 
@@ -72,7 +72,7 @@ class TestProjectImportSchema(unittest.TestCase):
 
     def test_constraints(self):
         self.seed()
-        for table, field in [('PROJECTS', 'needs_reload'), ('PROJECT_COMPONENTS', 'in_bom'),
+        for table, field in [('PROJECTS', 'needs_reload'),
                              ('PROJECT_COMPONENTS', 'on_board'), ('PROJECT_COMPONENTS', 'dnp'),
                              ('PROJECT_COMPONENT_MATCHES', 'needs_review')]:
             with self.subTest(table=table, field=field), self.assertRaises(sqlite3.IntegrityError):

@@ -23,7 +23,7 @@
 | [DATASHEETS](#datasheets) | Ссылки на документы деталей. |
 | [PLUGINS](#plugins) | Метаданные установленных плагинов и настройки открытия проектов. |
 | [PROJECTS](#projects) | Импортированные проекты, их источники и состояние импорта. |
-| [PROJECT_COMPONENTS](#project_components) | Физические позиции импортированных проектов. |
+| [PROJECT_COMPONENTS](#project_components) | Группы одинаковых позиций импортированных проектов (схема 12). |
 | [PROJECT_COMPONENT_MATCHES](#project_component_matches) | Подтверждённые соответствия позиций складским деталям. |
 | [EL_BY_PROJECT](#el_by_project) | Старые связи проектов и деталей с количеством. |
 | [PROJECT_COLUMN_WIDTHS](#project_column_widths) | Сохранённые ширины колонок двух таблиц проектов. |
@@ -119,6 +119,12 @@ erDiagram
 | Hardware | H |
 | Fiducial | FD |
 | Thermal jumper | TJ |
+
+Иконки `BASIC_TYPES.icon` хранят абсолютный путь к PNG в
+`<main.data_path>/el_icons`. Пустой путь допустим. Редактор использует
+`ElCommonUI.IconCellDelegate`; drop и конвертация PNG находятся в `ElCommon.py`.
+Начальное назначение путей выполняется отдельной операцией с резервной копией,
+без изменения схемы и без включения данных в миграцию.
 
 ## SI_UNITS
 
@@ -335,7 +341,7 @@ Ohm / Ом (R / Ом), Volt / Вольт (V / В), Ampere / Ампер (A / А).
 
 ## PROJECT_COMPONENTS
 
-Физические позиции импортированных проектов.
+Группы одинаковых позиций импортированных проектов (схема 12).
 
 | Поле | SQL-тип и ограничения | Назначение |
 |---|---|---|
@@ -351,15 +357,15 @@ Ohm / Ом (R / Ом), Volt / Вольт (V / В), Ampere / Ампер (A / А).
 | `symbol_id` | TEXT | Полное библиотечное имя символа. |
 | `footprint` | TEXT | Полное библиотечное имя посадочного места. |
 | `description` | TEXT | Описание позиции. |
-| `in_bom` | INTEGER NOT NULL DEFAULT 1 | 0/1: включена ли позиция в BOM. |
+| `quantity` | INTEGER NOT NULL DEFAULT 1 CHECK(quantity > 0) | Число исходных экземпляров, включая DNP внутри своей группы. |
 | `on_board` | INTEGER NOT NULL DEFAULT 1 | 0/1: размещается ли позиция на плате. |
 | `dnp` | INTEGER NOT NULL DEFAULT 0 | 0/1: не устанавливать позицию. |
 | `properties_json` | TEXT NOT NULL DEFAULT '{}' | Дополнительные исходные свойства ImportedComponent в JSON. |
 
 `id` использует AUTOINCREMENT. `project_id` ссылается на `PROJECTS(id) ON DELETE CASCADE`.
 Пара `(project_id, external_id)` уникальна; её индекс также обслуживает поиск
-позиций проекта. Три флага имеют CHECK IN (0,1). Одна строка — одна физическая
-позиция, секции одного символа объединяет плагин. Количества одинаковых деталей
+позиций проекта. Флаги on_board и dnp имеют CHECK IN (0,1). Одна строка — группа одинаковых
+деталей; секции одного символа предварительно объединяет плагин. Количества одинаковых деталей
 вычисляются группировкой. `kind` не связан FK с `BASIC_TYPES`.
 
 ## PROJECT_COMPONENT_MATCHES
@@ -492,9 +498,11 @@ ID не сбрасывает сопоставление. Изменение тр
 
 ### Запись компонентов: PROJECT_COMPONENTS
 
-Сохраняются 49 строк — одна строка на физическую позицию. Секции одной детали
-объединяет плагин. Отдельного поля количества нет: потребность вычисляется
-группировкой позиций.
+Из 49 физических позиций сохраняется 31 группа, сумма quantity равна 49.
+Позиции in_bom=False отбрасываются до группировки. Группировка сравнивает
+Kind, Value, Footprint, модель, символ, on_board и dnp точно; DNP и обычные
+экземпляры суммируются раздельно. reference содержит все обозначения, а
+properties_json — source_external_ids и source_references.
 
 Соответствие полей для C1:
 
@@ -503,7 +511,7 @@ ID не сбрасывает сопоставление. Изменение тр
 | id | SQLite | Генерируется при добавлении позиции |
 | project_id | PROJECTS.id | ID проекта в этой БД |
 | external_id | component.external_id | /1a9f0d73-6986-450b-8da5-dca8d718cd0d/26ba38b8-de6a-4290-840f-c0381062839e/01b136d3-50db-47bc-9e3a-bd2417f28c2f |
-| reference | component.reference | C1 |
+| reference | Обозначения группы | C1, C11, C12 |
 | kind | component.kind | capacitor |
 | value_raw | component.value_raw | 100nF |
 | nominal_value | component.nominal.value либо NULL | 0.0000001 |
@@ -512,7 +520,7 @@ ID не сбрасывает сопоставление. Изменение тр
 | symbol_id | component.symbol_id | Device:C_Small |
 | footprint | component.footprint | Capacitor_SMD:C_0805_2012Metric |
 | description | component.description | Unpolarized capacitor, small symbol |
-| in_bom | int(component.in_bom) | 1 |
+| quantity | Число экземпляров группы | 3 |
 | on_board | int(component.on_board) | 1 |
 | dnp | int(component.dnp) | 0 |
 | properties_json | json.dumps(component.properties, ensure_ascii=False) | Все исходные свойства C1 и UUID секций; см. пример JSON |
@@ -532,29 +540,15 @@ ID не сбрасывает сопоставление. Изменение тр
 - На пару `(project_id, external_id)` действует ограничение уникальности.
   Внешний ID компонента и внешний ID проекта относятся к разным сущностям.
 
-Пример подготовки параметров одной строки по правилам `ProjectRepository`:
+Подготовка строк через тот же слой данных, который использует приложение:
 
 ```python
-import json
-
-row = {
-    'project_id': project_id,  # PROJECTS.id, полученный приложением
-    'external_id': component.external_id,
-    'reference': component.reference,
-    'kind': component.kind,
-    'value_raw': component.value_raw,
-    'nominal_value': component.nominal.value if component.nominal else None,
-    'nominal_unit': component.nominal.unit if component.nominal else None,
-    'model': component.model,
-    'symbol_id': component.symbol_id,
-    'footprint': component.footprint,
-    'description': component.description,
-    'in_bom': int(component.in_bom),
-    'on_board': int(component.on_board),
-    'dnp': int(component.dnp),
-    'properties_json': json.dumps(component.properties, ensure_ascii=False),
-}
+from ElPluginMgr.repository import component_row
+from ElData.ElDBDataProj import groupedComponents
+rows = groupedComponents([component_row(component) for component in project.components])
+# C1, C11, C12: quantity=3; in_bom в сохранённых строках отсутствует.
 ```
+
 
 Это иллюстрация преобразования данных; запросы записи находятся в `ElData/ElDBScheme.py`, SQLite-транзакции — в `ElData/ElDBConnect.py`, а `ElPluginMgr/repository.py` проверяет данные и делегирует сохранение.
 SQL должен получать значения отдельными параметрами (`?` или `:name`),

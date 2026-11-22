@@ -5,10 +5,10 @@ from PyQt6.QtCore import QObject, QCoreApplication, QLocale, QTranslator, QLibra
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QApplication
 from constants import CONFIG_LANGUAGE
-import ElLogger
+import ElCommon
 
 translate = QCoreApplication.translate
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 CATALOG_DIR = Path(__file__).resolve().parent / "translations"
 LANGUAGES = ("system", "en", "ru")
 

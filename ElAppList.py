@@ -2,9 +2,9 @@ import logging
 import sys
 from PyQt6 import QtGui
 
-import ElLogger
+import ElCommon
 from ElConfig import ElConfig
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 # handler = logging.StreamHandler(stream=sys.stderr)

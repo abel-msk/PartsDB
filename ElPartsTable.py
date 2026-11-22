@@ -1,3 +1,4 @@
+from ElConstants import UNIT_REFERENCE_ROLE
 from ElTranslations import translate
 from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from ElTranslations import TranslatedAction as QAction
@@ -13,15 +14,14 @@ from PyQt6.QtWidgets import QTreeWidget, QTreeView, QHeaderView, QMenu, QInputDi
     QListWidget
 
 from ElData import ElDBScheme
-import ElLogger
+import ElCommon
 from ElData.ElDBScheme import DBFactory, Type, Types, Parts, Part, Document
 from ElHdrEditDialog import HeaderEditDialog
-from ElCatalogDialogs import PartValuesDialog
+from ElCommonUI import PartValuesDialog
 from ElData import ElDBDataParts
 from ElIconListWidget import IconsListWidget
-from ElIconDelegate import IconCellDelegate
+from ElCommonUI import IconCellDelegate
 from ElDefaultIcons import DefaultPartIcons
-import ElIconDrop
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -29,7 +29,7 @@ import ElIconDrop
 # handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
 # logger.addHandler(handler)
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 DB_COLUMNS = list(ElDBScheme.ELEMENT_FIELDS.keys())
 PARTS_COLUMN_COUNT = len(DB_COLUMNS) - 2
@@ -44,6 +44,7 @@ MODEL_SEARCHLIST = 2
 
 
 class Communicate(QObject):
+    """Represent catalog rows or their Qt interactions; retain the active factory and row data."""
     documentSelect = pyqtSignal(ElDBScheme.Document)
     partSelect = pyqtSignal(Part)
     partsTypeRequest = pyqtSignal(Part)
@@ -85,7 +86,14 @@ def _removePartRow(model, row):
 
 class SearchTableModel(QtCore.QAbstractTableModel):
 
+    """Represent catalog rows or their Qt interactions; retain the active factory and row data."""
     def __init__(self, factory: DBFactory, parts: Parts):
+        """Initialize the controller or data model with its owning widgets and catalog.
+
+        @param factory [DBFactory] factory supplied by the caller.
+        @param parts [Parts] parts supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         super(SearchTableModel, self).__init__()
         self.factory: DBFactory = factory
         self.parts: Parts = parts
@@ -93,9 +101,20 @@ class SearchTableModel(QtCore.QAbstractTableModel):
         self.headers = None
 
     def removeRow(self, row: int, parent=QModelIndex()) -> bool:
+        """Delete a catalog row through the persistence layer before notifying Qt.
+
+        @param row [int] row supplied by the caller.
+        @param parent [QModelIndex] parent supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return _removePartRow(self, row)
 
     def flags(self, index):
+        """Return the supported selection, editing and checkbox flags for a cell.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         column = index.column()
         fieldName = ElDBScheme.ELEMENT_FLD_NAMES[column + 2]
         return super().flags(index)
@@ -107,12 +126,28 @@ class SearchTableModel(QtCore.QAbstractTableModel):
         #     return super().flags(index) | Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsEnabled
 
     def rowCount(self, index: QModelIndex = ...):
+        """Return the number of loaded catalog rows.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return len(self.parts)
 
     def columnCount(self, index: QModelIndex = ...) -> int:
+        """Return the number of visible-model catalog fields.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return PARTS_COLUMN_COUNT
 
     def data(self, index: QModelIndex, role=None):
+        """Return catalog cell contents or metadata for the requested Qt role.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @param role [Qt.ItemDataRole, None] role supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         row = index.row()
         column = index.column()
         # thePart: Part = self.parts[row - 1]
@@ -127,6 +162,12 @@ class SearchTableModel(QtCore.QAbstractTableModel):
             return thePart
 
     def sort(self, column: int, order: Qt.SortOrder = ...):
+        """Sort loaded catalog rows by a field and notify the view.
+
+        @param column [int] column supplied by the caller.
+        @param order [Qt.SortOrder] order supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         columnName = DB_COLUMNS[column + 2]
         logger.debug("Sorting by field %s", columnName)
 
@@ -151,6 +192,13 @@ class SearchTableModel(QtCore.QAbstractTableModel):
         self.layoutChanged.emit()
 
     def headerData(self, section, orientation, role=None):
+        """Return translated column captions and header styling for a Qt role.
+
+        @param section [int] section supplied by the caller.
+        @param orientation [Qt.Orientation] orientation supplied by the caller.
+        @param role [Qt.ItemDataRole, None] role supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:
                 column = section + 2
@@ -170,18 +218,112 @@ class SearchTableModel(QtCore.QAbstractTableModel):
                 return QSize(100, 30)
 
 
+class PartUnitDelegate(QtWidgets.QStyledItemDelegate):
+    """Edit nominal SI units using the section's dimension and all configured multipliers.
+
+    @attr parent [QTableView] Catalog view supplying the edited Part in UserRole.
+    """
+
+    def paint(self, painter, option, index):
+        """Draw a visible dropdown indicator for sections with a configured SI dimension.
+
+        @param painter [QPainter] Qt view painter.
+        @param option [QStyleOptionViewItem] Cell rectangle and selection style.
+        @param index [QModelIndex] Units cell with a dimension flag in UNIT_REFERENCE_ROLE.
+        @return [None] Render a combo-style cell, otherwise the standard text cell.
+        """
+        if not index.data(UNIT_REFERENCE_ROLE):
+            return super().paint(painter, option, index)
+        combo = QtWidgets.QStyleOptionComboBox()
+        combo.rect = option.rect
+        combo.state = option.state
+        combo.palette = option.palette
+        combo.currentText = str(index.data(Qt.ItemDataRole.DisplayRole) or '')
+        style = option.widget.style() if option.widget else QtWidgets.QApplication.style()
+        style.drawComplexControl(QtWidgets.QStyle.ComplexControl.CC_ComboBox, combo, painter, option.widget)
+        style.drawControl(QtWidgets.QStyle.ControlElement.CE_ComboBoxLabel, combo, painter, option.widget)
+
+    def createEditor(self, parent, option, index):
+        """Create a constrained unit selector or the default editor for types without SI units.
+
+        @param parent [QWidget] Editor owner.
+        @param option [QStyleOptionViewItem] Qt style options.
+        @param index [QModelIndex] Unit cell whose UserRole stores a Part.
+        @return [QWidget] Combo box for an SI dimension, otherwise the normal text editor.
+        """
+        from ElData.ElDBDataUnits import UnitsDataStore
+        part = index.data(Qt.ItemDataRole.UserRole)
+        store = UnitsDataStore(part.scheme)
+        base, units = store.sectionUnits(part['type_id'])
+        if base is None:
+            return super().createEditor(parent, option, index)
+        editor = QtWidgets.QComboBox(parent)
+        editor.addItem('')
+        aliases = store.aliases()
+        for unit in sorted(units, key=lambda row: row[5]):
+            for marker in dict.fromkeys((unit[3], unit[4], *aliases.get(unit[0], ()))):
+                editor.addItem(marker)
+        return editor
+
+    def setEditorData(self, editor, index):
+        """Select the saved spelling without losing a legacy custom value.
+
+        @param editor [QWidget] Combo box or normal Qt editor.
+        @param index [QModelIndex] Source nominal unit cell.
+        @return [None] Populate the current editor.
+        """
+        if not isinstance(editor, QtWidgets.QComboBox):
+            return super().setEditorData(editor, index)
+        value = str(index.data(Qt.ItemDataRole.EditRole) or '')
+        selected = editor.findText(value)
+        if selected < 0:
+            editor.addItem(value)
+            selected = editor.count()-1
+        editor.setCurrentIndex(selected)
+
+    def setModelData(self, editor, model, index):
+        """Commit the selected unit through the regular model save and normalization path.
+
+        @param editor [QWidget] Active cell editor.
+        @param model [PartsTableModel] Writable catalog model.
+        @param index [QModelIndex] Target units cell.
+        @return [None] Persist the unit and recomputed nominal.
+        """
+        if isinstance(editor, QtWidgets.QComboBox):
+            model.setData(index, editor.currentText(), Qt.ItemDataRole.EditRole)
+        else:
+            super().setModelData(editor, model, index)
+
+
 class PartsTableModel(QtCore.QAbstractTableModel):
+    """Represent catalog rows or their Qt interactions; retain the active factory and row data."""
     data_changed = pyqtSignal(QModelIndex, Part, name='dataChanged')
 
     def __init__(self, factory: DBFactory, theType: Type):
+        """Initialize the controller or data model with its owning widgets and catalog.
+
+        @param factory [DBFactory] factory supplied by the caller.
+        @param theType [Type] theType supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         super(PartsTableModel, self).__init__()
         self.factory: DBFactory = factory
         self.theType: Type = theType
         self.parts: Parts = factory.loadPartsByType(self.theType)
         self.headers: ElDBScheme.Headers = self.theType.refreshHeaders()
+        from ElData.ElDBDataUnits import UnitsDataStore
+        self.siBase, self.siUnits = UnitsDataStore(factory.scheme).sectionUnits(theType.recId)
         self.needReload = False
 
     def data(self, index: QModelIndex, role=None):
+        """Return catalog cell contents or metadata for the requested Qt role.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @param role [Qt.ItemDataRole, None] role supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
+        if role == UNIT_REFERENCE_ROLE:
+            return bool(self.siBase) if DB_COLUMNS[index.column()+2] == 'units' else False
         if self.needReload:
             self.headers: ElDBScheme.Headers = self.theType.refreshHeaders()
             self.needReload = False
@@ -220,6 +362,11 @@ class PartsTableModel(QtCore.QAbstractTableModel):
                 return color
 
     def flags(self, index):
+        """Return the supported selection, editing and checkbox flags for a cell.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         column = index.column()
         fieldName = ElDBScheme.ELEMENT_FLD_NAMES[column + 2]
 
@@ -231,15 +378,32 @@ class PartsTableModel(QtCore.QAbstractTableModel):
             return super().flags(index) | Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsEnabled
 
     def rowCount(self, index: QModelIndex = ...):
+        """Return the number of loaded catalog rows.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return len(self.parts)
 
     def columnCount(self, index: QModelIndex = ...) -> int:
+        """Return the number of visible-model catalog fields.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return PARTS_COLUMN_COUNT
 
     # def updateHeaders(self):
     #     self.headers: ElDBScheme.Headers = self.theType.getHeaders()
 
     def headerData(self, section, orientation, role=None):
+        """Return translated column captions and header styling for a Qt role.
+
+        @param section [int] section supplied by the caller.
+        @param orientation [Qt.Orientation] orientation supplied by the caller.
+        @param role [Qt.ItemDataRole, None] role supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.needReload:
             self.headers: ElDBScheme.Headers = self.theType.refreshHeaders()
             self.needReload = False
@@ -267,6 +431,13 @@ class PartsTableModel(QtCore.QAbstractTableModel):
 
     # https://doc.qt.io/qt-6/qabstractitemmodel.html#dataChanged
     def setData(self, index, value, role=None):
+        """Validate an edited catalog field, persist it and update dependent nominal fields.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @param value [object] value supplied by the caller.
+        @param role [Qt.ItemDataRole, None] role supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if not index.isValid():
             return False
         row = index.row()
@@ -283,10 +454,11 @@ class PartsTableModel(QtCore.QAbstractTableModel):
                     thePart[columnName] = int(value) if value != "" else 0
                 elif ElDBScheme.ELEMENT_FIELDS[columnName].strip() == "REAL":
                     transTbl = str.maketrans("," , ".")
-                    thePart[columnName] = float(str(value).translate(transTbl)) if value != "" else 0.0
+                    thePart[columnName] = float(str(value).translate(transTbl)) if value != "" else None
                 else:
                     thePart[columnName] = value
                 thePart.save()
+                self.dataChanged.emit(self.index(row, 0), self.index(row, self.columnCount()-1))
             except ValueError as e:
                 # logger.error(e)
                 logging.exception("ValueError")
@@ -306,9 +478,20 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         return super().setData(index, value, role)
 
     def removeRow(self, row: int, parent: QModelIndex = ...) -> bool:
+        """Delete a catalog row through the persistence layer before notifying Qt.
+
+        @param row [int] row supplied by the caller.
+        @param parent [QModelIndex] parent supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return _removePartRow(self, row)
 
     def appendRow(self, thePart: Part):
+        """Append a persisted stock card and notify the table view.
+
+        @param thePart [Part] thePart supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         newRow = len(self.parts.partsAr)  # rows are 0-based: the appended row goes at index rowCount()
         self.beginInsertRows(QModelIndex(), newRow, newRow)
         self.parts.partsAr.append(thePart)
@@ -316,6 +499,14 @@ class PartsTableModel(QtCore.QAbstractTableModel):
         return True
 
     def setHeaderData(self, section, orientation, value, role=None):
+        """Update a column caption in the current model.
+
+        @param section [int] section supplied by the caller.
+        @param orientation [Qt.Orientation] orientation supplied by the caller.
+        @param value [object] value supplied by the caller.
+        @param role [Qt.ItemDataRole, None] role supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if role == Qt.ItemDataRole.DisplayRole:
             if orientation == Qt.Orientation.Horizontal:
                 logger.debug("Call Header edit. Section=%s, value=%s", section, value)
@@ -328,6 +519,12 @@ class PartsTableModel(QtCore.QAbstractTableModel):
 
     def sort(self, column: int, order: Qt.SortOrder = ...):
         # self.beginResetModel()
+        """Sort loaded catalog rows by a field and notify the view.
+
+        @param column [int] column supplied by the caller.
+        @param order [Qt.SortOrder] order supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         columnName = DB_COLUMNS[column + 2]
         logger.debug("Sorting by field %s", columnName)
 
@@ -356,7 +553,15 @@ class PartsTableModel(QtCore.QAbstractTableModel):
 class TableView(QtCore.QObject):
     # comm = Communicate()
 
+    """Represent catalog rows or their Qt interactions; retain the active factory and row data."""
     def __init__(self, factory: DBFactory, tableView: QtWidgets.QTableView, docList: QListWidget):
+        """Initialize the controller or data model with its owning widgets and catalog.
+
+        @param factory [DBFactory] factory supplied by the caller.
+        @param tableView [QTableView] tableView supplied by the caller.
+        @param docList [QListWidget] docList supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         super(TableView, self).__init__()
         self.searchMode = False
         self.saveResize = False
@@ -381,6 +586,7 @@ class TableView(QtCore.QObject):
         self.iconDelegate = IconCellDelegate(self.tableView, iconsDir=self.factory.getIconsDir(),
                                              defaultIcons=DefaultPartIcons(self.factory))
         self.tableView.setItemDelegateForColumn(ICON_COLUMN, self.iconDelegate)
+        self.tableView.setItemDelegateForColumn(DB_COLUMNS.index('units')-2, PartUnitDelegate(self.tableView))
         self.tableView.verticalHeader().setDefaultSectionSize(ROW_HEIGHT)
         # Pictures dropped from the desktop or a browser onto the icon cell become the part's icon
         self.tableView.viewport().setAcceptDrops(True)
@@ -428,6 +634,10 @@ class TableView(QtCore.QObject):
         # dragMoveEvent
 
     def setFocus(self):
+        """Move keyboard focus to the catalog table.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.tableView.setFocus()
 
     def setFactory(self, factory: DBFactory, iconsDir: str):
@@ -448,7 +658,7 @@ class TableView(QtCore.QObject):
         self.iconsListWidget.documents = None
         self.iconDelegate.iconsDir = iconsDir
         self.iconDelegate.defaultIcons = DefaultPartIcons(factory)
-        self.iconDelegate._cache.clear()
+        self.iconDelegate.clearCache()
         self._setDropRow(-1)
 
     # ---------- drop a picture onto the icon cell ----------
@@ -456,7 +666,7 @@ class TableView(QtCore.QObject):
     def _isPictureDrag(self, event) -> bool:
         """An external drag carrying a picture (drags started inside the program are not ours)."""
         return (event.source() is None and self.tableModel is not None
-                and ElIconDrop.canProvideImage(event.mimeData()))
+                and ElCommon.canProvideImage(event.mimeData()))
 
     def _iconDropIndex(self, event) -> QModelIndex | None:
         """Icon cell under the cursor for an external drag carrying a picture, else None."""
@@ -468,11 +678,22 @@ class TableView(QtCore.QObject):
         return index
 
     def _setDropRow(self, row: int):
+        """Select the target row of a document or icon drop.
+
+        @param row [int] row supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.iconDelegate.dropRow != row:
             self.iconDelegate.dropRow = row
             self.tableView.viewport().update()
 
     def eventFilter(self, obj, event) -> bool:
+        """Handle catalog view events, including document and icon drops.
+
+        @param obj [QObject] obj supplied by the caller.
+        @param event [QEvent] event supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         try:
             if obj is not self.tableView.viewport():
                 return False
@@ -508,9 +729,9 @@ class TableView(QtCore.QObject):
                 return True
             event.setDropAction(Qt.DropAction.CopyAction)
             event.accept()
-            logger.info("Picture dropped on row %s: %s", index.row(), ElIconDrop.describeMime(event.mimeData()))
+            logger.info("Picture dropped on row %s: %s", index.row(), ElCommon.describeMime(event.mimeData()))
             # The drag's data (and on macOS the image memory) is gone once the event returns: deep copy now
-            mime = ElIconDrop.copyMimeData(event.mimeData())
+            mime = ElCommon.copyMimeData(event.mimeData())
             row = index.row()
             QTimer.singleShot(0, lambda: self.setIconFromMime(row, mime))
             return True
@@ -524,12 +745,12 @@ class TableView(QtCore.QObject):
             return False
         QtWidgets.QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
-            img = ElIconDrop.imageFromMime(mime)
+            img = ElCommon.imageFromMime(mime)
             if img is None:
                 QtWidgets.QApplication.restoreOverrideCursor()
                 ErrorDialog(self.tableView, translate("PartsDB", "The dropped object is not a picture or it can't be downloaded."))
                 return False
-            fileName = ElIconDrop.saveIcon(img, self.factory.getIconsDir(), thePart["part_num"])
+            fileName = ElCommon.saveIcon(img, self.factory.getIconsDir(), thePart["part_num"])
             oldIcon = thePart["icon"]
             thePart["icon"] = fileName
             thePart.save()
@@ -551,9 +772,18 @@ class TableView(QtCore.QObject):
         return True
 
     def getCurrentType(self):
+        """Return the currently selected catalog section.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return self.theType
 
     def localMouseMoveEvent(self, event: QMouseEvent):
+        """Handle mouse movement for catalog row dragging.
+
+        @param event [QEvent] event supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if event.buttons() == Qt.MouseButton.LeftButton:
             drag = QDrag(self.tableView)
             # drag.setDragCursor(QPixmap, DropAction)
@@ -567,6 +797,10 @@ class TableView(QtCore.QObject):
             dropAction = drag.exec(Qt.DropAction.MoveAction)
 
     def _defineHeaderMenu(self):
+        """Build the catalog column visibility, alignment and editing menu.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         hideAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Hide Column'), self.tableView)
         hideAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Hide selected Column'))
         hideAct.triggered.connect(self.hideColumn)
@@ -640,6 +874,11 @@ class TableView(QtCore.QObject):
         return menu
 
     def loadSearchData(self, parts: Parts):
+        """Display read-only search results and connect their selection events.
+
+        @param parts [Parts] parts supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.theType = None
         self.headers = None
         self.searchMode = True
@@ -654,6 +893,11 @@ class TableView(QtCore.QObject):
     def loadData(self, theType: Type):
         # try: self.header.sectionResized.disconnect()
         # except TypeError: pass
+        """Load a section, configure its columns and reconnect catalog selection events.
+
+        @param theType [Type] theType supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.searchMode = False
         self.timestamp = {}
         self.saveResize = False
@@ -711,11 +955,23 @@ class TableView(QtCore.QObject):
     #     logger.debug("DataChanged event occurred.")
 
     def onColumnResize(self, column: int, oldWidth: int, newWidth: int):
+        """Schedule persistence of a user-resized catalog column.
+
+        @param column [int] column supplied by the caller.
+        @param oldWidth [int] oldWidth supplied by the caller.
+        @param newWidth [int] newWidth supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.saveResize:
             self.timestamp[column] = [newWidth, time.time()]
             QTimer.singleShot(1550, lambda: self.saveHeaderWidth(column))  # Delay execution by 2 sec
 
     def saveHeaderWidth(self, column):
+        """Persist a column width after the resize debounce period.
+
+        @param column [int] column supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         curTime = time.time()
         try:
             width, eventTime = self.timestamp[column]
@@ -754,6 +1010,11 @@ class TableView(QtCore.QObject):
         self.comm.documentSelect.emit(theDoc)
 
     def headerMenuEvent(self, point):
+        """Open the column settings menu at the requested header position.
+
+        @param point [QPoint] point supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.headers is None:
             return
         column = self.header.logicalIndexAt(point.x())
@@ -765,6 +1026,11 @@ class TableView(QtCore.QObject):
         self.headerMenu.popup(self.header.mapToGlobal(point))
 
     def tableMenuEvent(self, point):
+        """Open the context menu for a catalog or search-result row.
+
+        @param point [QPoint] point supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         idx: QModelIndex = self.tableView.indexAt(point)
         if idx.isValid():
             self.tableView.setCurrentIndex(idx)
@@ -787,10 +1053,19 @@ class TableView(QtCore.QObject):
         menu.popup(coord)
 
     def getHeaderByColumn(self, column) -> ElDBScheme.Header:
+        """Return the effective header settings for a catalog column.
+
+        @param column [int] column supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         hdr = self.headers[ElDBScheme.ELEMENT_FLD_NAMES[column + 2]]
         return hdr
 
     def hideColumn(self):
+        """Hide the selected catalog column and save its visibility.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.tableView.hideColumn(self.menuColumnSelected)
         hdr: ElDBScheme.Header = self.getHeaderByColumn(self.menuColumnSelected)
         hdr["hidden"] = True
@@ -798,6 +1073,10 @@ class TableView(QtCore.QObject):
         self.tableView.update()
 
     def showColumn(self):
+        """Show the adjacent catalog column and save its visibility.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.tableView.hideColumn(self.menuColumnSelected + 1)
         hdr: ElDBScheme.Header = self.getHeaderByColumn(self.menuColumnSelected + 1)
         hdr["hidden"] = False
@@ -805,6 +1084,10 @@ class TableView(QtCore.QObject):
         self.tableView.update()
 
     def renameHeader(self):
+        """Prompt for and persist the selected catalog column caption.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         hdr: ElDBScheme.Header = self.getHeaderByColumn(self.menuColumnSelected)
         newName = self._getInput(hdr["display"])
         if newName.strip():
@@ -817,6 +1100,10 @@ class TableView(QtCore.QObject):
             # self.tableView.horizontalHeader().update()
 
     def alignRight(self):
+        """Persist right alignment for the selected catalog column.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         hdr: ElDBScheme.Header = self.getHeaderByColumn(self.menuColumnSelected)
         hdr["align"] = ElDBScheme.F_ALIGN_RIGHT
         hdr.save()
@@ -827,27 +1114,47 @@ class TableView(QtCore.QObject):
         self.tableView.update()
 
     def alignLeft(self):
+        """Persist left alignment for the selected catalog column.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         hdr: ElDBScheme.Header = self.getHeaderByColumn(self.menuColumnSelected)
         hdr["align"] = ElDBScheme.F_ALIGN_LEFT
         hdr.save()
         self.tableView.update()
 
     def alignCenter(self):
+        """Persist centered alignment for the selected catalog column.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         hdr: ElDBScheme.Header = self.getHeaderByColumn(self.menuColumnSelected)
         hdr["align"] = ElDBScheme.F_ALIGN_CENTER
         hdr.save()
 
     def editHeader(self):
+        """Request the section header editor.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.comm.hdrEditRequest.emit()
 
     def loadPartsType(self):
 
+        """Request the original section for a selected search-result card.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         index = (self.tableView.selectionModel().currentIndex())
         thePart: Part = index.sibling(self.menuRowSelected, 1).data(Qt.ItemDataRole.UserRole)
         logger.debug("Got event. Load parts %s type = %s", thePart["part_num"], thePart["type_id"])
         self.comm.partsTypeRequest.emit(thePart)
 
     def toggleSelection(self):
+        """Switch between single-row and multiple-row selection.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.tableView.selectionMode() == QAbstractItemView.SelectionMode.MultiSelection:
             logger.debug("Set selection mode SingleSelection")
             index = self.tableView.selectionModel().currentIndex()
@@ -859,6 +1166,10 @@ class TableView(QtCore.QObject):
             logger.debug("Set selection mode MultiSelection")
 
     def addRow(self):
+        """Create a card from its required key fields and select it in sorted order.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         theType = self.tableModel.theType
         if theType is None:
             return
@@ -881,6 +1192,10 @@ class TableView(QtCore.QObject):
             self.tableView.scrollTo(index, QAbstractItemView.ScrollHint.EnsureVisible)
 
     def deleteRow(self):
+        """Confirm and delete the selected card while preserving project integrity.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         selection = self.tableView.selectionModel()
         if self.tableModel is None or selection is None or not selection.hasSelection():
             QMessageBox.information(self.tableView, translate("PartsDB", 'Delete part'), translate("PartsDB", 'Please select a part first.'))
@@ -908,7 +1223,7 @@ class TableView(QtCore.QObject):
         if answer != QMessageBox.StandardButton.Yes:
             return
         if self.tableModel.removeRow(index.row()):
-            self.iconDelegate._cache.clear()
+            self.iconDelegate.clearCache()
             self.iconsListWidget.clear()
             self.iconsListWidget.currentPart = None
             self.iconsListWidget.documents = None
@@ -920,6 +1235,12 @@ class TableView(QtCore.QObject):
                 self.onSelectionChanged(None, None)
 
     def addDocument(self, file, type: int = ElDBScheme.DOC_TYPE_DEFAULT):
+        """Attach a document to the currently selected stock card.
+
+        @param file [str] file supplied by the caller.
+        @param type [int] type supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         index = (self.tableView.selectionModel().currentIndex())
         thePart: Part = index.data(Qt.ItemDataRole.UserRole)
         # thePart = sel.data(Qt.ItemDataRole.UserRole)
@@ -932,6 +1253,10 @@ class TableView(QtCore.QObject):
             raise e
 
     def deleteSelectedDocument(self):
+        """Delete the selected document link from the active stock card.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         index = (self.tableView.selectionModel().currentIndex())
         thePart: Part = index.data(Qt.ItemDataRole.UserRole)
         theDoc = self.iconsListWidget.getSelectedItem()
@@ -939,10 +1264,19 @@ class TableView(QtCore.QObject):
         thePart.documents.delete(theDoc)
 
     def getSelected(self):
+        """Return the stock card stored in the selected row metadata.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         index = (self.tableView.selectionModel().currentIndex())
         return index.data(Qt.ItemDataRole.UserRole)
 
     def _getInput(self, oldValue) -> str:
+        """Request a new catalog column caption from the user.
+
+        @param oldValue [str] oldValue supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         value, ok = QInputDialog.getText(self.tableView, translate("PartsDB", 'Enter name'), translate("PartsDB", 'Enter new name column'))
         if ok and value:
             return value
@@ -956,6 +1290,11 @@ class TableView(QtCore.QObject):
 
     def updateHeader(self, hdrObj: ElDBScheme.Header = None):
         # Headers of another type do not affect the table shown now
+        """Refresh column settings after editing the current section headers.
+
+        @param hdrObj [Header, None] hdrObj supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if hdrObj is None or self.theType is None or int(hdrObj["type_id"]) != int(self.theType.recId):
             return
 
@@ -979,6 +1318,11 @@ class TableView(QtCore.QObject):
         self.tableView.viewport().update()
 
     def selectByID(self, theId):
+        """Select the row corresponding to a stored catalog card identity.
+
+        @param theId [int] theId supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         parts:Parts = self.tableModel.parts
         if not self.searchMode:
             for row in range(0, len(parts)):

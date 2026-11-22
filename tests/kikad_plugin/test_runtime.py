@@ -59,13 +59,13 @@ class RepositoryTests(unittest.TestCase):
         project_id = self.save()
         before = self.repo.components(project_id)
         component_id = self.match(project_id)
-        self.assertEqual(len(before), 49)
+        self.assertEqual(len(before), 31)
         self.assertEqual(self.save(project_id), project_id)
         self.assertEqual(self.repo.components(project_id), before)
         self.assertEqual(self.conn.execute('SELECT component_id,part_id,needs_review FROM PROJECT_COMPONENT_MATCHES').fetchone(),
                          (component_id, self.part_id, 0))
         self.assertEqual(self.conn.execute('SELECT needs_reload FROM PROJECTS').fetchone(), (0,))
-        self.assertEqual(len(self.repo.changes(self.project, project_id).unchanged), 49)
+        self.assertEqual(len(self.repo.changes(self.project, project_id).unchanged), 31)
         self.assertEqual(self.conn.execute('SELECT quantity FROM PARTS WHERE id=?', (self.part_id,)).fetchone(), (100,))
 
     def test_changed_requirements_keep_match_and_mark_review(self):
@@ -90,10 +90,10 @@ class RepositoryTests(unittest.TestCase):
         project_id = self.save()
         self.match(project_id)
         removed = self.project.components.pop(0)
-        self.assertEqual(self.repo.changes(self.project, project_id).removed, (removed.reference,))
+        self.assertEqual(self.repo.changes(self.project, project_id).removed, ())
         self.save(project_id)
-        self.assertEqual(len(self.repo.components(project_id)), 48)
-        self.assertEqual(self.conn.execute('SELECT count(*) FROM PROJECT_COMPONENT_MATCHES').fetchone(), (0,))
+        self.assertEqual(len(self.repo.components(project_id)), 31)
+        self.assertEqual(self.conn.execute('SELECT count(*) FROM PROJECT_COMPONENT_MATCHES').fetchone(), (1,))
         self.assertEqual(self.conn.execute('SELECT count(*) FROM PARTS').fetchone(), (1,))
 
     def test_failed_write_rolls_back_project_and_all_components(self):
@@ -370,7 +370,7 @@ class WheelEndToEndTests(unittest.TestCase):
                 self.assertEqual(len(result.components), 49)
                 repository = ProjectRepository(conn)
                 project_id = repository.save(result, plugin.manifest.id, SOURCE.as_uri())
-                self.assertEqual(len(repository.components(project_id)), 49)
+                self.assertEqual(len(repository.components(project_id)), 31)
                 self.assertEqual(repository.save(result, plugin.manifest.id, SOURCE.as_uri(), project_id), project_id)
                 self.assertEqual(result, KiCadImporter().import_project(SOURCE.as_uri()))
                 self.assertEqual(PluginRunner().run(plugin, action='inspect')[0]['extensions'],

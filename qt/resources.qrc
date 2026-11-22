@@ -34,4 +34,5 @@
     <file>icons/resistor_tht.png</file>
     <file>icons/ic_soic8_ep_smd.png</file>
   </qresource>
+
 </RCC>

@@ -1002,7 +1002,7 @@
                     <item>
                      <widget class="QPushButton" name="d_proj_link_cmd">
                       <property name="text">
-                       <string>Link Part</string>
+                       <string>LInk Part</string>
                       </property>
                      </widget>
                     </item>
@@ -1041,7 +1041,7 @@
                   <enum>QFrame::Sunken</enum>
                  </property>
                  <property name="currentIndex">
-                  <number>0</number>
+                  <number>1</number>
                  </property>
                  <widget class="QWidget" name="prj_parts_lt1">
                   <property name="geometry">
@@ -1077,7 +1077,7 @@
                       <enum>QFrame::Sunken</enum>
                      </property>
                      <property name="selectionMode">
-                      <enum>QAbstractItemView::MultiSelection</enum>
+                      <enum>QAbstractItemView::SingleSelection</enum>
                      </property>
                      <property name="selectionBehavior">
                       <enum>QAbstractItemView::SelectRows</enum>
@@ -1129,7 +1129,7 @@
                       <enum>QFrame::StyledPanel</enum>
                      </property>
                      <property name="selectionMode">
-                      <enum>QAbstractItemView::MultiSelection</enum>
+                      <enum>QAbstractItemView::SingleSelection</enum>
                      </property>
                      <property name="selectionBehavior">
                       <enum>QAbstractItemView::SelectRows</enum>

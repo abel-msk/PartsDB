@@ -6,13 +6,13 @@ import sys
 from typing import Any
 
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal
+from PyQt6.QtCore import Qt, QModelIndex, QObject, pyqtSignal, QMimeData
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QDropEvent
 from PyQt6.QtWidgets import QTreeWidget, QTreeView, QMenu, QInputDialog, QMessageBox
 
-import ElLogger
-from ElCatalogDialogs import SectionDialog
-from ElTwoLineDelegate import TwoLineDelegate
+import ElCommon
+from ElCommonUI import ElTreeEditDlg
+from ElCommonUI import TwoLineDelegate
 from ElConstants import SUBTITLE_ROLE
 from ElData import ElDBDataParts
 from ElData.ElDBScheme import DBFactory, Type, Types, Part
@@ -22,7 +22,7 @@ from ElData.ElDBScheme import DBFactory, Type, Types, Part
 # handler = logging.StreamHandler(stream=sys.stderr)
 # handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
 # logger.addHandler(handler)
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 #  https://stackoverflow.com/questions/55553660/how-to-emit-custom-events-to-the-event-loop-in-pyqt
 
@@ -30,18 +30,52 @@ logger = ElLogger.setLogger(__name__)
 
 
 class Communicate(QObject):
+    """Publish the selected section and optional stock card to catalog controllers."""
     typeSelect = pyqtSignal(Type, object)
 
 
+class SectionTreeModel(QStandardItemModel):
+    """Keep live section objects in item roles while exporting only plain text to Qt MIME.
+
+    @attr parent [QObject, None] Optional owner; section roles retain their existing database objects.
+    """
+
+    def mimeData(self, indexes):
+        """Export section captions without serializing Type objects or SQLite connections.
+
+        @param indexes [list[QModelIndex]] Selected tree cells; invalid indexes are ignored.
+        @return [QMimeData] Plain-text captions without Qt's serialized item-role payload.
+        """
+        mime = QMimeData()
+        captions = [str(index.data(Qt.ItemDataRole.DisplayRole) or '')
+                    for index in indexes if index.isValid()]
+        mime.setText('\n'.join(captions))
+        logger.debug('Section MIME export: captions=%s formats=%s; database roles excluded',
+                     captions, mime.formats())
+        return mime
+
+
 class TypesTree(QtCore.QObject):
+    """Manage catalog section navigation, editing and incoming stock-card drops.
+
+    @attr dbFactory [DBFactory] Active catalog factory.
+    @attr treeWidget [QTreeView] Section navigation and stock-card drop target.
+    @attr treeModel [SectionTreeModel] Captions and live section objects; MIME contains text only.
+    """
     def __init__(self, factory: DBFactory, treeWidget: QTreeView):
+        """Bind the section model, navigation, menus and incoming drop handling.
+
+        @param factory [DBFactory] factory supplied by the caller.
+        @param treeWidget [QTreeView] treeWidget supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         super().__init__()
         self.comm = Communicate()
         self._events = {}
         self.dbFactory = factory
         self.rootElements = None
         self.treeWidget: QTreeView = treeWidget
-        self.treeModel = QStandardItemModel()
+        self.treeModel = SectionTreeModel(treeWidget)
         self.treeWidget.setModel(self.treeModel)
         self.treeWidget.setItemDelegate(TwoLineDelegate(treeWidget, getattr(treeWidget.window(), "config", None)))
         self.treeWidget.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
@@ -68,7 +102,8 @@ class TypesTree(QtCore.QObject):
         # # self.treeWidget.setDropIndicatorShown(True)
         self.treeWidget.viewport().setAcceptDrops(True)
         self.treeWidget.setAcceptDrops(True)
-        self.treeWidget.setDragEnabled(True)
+        # Sections are drop targets for stock cards; section moves are not implemented.
+        self.treeWidget.setDragEnabled(False)
         # self.treeWidget.setDragDropMode()
 
         #
@@ -76,21 +111,30 @@ class TypesTree(QtCore.QObject):
         # self.treeWidget.dropEvent = self.localDropEvent
 
     def localDropEvent(self, event: QDropEvent):
+        """Accept a local drop event for the section view.
+
+        @param event [QDropEvent] event supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         logger.debug("Got Drop Event")
         pos = event.pos()
         widget = event.source()
         event.accept()
 
     def _defineMenu(self):
-        addAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Type'), self.treeWidget)
+        """Build section creation, editing and deletion actions.
+
+        @return [object, None] Requested section data or completion of the operation.
+        """
+        addAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Section'), self.treeWidget)
         addAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", 'Add new type object at the current level.'))
         addAct.triggered.connect(self.add)
 
-        addChildAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Child Type'), self.treeWidget)
+        addChildAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Add Child Section'), self.treeWidget)
         addChildAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", "Add new 'Type' object as child of selected."))
         addChildAct.triggered.connect(self.addChild)
 
-        RenAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Rename Type'), self.treeWidget)
+        RenAct = QAction(QT_TRANSLATE_NOOP("PartsDB", 'Edit Section'), self.treeWidget)
         RenAct.setStatusTip(QT_TRANSLATE_NOOP("PartsDB", "Rename selected 'Type' object."))
         RenAct.triggered.connect(self.rename)
 
@@ -108,6 +152,11 @@ class TypesTree(QtCore.QObject):
         return menu
 
     def onClick(self, sel: QModelIndex):
+        """Publish the clicked section to the catalog controller.
+
+        @param sel [QModelIndex] sel supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         self.lastClickedItem = self.treeModel.itemFromIndex(sel)
         theType: Type = self.lastClickedItem.data(Qt.ItemDataRole.UserRole)
         logger.debug("Clicked: %s", theType.name)
@@ -115,18 +164,31 @@ class TypesTree(QtCore.QObject):
         self.comm.typeSelect.emit(theType, None)
 
     def onMenuEvent(self, point):
+        """Open section actions at the requested view position.
+
+        @param point [QPoint] point supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         idx: QModelIndex = self.treeWidget.indexAt(point)
         logger.debug("Got Menu Event for tables cells.  row=%s, column=%s", idx.row(), idx.column())
         coord = self.treeWidget.mapToGlobal(point)
         self.menu.popup(coord)
 
     def clear(self):
+        """Remove current section rows from the tree model.
+
+        @return [object, None] Requested section data or completion of the operation.
+        """
         model: QStandardItemModel = self.treeWidget.model()
         if model is not None:
             model.clear()       # works
             model.setRowCount(0)  # works
 
     def load(self):
+        """Reload catalog sections, select the first section and sort the tree.
+
+        @return [object, None] Requested section data or completion of the operation.
+        """
         if self.rootNode is not None:
             self.clear()
         # self.clearQTreeWidget(self.treeWidget)
@@ -169,6 +231,11 @@ class TypesTree(QtCore.QObject):
         self.comm.typeSelect.emit(item.data(Qt.ItemDataRole.UserRole), part)
 
     def _expandInDeep(self, item:QStandardItem ):
+        """Expand ancestors and the requested section in the navigation tree.
+
+        @param item [QStandardItem] item supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         prnt:QStandardItem = item.parent()
         if prnt is not None and prnt != self.rootNode:
             self._expandInDeep(prnt)
@@ -178,10 +245,20 @@ class TypesTree(QtCore.QObject):
     def getSelectedIndex(self):
         # return self.treeWidget.selectionModel().selectedIndexes()
         # self.treeWidget.getSelectedIndex()[0] if len(self.typesTree.getSelectedIndex()) > 0 else None
+        """Return the selected section index or None for an empty selection.
+
+        @return [object, None] Requested section data or completion of the operation.
+        """
         return self.treeWidget.selectionModel().selectedIndexes()[0] \
             if len(self.treeWidget.selectionModel().selectedIndexes()) > 0 else None
 
     def _loadNodes_(self, node: QStandardItem, types_list: Types):
+        """Recursively populate captions, subtitles and live section roles.
+
+        @param node [QStandardItem] node supplied by the caller.
+        @param types_list [Types] types_list supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         for theType in types_list:
             childNode = QStandardItem(theType.name)
             childNode.setData(theType, Qt.ItemDataRole.UserRole)
@@ -204,13 +281,20 @@ class TypesTree(QtCore.QObject):
     def sectionInput(self, section=None, parent_type=None):
         """Collect a name and reference. @param section, parent_type [Type, None] editing/default context."""
         context = section or parent_type
-        dialog = SectionDialog(self.treeWidget, ElDBDataParts.basicTypes(self.dbFactory),
+        dialog = ElTreeEditDlg(self.treeWidget, ElDBDataParts.basicTypes(self.dbFactory),
                                section.name if section else '', context.basic_type_id if context else 1)
-        if dialog.exec() == SectionDialog.DialogCode.Accepted:
+        if dialog.exec() == ElTreeEditDlg.DialogCode.Accepted:
             return dialog.nameEdit.text().strip(), dialog.typeCombo.currentData()
         return None
 
     def _add(self, name, parentIndex: QModelIndex = None, basic_type_id=None):
+        """Persist a sibling section and reload the tree.
+
+        @param name [str] name supplied by the caller.
+        @param parentIndex [QModelIndex, None] parentIndex supplied by the caller.
+        @param basic_type_id [int, None] basic_type_id supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         if name == "":
             raise ValueError("Type name cannot be empty.")
         if parentIndex is None:
@@ -235,6 +319,13 @@ class TypesTree(QtCore.QObject):
             self._addChild(result[0], index, result[1])
 
     def _addChild(self, name, parentIndex: QModelIndex, basic_type_id=None):
+        """Persist and display a child section beneath the requested parent.
+
+        @param name [str] name supplied by the caller.
+        @param parentIndex [QModelIndex, None] parentIndex supplied by the caller.
+        @param basic_type_id [int, None] basic_type_id supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         if name == "":
             raise ValueError("Type name cannot be empty.")
         parentType: Type = parentIndex.data(Qt.ItemDataRole.UserRole)
@@ -272,6 +363,11 @@ class TypesTree(QtCore.QObject):
             self.comm.typeSelect.emit(section, None)
 
     def _rename(self, value):
+        """Persist the selected section name and refresh its caption.
+
+        @param value [str] value supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         if value == "":
             raise ValueError("Type name cannot be empty.")
         index: QModelIndex = self.treeWidget.selectedIndexes()[0]
@@ -286,6 +382,10 @@ class TypesTree(QtCore.QObject):
         self.treeModel.sort(0, Qt.SortOrder.AscendingOrder)
 
     def delete(self):
+        """Confirm and remove the selected section.
+
+        @return [object, None] Requested section data or completion of the operation.
+        """
         logger.debug("Delete menu clicked.")
         index: QModelIndex = self.treeWidget.selectedIndexes()[0]
         theType: Type = index.data(Qt.ItemDataRole.UserRole)
@@ -304,6 +404,11 @@ class TypesTree(QtCore.QObject):
         # button = dlg.exec()
 
     def _delete(self, index):
+        """Remove the section from the schema and tree model.
+
+        @param index [QModelIndex] index supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         if index is None:
             raise ValueError("Type name cannot be empty.")
         theType: Type = index.data(Qt.ItemDataRole.UserRole)
@@ -333,6 +438,11 @@ class TypesTree(QtCore.QObject):
     #         QtCore.QTimer.singleShot(0, lambda: func(arg))
 
     def getInput(self, prompt = "") -> str:
+        """Request a section name with an optional prompt.
+
+        @param prompt [str] prompt supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         if prompt == "":
             prompt = translate("PartsDB", "Enter section name:")
         value, ok = QInputDialog.getText(self.treeWidget, translate("PartsDB", 'Enter Name'), prompt)
@@ -342,6 +452,11 @@ class TypesTree(QtCore.QObject):
             return ""
 
     def getItemByID(self, theId):
+        """Find the tree item corresponding to a catalog section identity.
+
+        @param theId [int] theId supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         return self._scanChilds(theId,self.rootNode)
 
     def getIndexByID(self, theId):
@@ -356,6 +471,12 @@ class TypesTree(QtCore.QObject):
         return None
 
     def _scanChilds(self, theId, item: QStandardItem ):
+        """Search the section subtree recursively for an internal identity.
+
+        @param theId [int] theId supplied by the caller.
+        @param item [QStandardItem] item supplied by the caller.
+        @return [object, None] Requested section data or completion of the operation.
+        """
         for row in range(0, item.rowCount()):
             childItem = item.child(row,0)
             theType: Type = childItem.data(Qt.ItemDataRole.UserRole)
@@ -367,5 +488,3 @@ class TypesTree(QtCore.QObject):
                 if foundItem is not None:
                     return foundItem
         return None
-
-

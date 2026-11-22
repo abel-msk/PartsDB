@@ -409,7 +409,7 @@ class Ui_MainWindow(object):
         self.prj_parts_all = QtWidgets.QTableView(parent=self.prj_parts_lt1)
         self.prj_parts_all.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.prj_parts_all.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
-        self.prj_parts_all.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
+        self.prj_parts_all.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.prj_parts_all.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.prj_parts_all.setSortingEnabled(True)
         self.prj_parts_all.setObjectName("prj_parts_all")
@@ -426,7 +426,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_7.setObjectName("verticalLayout_7")
         self.no_matched_tbl = QtWidgets.QTableView(parent=self.prj_parts_lt2)
         self.no_matched_tbl.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
-        self.no_matched_tbl.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
+        self.no_matched_tbl.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.no_matched_tbl.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.no_matched_tbl.setObjectName("no_matched_tbl")
         self.no_matched_tbl.horizontalHeader().setCascadingSectionResizes(False)
@@ -454,7 +454,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         self.view.setCurrentIndex(1)
-        self.prj_parts.setCurrentIndex(0)
+        self.prj_parts.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -480,7 +480,7 @@ class Ui_MainWindow(object):
         self.label_3.setText(_translate("MainWindow", "Imported by"))
         self.label_5.setText(_translate("MainWindow", "Refresh date"))
         self.d_proj_refrash_date.setText(_translate("MainWindow", "-"))
-        self.d_proj_link_cmd.setText(_translate("MainWindow", "Link Part"))
+        self.d_proj_link_cmd.setText(_translate("MainWindow", "LInk Part"))
         self.d_prj_open_cmd.setText(_translate("MainWindow", "Open App"))
         self.d_prj_reload_cmd.setText(_translate("MainWindow", "Reload Data"))
         self.d_proj_imp_date.setText(_translate("MainWindow", "-"))

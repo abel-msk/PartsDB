@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 from logging import StreamHandler, Formatter
 
-import ElLogger
+import ElCommon as ElCommon
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 # handler = StreamHandler(stream=sys.stderr)

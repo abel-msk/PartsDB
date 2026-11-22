@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from ElData import  ElDBScheme
-import ElLogger
+import ElCommon
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -16,7 +16,7 @@ import ElLogger
 # handler.setFormatter(logging.Formatter(fmt='%(asctime)s [%(levelname)s] %(module)s/%(funcName)s: %(message)s'))
 # logger.addHandler(handler)
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 input_file = ""
 db_file = ""

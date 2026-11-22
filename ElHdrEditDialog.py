@@ -11,10 +11,10 @@ import logging
 import sys
 from ElData import ElDBScheme
 import ElDefaultIcons
-import ElLogger
+import ElCommon as ElCommon
 from ElHdrEditWnd import Ui_HdrEditDialog
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 # logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)

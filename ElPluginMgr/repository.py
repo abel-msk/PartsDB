@@ -1,5 +1,6 @@
 """Validate imported data and delegate all database access to ElDBScheme."""
 from dataclasses import dataclass
+from ElData.ElDBDataProj import groupedComponents, takePreviousComponent
 import json
 
 from ElData.ElDBScheme import COMPONENT_FIELDS, DBError, DBScheme
@@ -9,6 +10,13 @@ from .protocol import json_text, project_from_dict, project_to_dict
 
 @dataclass(frozen=True)
 class ImportChanges:
+    """Describe grouped component differences for the import preview.
+
+    @attr added [tuple[str]] References of newly introduced groups.
+    @attr changed [tuple[str]] References of groups with modified requirements.
+    @attr removed [tuple[str]] References of groups no longer present in the import.
+    @attr unchanged [tuple[str]] References of unchanged groups.
+    """
     added: tuple
     changed: tuple
     removed: tuple
@@ -16,6 +24,11 @@ class ImportChanges:
 
 
 def component_row(component):
+    """Convert an external component to an intermediate import row before BOM grouping.
+
+    @param component [ImportedComponent] Validated individual source position.
+    @return [dict] Portable field values; in_bom is consumed before persistence.
+    """
     return dict(external_id=component.external_id, reference=component.reference,
                 kind=component.kind, value_raw=component.value_raw,
                 nominal_value=component.nominal.value if component.nominal else None,
@@ -42,16 +55,15 @@ class ProjectRepository:
         project_to_dict(project)
         previous = self._rows(project_id)
         added, changed, unchanged = [], [], []
-        for component in project.components:
-            row = component_row(component)
-            old = previous.pop(component.external_id, None)
+        for row in groupedComponents([component_row(component) for component in project.components]):
+            old = takePreviousComponent(previous, row)
             if old is None:
-                added.append(component.reference)
+                added.append(row['reference'])
             elif (any(row[key] != old[key] for key in COMPONENT_FIELDS if key != 'properties_json')
                   or json.loads(row['properties_json']) != json.loads(old['properties_json'])):
-                changed.append(component.reference)
+                changed.append(row['reference'])
             else:
-                unchanged.append(component.reference)
+                unchanged.append(row['reference'])
         return ImportChanges(tuple(added), tuple(changed),
                              tuple(row['reference'] for row in previous.values()), tuple(unchanged))
 
@@ -61,7 +73,7 @@ class ProjectRepository:
         plugin_id/source_uri are strings; project_id is int or None for a new card.
         """
         project = project_from_dict(project_to_dict(project))
-        rows = [component_row(component) for component in project.components]
+        rows = groupedComponents([component_row(component) for component in project.components])
         metadata = dict(name=project.name, descr=project.description, external_id=project.external_id,
                         properties_json=json_text(project.properties))
         try:

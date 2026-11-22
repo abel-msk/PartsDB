@@ -1,4 +1,5 @@
 """Shared presentation and interaction defaults for catalog and projects."""
+import re
 from PyQt6.QtCore import Qt
 
 SUBTITLE_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -9,7 +10,7 @@ LIST_FONT_DEFAULTS = {
     'title_size': 16, 'subtitle_size': 10,
     'title_color': 'palette', 'subtitle_color': 'gray',
 }
-PROJECT_TABLE_FIELDS = ('reference', 'kind', 'value_raw', 'footprint', 'in_bom',
+PROJECT_TABLE_FIELDS = ('reference', 'kind', 'value_raw', 'footprint', 'quantity',
                         'on_board', 'dnp', 'stock_part', 'needs_review')
 PROJECT_TABLE_DEFAULT_WIDTH = 100
 PROJECT_TABLE_ALL = 'project_components'
@@ -59,3 +60,45 @@ MATCHING_LABEL_ROLE = Qt.ItemDataRole.UserRole + 5
 PROJECT_MATCHED_COLOR = '#008000'
 PROJECT_UNMATCHED_COLOR = '#d32f2f'
 PROJECT_MATCH_BUTTON_STYLE = 'QPushButton {{ color: {}; padding: 0px 3px; }}'
+
+# Import aggregation preserves exact electrical identity and assembly flags.
+COMPONENT_GROUP_FIELDS = ('kind', 'value_raw', 'footprint', 'model', 'symbol_id', 'on_board', 'dnp')
+COMPONENT_MEMBER_IDS = 'source_external_ids'
+COMPONENT_MEMBER_REFERENCES = 'source_references'
+BASIC_TYPE_ICONS_DIR = 'el_icons'
+BASIC_TYPE_ICON_COLUMN = BASIC_TYPE_FIELDS.index('icon')
+BASIC_TYPE_ICON_NAMES = {
+    'Capacitor': 'capasitor.png', 'Resistor': 'resistor.png', 'Transistor': 'transistor.png',
+    'Diode': 'diode.png', 'Integrated circuit': 'integrated circuit.png', 'Inductor': 'Inductor.png',
+    'Transformer': 'transformer.png', 'Relay': 'relay.png', 'Switch': 'switch.png',
+    'Jack': 'jack.png', 'Plug': 'jack.png', 'Fuse': 'fuse.png', 'Ferrite bead': 'FerriteBead.png',
+    'Jumper': 'jumper.png', 'Resistor network': 'resistor.png', 'Thermistor': 'resistor.png',
+    'Varistor': 'varistor.png', 'Zener diode': 'diode zenner.png', 'LED': 'LED.png',
+    'MOSFET': 'transistor FET.png', 'Potentiometer': 'Potentiometer2.png'}
+
+# Historical stock spelling: Russian мОм means megaohm in this inventory.
+CATALOG_UNIT_SPELLINGS = {'мОм': 'МОм'}
+
+
+# Image-drop conversion and transport limits.
+MAX_ICON_SIDE = 512
+DOWNLOAD_TIMEOUT = 15
+DOWNLOAD_LIMIT = 20 * 1024 * 1024
+USER_AGENT = "Mozilla/5.0 (Macintosh) ElPartsCatalog"
+IMG_SRC_RE = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*(["'])(.*?)\1""", re.IGNORECASE | re.DOTALL)
+UNSAFE_NAME_RE = re.compile(r'[^\w.\-+]+', re.UNICODE)
+NOT_ICON_FORMATS = {"pdf"}
+
+
+# Shared icon-cell drawing and pixmap cache settings.
+ICON_CELL_PADDING = 2
+ICON_CELL_PREVIEW_SIZE = 256
+ICON_CELL_CACHE_LIMIT = 500
+ICON_CELL_DEFAULT_ICON_OPACITY = 0.6
+ICON_CELL_FRAME_RADIUS = 5.0
+ICON_CELL_FRAME_WIDTH = 1.0
+ICON_CELL_FRAME_PADDING = 5
+ICON_CELL_FRAME_BACKGROUND = (255, 255, 255)
+ICON_CELL_SHADOW_OFFSET = 2
+ICON_CELL_SHADOW_BLUR = 3
+ICON_CELL_SHADOW_ALPHA = 60

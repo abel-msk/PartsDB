@@ -160,6 +160,10 @@ class SiUnitAliasesTests(unittest.TestCase):
         with mock.patch.object(UnitsDialog, 'exec', save_alias), mock.patch.object(QMessageBox, 'critical') as error:
             window.onUnits()
             error.assert_not_called()
+        window.d_proj_link_cmd.click()
+        for _ in range(20):
+            app.processEvents()
+        self.addCleanup(window.projWindow.matchingLog.close)
         self.assertEqual(window.projWindow.componentsModel.item(0, 7).text(), 'YES')
         self.assertEqual(window.projWindow.componentsModel.item(0, 7).data(MATCHING_LABEL_ROLE), '1.0')
         self.assertEqual(window.projWindow.unmatchedModel.rowCount(), 0)

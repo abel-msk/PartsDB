@@ -4,7 +4,7 @@
 [Все таблицы](database-schema.md) и [миграции](database-migrations.md) описаны отдельно.
 
 Работа с SQLite выделена в `ElData/ElDBConnect.py`. Модуль зависит только от
-стандартной библиотеки и `ElLogger`, не импортирует Qt, схему приложения или
+стандартной библиотеки и `ElCommon`, не импортирует Qt, схему приложения или
 менеджер плагинов. `ElData/ElDBScheme.py` содержит определения таблиц, запросы
 приложения, преобразование записей и последовательность миграций.
 Корневой `connector.py` удалён.
@@ -97,3 +97,17 @@ AUTOINCREMENT и импорт без Qt. Архитектурная провер
 
 После полного прогона очистка или ротация тестовых БД выполняется `build.sh`
 по правилам [AGENTS.md](../AGENTS.md).
+
+
+## Qt item roles and drag data
+
+Catalog section objects retain the active SQLite connection and must remain local
+Python objects. Qt's default QStandardItemModel MIME exporter pickles every item
+role, including UserRole; attempting to export a section therefore terminates the
+application through PyQt's unhandled serialization error path.
+
+`ElTypesTree.SectionTreeModel.mimeData()` exports captions as plain text and keeps
+live Type objects in their local item roles. Section-origin drags are disabled
+because moving sections is not implemented. The tree continues accepting stock
+cards dragged from the parts table. Regression checks live in
+`tests/test_section_tree_drag.py` and `tests/test_drag_drop.py`.

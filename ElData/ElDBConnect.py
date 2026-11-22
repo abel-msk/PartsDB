@@ -3,9 +3,9 @@ from contextlib import contextmanager
 import sqlite3
 from sqlite3 import Cursor
 
-import ElLogger
+import ElCommon
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 
 class DBError(Exception):
@@ -48,6 +48,26 @@ class SQLiteConnector:
         self.conn = sqlite3.connect(self.dbPath)
         logger.debug('Connect DB : %s', self.dbPath)
         return self.conn
+
+    def backupTo(self, destination):
+        """Create a consistent SQLite backup without overwriting an existing file.
+
+        @param destination [str] New backup filename whose parent directory already exists.
+        @return [None] Copy committed pages through SQLite's backup API.
+        """
+        from pathlib import Path
+        path = Path(destination)
+        with path.open('xb'):
+            pass
+        target = sqlite3.connect(str(path))
+        try:
+            self.conn.backup(target)
+        except Exception:
+            target.close()
+            path.unlink()
+            raise
+        finally:
+            target.close()
 
     def isConnect(self) -> bool:
         """Return whether a connection has been assigned; does not execute a query."""
@@ -185,4 +205,6 @@ class SQLiteConnector:
 
     def preserve_sequence(self, table: str, minimum: int):
         """Keep an existing AUTOINCREMENT sequence at least minimum (int); never commit."""
+        self.execute('INSERT INTO sqlite_sequence(name,seq) SELECT ?,? '
+                     'WHERE NOT EXISTS(SELECT 1 FROM sqlite_sequence WHERE name=?)', (table, minimum, table))
         self.execute('UPDATE sqlite_sequence SET seq=MAX(seq,?) WHERE name=?', (minimum, table))

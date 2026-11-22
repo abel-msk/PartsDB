@@ -13,7 +13,7 @@ import bisect
 import urllib.parse
 from pathlib import Path
 
-import ElLogger
+import ElCommon
 
 # from numpy import *
 
@@ -25,7 +25,7 @@ class PartInProjectsError(RuntimeError):
 
 
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 # handler = logging.StreamHandler(stream=sys.stderr)
@@ -397,7 +397,7 @@ CREATE TABLE IF NOT EXISTS PROJECT_COMPONENTS (
     symbol_id TEXT,
     footprint TEXT,
     description TEXT,
-    in_bom INTEGER NOT NULL DEFAULT 1 CHECK (in_bom IN (0, 1)),
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
     on_board INTEGER NOT NULL DEFAULT 1 CHECK (on_board IN (0, 1)),
     dnp INTEGER NOT NULL DEFAULT 0 CHECK (dnp IN (0, 1)),
     properties_json TEXT NOT NULL DEFAULT '{}',
@@ -441,7 +441,7 @@ ENVIRONMENT_TABLE_SQL = "CREATE TABLE IF NOT EXISTS " + ENVIRONMENT_TABLE + " ("
 # Current DB structure version, stored in ENVIRONMENT under ENV_DB_VERSION.
 # On every scheme change: bump DB_VERSION and add a step for the new number to MIGRATIONS
 # (see the end of this class section). Steps run one by one from the DB's version up to DB_VERSION.
-DB_VERSION = 11
+DB_VERSION = 12
 BASE_DB_VERSION = 1  # Version of a DB that has no ENV_DB_VERSION row (made before versioning)
 
 ENV_DB_VERSION = "db_version"
@@ -457,9 +457,9 @@ ENVIRONMENT_DEFAULTS = {
 
 COMPONENT_FIELDS = ('external_id', 'reference', 'kind', 'value_raw', 'nominal_value',
                     'nominal_unit', 'model', 'symbol_id', 'footprint', 'description',
-                    'in_bom', 'on_board', 'dnp', 'properties_json')
+                    'quantity', 'on_board', 'dnp', 'properties_json')
 REQUIREMENTS = ('kind', 'value_raw', 'nominal_value', 'nominal_unit', 'model',
-                'symbol_id', 'footprint', 'description', 'in_bom', 'on_board', 'dnp')
+                'symbol_id', 'footprint', 'description', 'quantity', 'on_board', 'dnp')
 PLUGIN_COLUMNS = ('id', 'plugin_type', 'name', 'version', 'api_version', 'system_id',
                   'system_name', 'description', 'author', 'enabled', 'manifest_json')
 
@@ -975,7 +975,8 @@ class DBScheme:
     def _requirementProperties(properties_json: str) -> dict:
         """Decode JSON properties, excluding duplicated fields and diagnostic UUIDs."""
         return {key: value for key, value in json.loads(properties_json).items()
-                if key not in ('Reference', 'Value', 'Footprint', 'Description', 'Datasheet', 'kicad_symbol_uuids')}
+                if key not in ('Reference', 'Value', 'Footprint', 'Description', 'Datasheet', 'kicad_symbol_uuids',
+                               'source_external_ids', 'source_references')}
 
     def saveImportedProject(self, project: dict, rows: list, plugin_id: str,
                             source_uri: str, project_id=None) -> int:
@@ -1004,7 +1005,8 @@ class DBScheme:
                 conn.execute('UPDATE PROJECTS SET name=?,descr=?,plugin_id=?,external_id=?,source_uri=?,'
                              'last_imported_at=?,needs_reload=0,properties_json=? WHERE id=?', values + (project_id,))
             for row in rows:
-                old = previous.pop(row['external_id'], None)
+                from ElData.ElDBDataProj import takePreviousComponent
+                old = takePreviousComponent(previous, row)
                 if old:
                     if (any(row[key] != old[key] for key in REQUIREMENTS) or
                             self._requirementProperties(row['properties_json']) !=
@@ -1095,6 +1097,15 @@ class DBScheme:
         for unit_id, marker in self.db.select_all('SELECT unit_id,marker FROM SI_UNIT_ALIASES ORDER BY unit_id,marker;'):
             result.setdefault(unit_id, []).append(marker)
         return {unit_id: tuple(markers) for unit_id, markers in result.items()}
+
+    def assignBasicTypeIcons(self, assignments):
+        """Persist an explicitly requested batch of basic type resource icons.
+
+        @param assignments [list[tuple[str, int]]] Resource path and existing basic type ID.
+        @return [None] Commit the batch atomically without changing unrelated reference fields.
+        """
+        with self.transaction():
+            self.db.executemany('UPDATE BASIC_TYPES SET icon=? WHERE id=?', assignments)
 
     def saveUnitReferences(self, units, basic_types, aliases=None):
         """Commit reference rows and resolve temporary IDs in one transaction.
@@ -1599,6 +1610,51 @@ def _migrate_to_11(scheme: DBScheme):
         scheme.db.execute("UPDATE ENVIRONMENT SET value='11' WHERE name=?", (ENV_DB_VERSION,))
 
 
+def _migrate_to_12(scheme: DBScheme):
+    """Replace BOM flags with grouped quantities while preserving links and internal IDs.
+
+    @param scheme [DBScheme] Connected database, normally at version 11.
+    @return [None] Atomically rebuild components and links; excluded BOM rows are removed.
+    """
+    from ElData.ElDBDataProj import groupedComponents
+    conn = scheme.db
+    if 'in_bom' not in {row[1] for row in conn.table_info('PROJECT_COMPONENTS')}:
+        return
+    previous_fk = conn.get_foreign_keys()
+    try:
+        with conn.transaction(require_idle=True, foreign_keys=False, immediate=True):
+            violations = conn.foreign_key_violations()
+            sequence = conn.sequence_value('PROJECT_COMPONENTS') or 0
+            names = [row[1] for row in conn.table_info('PROJECT_COMPONENTS')]
+            old_rows = [dict(zip(names, row)) for row in conn.execute('SELECT * FROM PROJECT_COMPONENTS').fetchall()]
+            matches = {row[0]: row for row in conn.execute('SELECT * FROM PROJECT_COMPONENT_MATCHES').fetchall()}
+            conn.execute('DROP TABLE PROJECT_COMPONENT_MATCHES')
+            conn.execute('ALTER TABLE PROJECT_COMPONENTS RENAME TO PROJECT_COMPONENTS_V11')
+            _createProjectImportTables(conn)
+            for project_id in sorted({row['project_id'] for row in old_rows}):
+                originals = [row for row in old_rows if row['project_id'] == project_id]
+                for row in groupedComponents(originals):
+                    conn.execute('INSERT INTO PROJECT_COMPONENTS(id,project_id,' + ','.join(COMPONENT_FIELDS) +
+                                 ') VALUES (' + ','.join('?' for _ in range(len(COMPONENT_FIELDS)+2)) + ')',
+                                 (row['id'], project_id, *(row[field] for field in COMPONENT_FIELDS)))
+                    members = set(json.loads(row['properties_json'])['source_external_ids'])
+                    links = [matches[item['id']] for item in originals
+                             if item['external_id'] in members and item['id'] in matches]
+                    if links:
+                        link = links[0]
+                        review = int(any(item[2] for item in links) or len({item[1] for item in links}) > 1)
+                        conn.execute('INSERT INTO PROJECT_COMPONENT_MATCHES VALUES (?,?,?,?)',
+                                     (row['id'], link[1], review, link[3]))
+            highwater = max((row['id'] for row in old_rows), default=0)
+            conn.preserve_sequence('PROJECT_COMPONENTS', max(highwater, sequence))
+            conn.execute('DROP TABLE PROJECT_COMPONENTS_V11')
+            if conn.foreign_key_violations() - violations:
+                raise RuntimeError('Foreign key violations after quantity migration')
+            conn.execute("UPDATE ENVIRONMENT SET value='12' WHERE name=?", (ENV_DB_VERSION,))
+    finally:
+        conn.set_foreign_keys(previous_fk)
+
+
 MIGRATIONS = {
     2: _migrate_to_2,
     3: _migrate_to_3,
@@ -1610,6 +1666,7 @@ MIGRATIONS = {
     9: _migrate_to_9,
     10: _migrate_to_10,
     11: _migrate_to_11,
+    12: _migrate_to_12,
 }
 
 
@@ -1935,6 +1992,12 @@ class Part:
     -------------------------------------------------------------------
     """
     def __init__(self, scheme: DBScheme, recId: int = -1):
+        """Initialize the controller or data model with its owning widgets and catalog.
+
+        @param scheme [DBScheme] scheme supplied by the caller.
+        @param recId [int] recId supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         self.id = recId
         self.scheme = scheme
         for key in ELEMENT_FIELDS.keys():
@@ -1944,9 +2007,17 @@ class Part:
         self.documents = None
 
     def getType(self):
+        """Read the stock card section reference.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         typeId = self.__getitem__("type_id")
 
     def loadDatas(self):
+        """Load stock fields from the schema into this card.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.id <= 0:
             raise RuntimeError("Unknown parts ID. Cannot load data.")
 
@@ -1957,6 +2028,11 @@ class Part:
             self.__setattr__(f_names[int(pos)], el[pos])
 
     def copyData(self, fl: dict):
+        """Copy recognized stock fields into the card without issuing SQL.
+
+        @param fl [dict[str, object]] fl supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         allow_field = ELEMENT_FIELDS.keys()
         for key in fl.keys():
             if key in allow_field:
@@ -1965,10 +2041,23 @@ class Part:
                 logger.warning("Try to assign undefined parts field %", key)
 
     def __getitem__(self, index):
+        """Return a stock field by its schema name.
+
+        @param index [str] index supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return self.__dict__[index]
 
     def __setitem__(self, key, value):
-        if ELEMENT_FIELDS[key].strip() == "BOOLEAN" and type(value) == bool:
+        """Validate and assign a stock field, marking the card as modified.
+
+        @param key [str] key supplied by the caller.
+        @param value [object] value supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
+        if value is None and ELEMENT_FIELDS[key].strip() in ('REAL', 'INTEGER'):
+            self.__dict__[key] = None
+        elif ELEMENT_FIELDS[key].strip() == "BOOLEAN" and type(value) == bool:
             self.__dict__[key] = value
         elif ELEMENT_FIELDS[key].strip() == "INTEGER" and type(value) == int:
             self.__dict__[key] = value
@@ -1981,16 +2070,32 @@ class Part:
         self.changed = True
 
     def save(self):
+        """Normalize SI nominal fields and persist the modified stock card.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.changed:
             els = {}
             for key in ELEMENT_FIELDS.keys():
                 els[key] = self.__dict__[key]
+            from ElData.ElDBDataUnits import UnitsDataStore
+            els = UnitsDataStore(self.scheme).normalizePart(els)
             self.scheme.updatePart(els)
+            self.copyData(els)
+            self.changed = False
 
     def getID(self) -> int:
+        """Return the internal stock card identifier.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         return self.id
 
     def getDocuments(self) -> Documents:
+        """Load and return the stock card document collection.
+
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if self.documents is None:
             self.documents = Documents(self.scheme, self)
             self.documents.load()
@@ -2000,6 +2105,12 @@ class Part:
         # filename, file_extension = os.path.splitext(file)
         # extToDocType(file_extension)
         # docType: int = type if type != DOC_TYPE_DEFAULT else extToDocType(file)
+        """Attach a document to the currently selected stock card.
+
+        @param file [str] file supplied by the caller.
+        @param type [int] type supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         theDoc = Document(self.scheme, self)
         theDoc.type = type if type != DOC_TYPE_DEFAULT else extToDocType(file)
         theDoc.link = file
@@ -2011,6 +2122,11 @@ class Part:
         return theDoc
 
     def removeDocument(self, theDoc: Document):
+        """Remove a stock card document link.
+
+        @param theDoc [object] theDoc supplied by the caller.
+        @return [object, None] Requested data or completion of the documented catalog operation.
+        """
         if theDoc.parentId == self.id:
             self.scheme.delDocument(theDoc.id)
         else:
@@ -2235,7 +2351,15 @@ class DBFactory:
         return thePart
 
     def createPart(self, theType: Type, el: dict) -> Part:
+        """Normalize SI fields, insert a card and load its persisted values.
+
+        @param theType [Type] Destination catalog section with a configured basic type.
+        @param el [dict[str, object]] Entered catalog fields.
+        @return [Part] Created card including any calculated reduced nominal.
+        """
         logger.debug("Create part : {}".format(', '.join(map(str, el.values()))))
+        from ElData.ElDBDataUnits import UnitsDataStore
+        el = UnitsDataStore(self.scheme).normalizePart(dict(el, type_id=theType.recId))
         el_id = self.scheme.addPart(theType.recId, el)
         part = Part(self.scheme, el_id)
         part.loadDatas()

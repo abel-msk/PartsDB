@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import QApplication
 from ElData.ElDBScheme import DBFactory
 from ElDefaultIcons import DefaultPartIcons, SECTION_ICONS, RESOURCE_TEMPLATE, FALLBACK_ICON, mountingOf, SMD, THT, \
     availableIcons
-from ElIconDelegate import IconCellDelegate
+from ElCommonUI import IconCellDelegate
 
 from tests.qt_support import application
 

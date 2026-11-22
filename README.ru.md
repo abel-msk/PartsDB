@@ -186,7 +186,7 @@ python main.py -c tests/elworks.test.conf -v
 | `ElMainWindow.py`                           | главное окно, меню, перетаскивание                         |
 | `ElTypesTree.py`                            | дерево разделов                                            |
 | `ElPartsTable.py`                           | таблица деталей, меню колонок, поиск                       |
-| `ElIconDelegate.py`, `ElDefaultIcons.py`    | картинки деталей в таблице и значки по умолчанию           |
+| `ElCommonUI.py`, `ElDefaultIcons.py`    | картинки деталей в таблице и значки по умолчанию           |
 | `ElIconListWidget.py`                       | список документов детали                                   |
 | `ElData/ElDBConnect.py` | SQLite-соединение, транзакции и системные метаданные |
 | `ElData/ElDBScheme.py`                             | схема базы и доступ к ней (`DBFactory`, `Type`, `Part`, …) |
@@ -207,7 +207,7 @@ python main.py -c tests/elworks.test.conf -v
 ### Изменение интерфейса
 
 Формы правятся в Qt Designer (`qt/*.ui`). Сгенерированные файлы `ElParts.py`, `ElAppPathWnd.py`,
-`ElOpenFileWnd.py`, `ElHdrEditWnd.py`, `ElPluginsWnd.py`, `ElUnitsWnd.py` и `resources.py` вручную не редактируются. Пересоздайте их:
+`ElLogWnd.py`, `ElHdrEditWnd.py`, `ElPluginsWnd.py`, `ElUnitsWnd.py` и `resources.py` вручную не редактируются. Пересоздайте их:
 
 ```bash
 ./updateui.sh

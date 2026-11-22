@@ -23,7 +23,7 @@ from PyQt6.QtCore import QMimeData, QUrl, QBuffer, QIODevice
 from PyQt6.QtGui import QImage, QColor, QPixmap, QColorSpace
 from PyQt6.QtWidgets import QApplication
 
-import ElIconDrop
+import ElCommon
 
 from tests.qt_support import application
 
@@ -51,8 +51,8 @@ class TestIconDrop(unittest.TestCase):
     def test_local_file(self):
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(self.jpg)])
-        self.assertTrue(ElIconDrop.canProvideImage(mime))
-        img = ElIconDrop.imageFromMime(mime)
+        self.assertTrue(ElCommon.canProvideImage(mime))
+        img = ElCommon.imageFromMime(mime)
         self.assertEqual((img.width(), img.height()), (40, 20))
 
     def test_not_an_image(self):
@@ -61,8 +61,8 @@ class TestIconDrop(unittest.TestCase):
             f.write("hello")
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(txt)])
-        self.assertIsNone(ElIconDrop.imageFromMime(mime))
-        self.assertFalse(ElIconDrop.canProvideImage(QMimeData()))
+        self.assertIsNone(ElCommon.imageFromMime(mime))
+        self.assertFalse(ElCommon.canProvideImage(QMimeData()))
 
     def test_pdf_is_not_an_icon(self):
         # Qt on macOS can render a PDF page as an image; a datasheet must not become an icon
@@ -71,9 +71,9 @@ class TestIconDrop(unittest.TestCase):
             f.write(b"%PDF-1.4\n%fake\n")
         mime = QMimeData()
         mime.setUrls([QUrl.fromLocalFile(pdf)])
-        self.assertFalse(ElIconDrop.canProvideImage(mime))
-        self.assertIsNone(ElIconDrop.imageFromMime(mime))
-        self.assertFalse(ElIconDrop.isImageFile(self.src))  # a folder
+        self.assertFalse(ElCommon.canProvideImage(mime))
+        self.assertIsNone(ElCommon.imageFromMime(mime))
+        self.assertFalse(ElCommon.isImageFile(self.src))  # a folder
 
     def test_copy_mime_data_owns_the_image(self):
         """macOS: a browser drag's image points into pasteboard memory freed after the drop (SIGSEGV on save)."""
@@ -84,14 +84,14 @@ class TestIconDrop(unittest.TestCase):
         src.setImageData(foreign)
         src.setHtml('<img src="https://example.invalid/a.png">')
         src.setUrls([QUrl("https://example.invalid/page")])
-        mime = ElIconDrop.copyMimeData(src)
+        mime = ElCommon.copyMimeData(src)
         ctypes.memset(buf, 0x55, w * h * 4)  # the drag is over: its memory is reused
         self.assertEqual(foreign.pixelColor(0, 0).name(), "#555555")  # the original really shares the buffer
-        img = ElIconDrop.imageFromMime(mime)
+        img = ElCommon.imageFromMime(mime)
         self.assertEqual(img.pixelColor(0, 0).name(), "#ff0000")
         self.assertEqual(mime.html(), src.html())
         self.assertEqual([u.toString() for u in mime.urls()], ["https://example.invalid/page"])
-        name = ElIconDrop.saveIcon(img, self.icons, "MMBT2222A")
+        name = ElCommon.saveIcon(img, self.icons, "MMBT2222A")
         self.assertEqual(QImage(os.path.join(self.icons, name)).pixelColor(0, 0).name(), "#ff0000")
 
     def test_plain_image_keeps_only_pixels(self):
@@ -101,7 +101,7 @@ class TestIconDrop(unittest.TestCase):
         img.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.DisplayP3))
         img.setText("Description", "x" * 100)
         img.setDevicePixelRatio(2.0)
-        plain = ElIconDrop.plainImage(img)
+        plain = ElCommon.plainImage(img)
         self.assertEqual((plain.width(), plain.height()), (6, 4))
         self.assertEqual(plain.format(), QImage.Format.Format_ARGB32)
         self.assertFalse(plain.colorSpace().isValid())
@@ -112,7 +112,7 @@ class TestIconDrop(unittest.TestCase):
         self.assertAlmostEqual(c.alpha(), 128, delta=1)
         img.fill(QColor("blue"))  # the result does not share memory with the source
         self.assertEqual(plain.pixelColor(0, 0).red(), 255)
-        name = ElIconDrop.saveIcon(img, self.icons, "P3")
+        name = ElCommon.saveIcon(img, self.icons, "P3")
         saved = QImage(os.path.join(self.icons, name))
         self.assertFalse(saved.colorSpace().isValid())
         self.assertEqual(saved.pixelColor(0, 0).blue(), 255)
@@ -131,14 +131,14 @@ class TestIconDrop(unittest.TestCase):
     def test_safe_color_space_rebuilds_standard_profiles(self):
         for name, primaries in (("sRGB Profile.icc", QColorSpace.Primaries.SRgb),
                                 ("Display P3.icc", QColorSpace.Primaries.DciP3D65)):
-            safe = ElIconDrop.safeColorSpace(self.profile(name))
+            safe = ElCommon.safeColorSpace(self.profile(name))
             self.assertTrue(safe.isValid(), name)
             self.assertEqual(safe.primaries(), primaries, name)
             self.assertEqual(safe.transferFunction(), QColorSpace.TransferFunction.SRgb, name)
 
     def test_safe_color_space_drops_custom_profiles(self):
-        self.assertFalse(ElIconDrop.safeColorSpace(self.profile("Generic RGB Profile.icc")).isValid())
-        self.assertFalse(ElIconDrop.safeColorSpace(QColorSpace()).isValid())
+        self.assertFalse(ElCommon.safeColorSpace(self.profile("Generic RGB Profile.icc")).isValid())
+        self.assertFalse(ElCommon.safeColorSpace(QColorSpace()).isValid())
 
     def test_owned_image_never_reads_the_dragged_profile(self):
         """Crash 2026-11-13: the ICC bytes of a dragged picture are freed after the drop; reading them crashes."""
@@ -148,34 +148,34 @@ class TestIconDrop(unittest.TestCase):
         mime = QMimeData()
         mime.setImageData(img)
         with mock.patch.object(QColorSpace, "iccProfile", side_effect=AssertionError("profile bytes read")):
-            copied = ElIconDrop.copyMimeData(mime)
-            owned = ElIconDrop.imageFromMime(copied)
-            ElIconDrop.imageInfo(owned)
+            copied = ElCommon.copyMimeData(mime)
+            owned = ElCommon.imageFromMime(copied)
+            ElCommon.imageInfo(owned)
         self.assertEqual(owned.colorSpace().primaries(), QColorSpace.Primaries.SRgb)
         self.assertIsNot(owned.colorSpace(), img.colorSpace())
-        name = ElIconDrop.saveIcon(owned, self.icons, "MMBT2222A")
+        name = ElCommon.saveIcon(owned, self.icons, "MMBT2222A")
         self.assertEqual(QImage(os.path.join(self.icons, name)).pixelColor(0, 0).name(), "#ff0000")
 
     def test_plain_image_converts_to_srgb(self):
         img = QImage(4, 4, QImage.Format.Format_ARGB32)
         img.fill(QColor(128, 128, 128))
         img.setColorSpace(QColorSpace(QColorSpace.NamedColorSpace.SRgbLinear))
-        plain = ElIconDrop.plainImage(img)
+        plain = ElCommon.plainImage(img)
         self.assertFalse(plain.colorSpace().isValid())
         self.assertGreater(plain.pixelColor(0, 0).red(), 160)  # linear 0.5 is brighter in sRGB
 
     def test_owned_image(self):
         pm = QPixmap(5, 3)
         pm.fill(QColor("green"))
-        self.assertEqual(ElIconDrop.ownedImage(pm).size().width(), 5)
-        self.assertIsNone(ElIconDrop.ownedImage(QImage()))
-        self.assertIsNone(ElIconDrop.ownedImage("not an image"))
+        self.assertEqual(ElCommon.ownedImage(pm).size().width(), 5)
+        self.assertIsNone(ElCommon.ownedImage(QImage()))
+        self.assertIsNone(ElCommon.ownedImage("not an image"))
 
     def test_image_data(self):
         mime = QMimeData()
         mime.setImageData(makeImage(10, 10))
-        self.assertTrue(ElIconDrop.canProvideImage(mime))
-        self.assertEqual(ElIconDrop.imageFromMime(mime).width(), 10)
+        self.assertTrue(ElCommon.canProvideImage(mime))
+        self.assertEqual(ElCommon.imageFromMime(mime).width(), 10)
 
     def test_html_data_uri(self):
         buf = QBuffer()
@@ -184,8 +184,8 @@ class TestIconDrop(unittest.TestCase):
         uri = "data:image/png;base64," + base64.b64encode(bytes(buf.data())).decode()
         mime = QMimeData()
         mime.setHtml('<meta charset="utf-8"><img alt="x" src="{}">'.format(uri))
-        self.assertTrue(ElIconDrop.canProvideImage(mime))
-        self.assertEqual(ElIconDrop.imageFromMime(mime).width(), 7)
+        self.assertTrue(ElCommon.canProvideImage(mime))
+        self.assertEqual(ElCommon.imageFromMime(mime).width(), 7)
 
     def test_http_url(self):
         handler = partial(SimpleHTTPRequestHandler, directory=self.src)
@@ -197,12 +197,12 @@ class TestIconDrop(unittest.TestCase):
             url = "http://127.0.0.1:{}/photo.jpg".format(server.server_port)
             mime = QMimeData()
             mime.setUrls([QUrl(url)])
-            self.assertEqual(ElIconDrop.imageFromMime(mime).width(), 40)
+            self.assertEqual(ElCommon.imageFromMime(mime).width(), 40)
             # the browser page URL is not a picture, the <img> in the HTML is
             mime = QMimeData()
             mime.setUrls([QUrl("http://127.0.0.1:{}/".format(server.server_port))])
             mime.setHtml('<img src="{}">'.format(url))
-            self.assertEqual(ElIconDrop.imageFromMime(mime).height(), 20)
+            self.assertEqual(ElCommon.imageFromMime(mime).height(), 20)
         finally:
             server.shutdown()
             thread.join()
@@ -210,16 +210,16 @@ class TestIconDrop(unittest.TestCase):
 
     def test_save_png_unique_and_scaled(self):
         big = makeImage(2000, 1000)
-        name1 = ElIconDrop.saveIcon(big, self.icons, "IRF 540/N")
-        name2 = ElIconDrop.saveIcon(makeImage(), self.icons, "IRF 540/N")
+        name1 = ElCommon.saveIcon(big, self.icons, "IRF 540/N")
+        name2 = ElCommon.saveIcon(makeImage(), self.icons, "IRF 540/N")
         self.assertEqual(name1, "IRF_540_N.png")
         self.assertEqual(name2, "IRF_540_N-2.png")
         saved = QImage(os.path.join(self.icons, name1))
         self.assertEqual((saved.width(), saved.height()), (512, 256))
         with open(os.path.join(self.icons, name1), "rb") as f:
             self.assertEqual(f.read(8), b"\x89PNG\r\n\x1a\n")
-        self.assertEqual(ElIconDrop.saveIcon(makeImage(), self.icons, ""), "icon.png")
-        self.assertEqual(ElIconDrop.saveIcon(makeImage(), self.icons, "1N4007"), "1N4007.png")
+        self.assertEqual(ElCommon.saveIcon(makeImage(), self.icons, ""), "icon.png")
+        self.assertEqual(ElCommon.saveIcon(makeImage(), self.icons, "1N4007"), "1N4007.png")
 
 
 if __name__ == "__main__":

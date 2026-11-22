@@ -106,22 +106,6 @@ def appPathDialogTexts(window):
     dialogButtonTexts(ui.buttonBox)
 
 
-def openFileDialogTexts(window):
-    """Apply local file/URL selector labels and standard button captions.
-
-    @param window [QWidget] Initialized window exposing the widgets required by this text function.
-    @return [None] Updated captions or completed maintenance operation."""
-    ui = window.ui
-    window.setWindowTitle(translate("OpenFileWnd", "Select file or URL"))
-    ui.label_2.setText(translate("OpenFileWnd", "Path"))
-    ui.isFilesOnly.setText(translate("OpenFileWnd", "Show files only"))
-    ui.tabWidget.setTabText(ui.tabWidget.indexOf(ui.fileTab), translate("OpenFileWnd", "Local file"))
-    ui.label.setText(translate("OpenFileWnd", "URL"))
-    ui.clearBtn.setText(translate("OpenFileWnd", "X"))
-    ui.tabWidget.setTabText(ui.tabWidget.indexOf(ui.webTab), translate("OpenFileWnd", "WEB URL"))
-    dialogButtonTexts(ui.buttonBox)
-
-
 def headerEditDialogTexts(window):
     """Apply header editor labels, automatic icon text and standard button captions.
 
@@ -162,12 +146,13 @@ def componentHeaders():
 
 
 def projectComponentHeaders():
-    """Build localized component table captions including the matching action column.
+    """Build localized grouped project columns.
 
-    @return [list[str]] Base fields followed by matching status and review requirement.
+    @return [list[str]] Identity, quantity, assembly flags and matching status captions.
     """
-    return componentHeaders() + [translate('PluginWorkflow', 'Matching status'),
-                                  translate('PluginWorkflow', 'Review needed')]
+    return componentHeaders()[:4] + [translate('PluginWorkflow', 'Quantity'),
+        translate('PluginWorkflow', 'On board'), translate('PluginWorkflow', 'DNP'),
+        translate('PluginWorkflow', 'Matching status'), translate('PluginWorkflow', 'Review needed')]
 
 
 def projectMatchingButtonTexts(button, found, label=''):
@@ -193,18 +178,19 @@ def importPreviewTexts(window):
     ui, project, changes = window.ui, window.project, window.changes
     window.setWindowTitle(translate('PluginWorkflow', 'Import preview'))
     ui.summary.setText(translate('PluginWorkflow', '{}: {} components. Added: {}; changed: {}; removed: {}.').format(
-        project.name, len(project.components), len(changes.added), len(changes.changed), len(changes.removed)))
+        project.name, len(window.components), len(changes.added), len(changes.changed), len(changes.removed)))
     ui.table.setHorizontalHeaderLabels([translate('PluginWorkflow', 'Change'), *componentHeaders()[:4],
-                                       translate('PluginWorkflow', 'In BOM'), translate('PluginWorkflow', 'DNP')])
-    for row, component in enumerate(project.components):
-        state = (translate('PluginWorkflow', 'Added') if component.reference in changes.added else
-                 translate('PluginWorkflow', 'Changed') if component.reference in changes.changed else
+                                       translate('PluginWorkflow', 'Quantity'), translate('PluginWorkflow', 'DNP')])
+    for row, component in enumerate(window.components):
+        reference = component['reference']
+        state = (translate('PluginWorkflow', 'Added') if reference in changes.added else
+                 translate('PluginWorkflow', 'Changed') if reference in changes.changed else
                  translate('PluginWorkflow', 'Unchanged'))
-        values = [state, component.reference, component.kind, component.value_raw, component.footprint or '',
-                  str(int(component.in_bom)), str(int(component.dnp))]
+        values = [state, reference, component['kind'], component['value_raw'], component['footprint'] or '',
+                  str(component['quantity']), str(component['dnp'])]
         for column, value in enumerate(values):
             ui.table.setItem(row, column, QTableWidgetItem(value))
-    for row, reference in enumerate(changes.removed, start=len(project.components)):
+    for row, reference in enumerate(changes.removed, start=len(window.components)):
         for column, value in enumerate([translate('PluginWorkflow', 'Removed'), reference, '', '', '', '', '']):
             ui.table.setItem(row, column, QTableWidgetItem(value))
     ui.buttons.button(QDialogButtonBox.StandardButton.Save).setText(translate('PluginWorkflow', 'Save'))
@@ -333,3 +319,43 @@ def dialogButtonTexts(buttons):
         button = buttons.button(kind)
         if button is not None:
             button.setText(text)
+
+
+def matchingLogTexts(window):
+    """Translate the progress window while preserving its collected plain-text log.
+
+    @param window [MatchingLogDialog] Initialized progress dialog.
+    @return [None] Set captions and standard controls.
+    """
+    from PyQt6.QtWidgets import QDialogButtonBox
+    window.setWindowTitle(translate('MatchingLog', 'Component matching'))
+    window.ui.label.setText(translate('MatchingLog', 'Log:'))
+    window.ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(translate('MatchingLog', 'Close'))
+    window.ui.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText(translate('PluginWorkflow', 'Cancel'))
+
+
+def iconDropErrorText(message):
+    """Translate the shared icon-save error shown by an owning form.
+
+    @param message [str] Original decoding or filesystem error diagnostic.
+    @return [str] Localized error caption and diagnostic.
+    """
+    return translate('PartsDB', "Can't save the icon: {}").format(message)
+
+
+def iconDefaultTooltipText():
+    """Describe a catalog fallback icon in the current language.
+
+    @return [str] Tooltip for a stock card without its own picture.
+    """
+    return translate('PartsDB', 'No picture: default icon for the section')
+
+
+def iconMissingTooltipText(path):
+    """Describe an unavailable icon without inserting unescaped markup.
+
+    @param path [str] Image path displayed in the tooltip.
+    @return [str] Localized HTML tooltip with an escaped image filename.
+    """
+    from html import escape
+    return translate('PartsDB', 'Image not found:<br>{}').format(escape(path))

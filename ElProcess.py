@@ -7,7 +7,7 @@ from PyQt6.QtCore import QProcess, QObject, pyqtSignal
 from PyQt6.QtWidgets import QMessageBox
 
 import ElConfig
-import ElLogger
+import ElCommon
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
@@ -16,7 +16,7 @@ import ElLogger
 # logger.addHandler(handler)
 
 from ElAppList import AppList
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 PROCESS_STATE_RUN = 1
 PROCESS_STATE_START = 2

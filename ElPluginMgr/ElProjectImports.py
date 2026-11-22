@@ -3,11 +3,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from PyQt6.QtCore import QObject
-from PyQt6.QtWidgets import QDialog, QInputDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog, QInputDialog, QMessageBox, QFileDialog
 
 from ElImportPreview import ImportPreview
 from ElImportTask import run_import_task
-from ElOpenFileDialog import OpenFileDialog
 from .manager import PluginManager
 from .repository import ProjectRepository
 from .runner import PluginRunner
@@ -74,16 +73,10 @@ class ProjectImports(QObject):
             plugin = self.choose_plugin()
             if plugin is None:
                 return
-            selections = []
-            dialog = OpenFileDialog(self.window, str(Path.home()))
-            dialog.comm.uriSelected.connect(lambda uri, kind, root: selections.append(uri))
-            dialog.exec()
-            dialog.deleteLater()
-            if selections and selections[0]:
-                source = selections[0]
-                if not urlsplit(source).scheme:
-                    source = Path(source).expanduser().resolve().as_uri()
-                self.import_source(plugin, source)
+            source, _ = QFileDialog.getOpenFileName(self.window, translate('PluginWorkflow', 'Import project'),
+                                                   str(Path.home()))
+            if source:
+                self.import_source(plugin, Path(source).expanduser().resolve().as_uri())
         except Exception as exc:
             self.error(exc)
 

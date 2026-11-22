@@ -188,6 +188,18 @@ class PartsMatching:
         source, catalog = self._mounting(footprint), self._mounting(package)
         return not source or not catalog or bool(source & catalog)
 
+    @staticmethod
+    def _shortestEqual(left, right):
+        """Compare nonempty model names up to the length of their shorter value.
+
+        @param left [str] Catalog part_num, trimmed by the caller.
+        @param right [str] Imported Value text, trimmed by the caller.
+        @return [bool] Case-insensitive prefix equality; empty values never match.
+        """
+        left, right = left.casefold(), right.casefold()
+        length = min(len(left), len(right))
+        return bool(length) and left[:length] == right[:length]
+
     def _matchingFields(self, card, value, quantity, kind_types):
         """Find visible keys matching the component's literal value or SI quantity.
 
@@ -201,7 +213,8 @@ class PartsMatching:
         if quantity is None:
             number = self._number(value)
             return tuple(field for field in keys if self._text(values[field]) and
-                         (self._text(values[field]).casefold() == value.casefold() or
+                         ((field == 'part_num' and self._shortestEqual(self._text(values[field]), value)) or
+                          self._text(values[field]).casefold() == value.casefold() or
                           (number is not None and self._number(values[field]) == number)))
         units = [unit for field in keys for unit in self._unit(self._text(values[field]))]
         units.extend(self._unit(self._text(card['units'])))
@@ -214,6 +227,9 @@ class PartsMatching:
         matched = []
         for field in keys:
             text = self._text(values[field])
+            if field == 'part_num' and self._shortestEqual(text, value):
+                matched.append(field)
+                continue
             with_unit = self._quantity(text)
             if with_unit is not None:
                 equal = self._equalQuantity(quantity, with_unit)

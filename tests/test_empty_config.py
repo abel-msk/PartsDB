@@ -62,8 +62,8 @@ class TestEmptyConfigStartup(unittest.TestCase):
                 mock.patch.object(sys, "argv", ["main.py", "-c", str(self.conf), "-l", str(self.log)]), \
                 mock.patch.object(main, "QApplication", return_value=app), \
                 mock.patch.object(app, "exec", side_effect=checkWindowAndExit), \
-                mock.patch.object(main.ElLogger, "setLogFile"), \
-                mock.patch.object(main.ElLogger, "setLevel"), \
+                mock.patch.object(main.ElCommon, "setLogFile"), \
+                mock.patch.object(main.ElCommon, "setLevel"), \
                 mock.patch.object(main.faulthandler, "enable"), \
                 mock.patch.object(main, "faultLog", None, create=True), \
                 mock.patch.object(ElDBScheme, "DB_FACTORY"), \

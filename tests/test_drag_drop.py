@@ -252,7 +252,7 @@ class TestIconCellDrop(DBTestCase):
         img.fill(QColor("green"))
         mime.setImageData(img)
         mime.setUrls([QUrl("https://example.invalid/page.html")])  # page URL that must not be downloaded
-        with mock.patch("ElIconDrop.imageFromUrl", side_effect=AssertionError("no download expected")):
+        with mock.patch("ElCommon.imageFromUrl", side_effect=AssertionError("no download expected")):
             self.drop(mime, self.cellPos(self.row))
         self.assertEqual(QImage(os.path.join(self.factory.getIconsDir(), self.part["icon"])).width(), 64)
 
@@ -267,7 +267,7 @@ class TestIconCellDrop(DBTestCase):
         self.drag(mime, self.cellPos(self.row))
         self.send(QDropEvent(QPointF(self.cellPos(self.row)), ACTIONS, mime, Qt.MouseButton.LeftButton, NO_MODIFIERS))
         ctypes.memset(buf, 0x55, w * h * 4)  # the drag is over before the icon is saved
-        with mock.patch("ElIconDrop.imageFromUrl", side_effect=AssertionError("no download expected")):
+        with mock.patch("ElCommon.imageFromUrl", side_effect=AssertionError("no download expected")):
             processEvents()
         saved = QImage(os.path.join(self.factory.getIconsDir(), self.part["icon"]))
         self.assertEqual((saved.width(), saved.height()), (w, h))
@@ -277,7 +277,7 @@ class TestIconCellDrop(DBTestCase):
         mime = QMimeData()
         mime.setUrls([QUrl("https://example.invalid/pic.jpg")])
         downloaded = QImage(self.picture)
-        with mock.patch("ElIconDrop.imageFromUrl", return_value=downloaded) as download:
+        with mock.patch("ElCommon.imageFromUrl", return_value=downloaded) as download:
             self.drop(mime, self.cellPos(self.row))
         download.assert_called_once_with("https://example.invalid/pic.jpg")
         self.assertEqual(self.dbIcon(), self.part["icon"])
@@ -367,7 +367,7 @@ class TestIconCellDrop(DBTestCase):
     def test_web_url_that_is_not_a_picture_shows_error(self):
         mime = QMimeData()
         mime.setUrls([QUrl("https://example.invalid/page.html")])
-        with mock.patch("ElIconDrop.imageFromUrl", return_value=None), \
+        with mock.patch("ElCommon.imageFromUrl", return_value=None), \
                 mock.patch.object(ElPartsTable, "ErrorDialog") as error:
             self.drop(mime, self.cellPos(self.row))
         error.assert_called_once()

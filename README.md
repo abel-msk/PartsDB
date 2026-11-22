@@ -187,7 +187,7 @@ are not stored in git: put a copy of your database into `tests/` and point `db_f
 | `ElMainWindow.py`                           | main window, menus, drag and drop                         |
 | `ElTypesTree.py`                            | section tree                                              |
 | `ElPartsTable.py`                           | parts table, column menus, search                         |
-| `ElIconDelegate.py`, `ElDefaultIcons.py`    | part pictures in the table and default icons              |
+| `ElCommonUI.py`, `ElDefaultIcons.py`    | part pictures in the table and default icons              |
 | `ElIconListWidget.py`                       | list of part documents                                    |
 | `ElData/ElDBConnect.py` | SQLite connection, transactions and system metadata |
 | `ElData/ElDBScheme.py`                             | database schema and access (`DBFactory`, `Type`, `Part`, …) |
@@ -208,7 +208,7 @@ are not stored in git: put a copy of your database into `tests/` and point `db_f
 ### Changing the UI
 
 Forms are edited in Qt Designer (`qt/*.ui`). The generated files `ElParts.py`, `ElAppPathWnd.py`,
-`ElOpenFileWnd.py`, `ElHdrEditWnd.py`, `ElPluginsWnd.py`, `ElUnitsWnd.py` and `resources.py` must not be edited by hand. Regenerate them:
+`ElLogWnd.py`, `ElHdrEditWnd.py`, `ElPluginsWnd.py`, `ElUnitsWnd.py` and `resources.py` must not be edited by hand. Regenerate them:
 
 ```bash
 ./updateui.sh

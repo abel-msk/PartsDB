@@ -1,0 +1,42 @@
+text
+========================================================================
+УВЕДОМЛЕНИЕ ОБ АВТОРСКИХ ПРАВАХ / COPYRIGHT AND LICENSE NOTICE
+========================================================================
+
+[RU]
+Графические элементы (иконки радиодеталей и электронных компонентов),
+используемые в данном приложении, основаны на официальных библиотеках
+символов проекта KiCad (https://www.kicad.org/).
+
+Оригинальные графические материалы созданы участниками сообщества KiCad
+и распространяются на условиях лицензии Creative Commons Attribution-ShareAlike
+4.0 International (CC BY-SA 4.0).
+
+Внесенные изменения: экспорт из формата библиотек схем, масштабирование,
+изменение цвета и адаптация для использования в пользовательском интерфейсе.
+
+Вы имеете право свободно копировать, распространять и изменять данные
+графические файлы при условии указания авторства и сохранения условий
+той же лицензии CC BY-SA 4.0.
+
+Полный текст лицензии: https://creativecommons.org/licenses/by-sa/4.0/deed.ru
+
+------------------------------------------------------------------------
+
+[EN]
+The graphic elements (icons of electronic components) used in this
+application are based on the official symbol libraries of the KiCad
+project (https://www.kicad.org/).
+
+Original graphic assets are copyright of the KiCad Contributors and are
+licensed under the Creative Commons Attribution-ShareAlike 4.0 International
+License (CC BY-SA 4.0).
+
+Modifications made: exported from schematic library format, resized,
+recolored, and adapted for use in the user interface.
+
+You are free to share and adapt these graphic files under the terms of
+attribution and share-alike (CC BY-SA 4.0).
+
+Full license text: https://creativecommons.org/licenses/by-sa/4.0/
+========================================================================

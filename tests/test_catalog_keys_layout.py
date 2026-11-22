@@ -12,11 +12,11 @@ from ElConfig import ElConfig
 from ElConstants import PROJECT_TABLE_FIELDS, SUBTITLE_ROLE
 from ElData.ElDBScheme import DBFactory, ELEMENT_FLD_NAMES, DB_VERSION
 from ElData import ElDBDataParts, ElDBDataProj
-from ElCatalogDialogs import PartValuesDialog, SectionDialog
+from ElCommonUI import PartValuesDialog, ElTreeEditDlg
 from ElHdrEditDialog import HeaderEditDialog
 from ElPartsTable import PartsTableModel, TableView
-from ElProjectTableLayout import ProjectTableLayout
-from ElTwoLineDelegate import TwoLineDelegate
+from ElProjWindow import ProjectTableLayout
+from ElCommonUI import TwoLineDelegate
 from ElTypesTree import TypesTree
 from tests.qt_support import application
 
@@ -222,7 +222,7 @@ class CatalogKeysTests(unittest.TestCase):
         self.assertEqual(config.get_value('title_size', 'list_fonts'), 16)
         config.set_value('title_size', 21, 'list_fonts')
         self.assertEqual(delegate.fonts(QStyleOptionViewItem())[0].pixelSize(), 21)
-        dialog = SectionDialog(None, ElDBDataParts.basicTypes(self.factory), section.name, section.basic_type_id)
+        dialog = ElTreeEditDlg(None, ElDBDataParts.basicTypes(self.factory), section.name, section.basic_type_id)
         self.assertEqual(dialog.typeCombo.currentText(), 'Transistor')
         dialog.close()
 

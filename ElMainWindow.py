@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QApplication, QWidget, QMainWindow, QInputDialog, QM
 import urllib.parse
 import ElConfig
 from ElData import ElDBScheme
-import ElLogger
+import ElCommon
 import ElTypesTree
 import constants
 from ElAppList import AppList
@@ -24,7 +24,6 @@ from ElAppPathDialog import AppPathConfig
 from ElData.ElDBScheme import DBFactory, Type, Part, Document
 from ElFileDialog import FileListW
 from ElHdrEditDialog import HeaderEditDialog
-from ElOpenFileDialog import OpenFileDialog
 from ElProjWindow import ProjWindow
 from ElUnitsDialog import UnitsDialog
 from ElPluginsDialog import PluginsDialog
@@ -34,7 +33,7 @@ from ElPartsTable import PartsTableModel, TableView
 from ElProcess import ProcessFactory, Process
 from ElTypesTree import TypesTree
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 # handler = logging.StreamHandler(stream=sys.stderr)
@@ -345,10 +344,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Edit active reference data and refresh catalog subtitles and project candidates on Save.
 
         @return [None] No value is returned."""
-        dialog = UnitsDialog(self.factory.scheme, self)
+        dialog = UnitsDialog(self.factory.scheme, self, data_path=self.factory.dataPath)
         try:
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 self.typesTree.load()
+                self.projWindow.matchingResults.clear()
                 self.projWindow.refresh()
         finally:
             dialog.deleteLater()
@@ -492,9 +492,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusbar.showMessage(translate("PartsDB", 'Select Document'), 2000)
         sel = self.partsTable.getSelected()
         if sel is not None:
-            dlg = OpenFileDialog(self, self.documentRoot)
-            dlg.comm.uriSelected.connect(self.onAddDocSelected)
-            dlg.exec()
+            filename, _ = QFileDialog.getOpenFileName(self, translate('PartsDB', 'Select Document'), self.documentRoot)
+            if filename:
+                self.onAddDocSelected(filename, ElDBScheme.getTypeByExt(filename))
         else:
             showWarn(self, translate("PartsDB", 'Please select part first.'))
 
@@ -586,9 +586,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Open file selection dialog
         :return:
         """
-        dlg = OpenFileDialog(self, os.path.expanduser("~"))
-        dlg.comm.uriSelected.connect(self.loadDB)
-        dlg.exec()
+        filename, _ = QFileDialog.getOpenFileName(self, translate('PartsDB', 'Open database'),
+                                                os.path.expanduser('~'))
+        if filename:
+            self.loadDB(filename, ElDBScheme.getTypeByExt(filename))
 
     def loadDB(self, uri, type, docRoot=None):
         """Validate and open a local database, then replace the active tab data sources.

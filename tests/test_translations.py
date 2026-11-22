@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from types import SimpleNamespace
 from PyQt6.QtWidgets import QDialogButtonBox
-from ElCatalogDialogs import SectionDialog, PartValuesDialog
+from ElCommonUI import ElTreeEditDlg, PartValuesDialog
 from ElData import ElDBDataParts
 from ElPluginsDialog import PluginsDialog, PluginLogsDialog
 from ElImportTask import ImportProgressDialog
@@ -31,7 +31,6 @@ from ElConfig import ElConfig
 from ElData.ElDBScheme import DBFactory
 from ElHdrEditDialog import HeaderEditDialog
 from ElMainWindow import MainWindow
-from ElOpenFileDialog import OpenFileDialog
 from ElTranslations import CATALOG_DIR, LanguageManager, translate
 
 from tests.qt_support import application
@@ -211,15 +210,10 @@ class TestLiveTranslations(unittest.TestCase):
         """Verify open file and application dialogs keep input.
 
         @return [None] Complete the setup, cleanup or assertions."""
-        files = OpenFileDialog(self.window, str(self.root))
         apps = AppPathConfig(self.window, self.window.appList)
-        self.addCleanup(files.close)
         self.addCleanup(apps.close)
-        files.ui.webUri.setText("https://example.invalid/user-input")
         apps.ui.appNameInput.setText("My application")
         self.switch("ru")
-        self.assertEqual(files.windowTitle(), "Выберите файл или ссылку")
-        self.assertEqual(files.ui.webUri.text(), "https://example.invalid/user-input")
         self.assertEqual(apps.windowTitle(), "Приложения для документов")
         self.assertEqual(apps.ui.appNameInput.text(), "My application")
         self.assertEqual(apps.ui.saveBtn.text(), "Сохранить")
@@ -232,14 +226,13 @@ class TestLiveTranslations(unittest.TestCase):
         self.switch("ru")
         with ExitStack() as stack:
             for target in ("ElParts.Ui_MainWindow", "ElAppPathWnd.Ui_AppPathDialog",
-                           "ElOpenFileWnd.Ui_OpenFileWnd", "ElHdrEditWnd.Ui_HdrEditDialog"):
+                           "ElHdrEditWnd.Ui_HdrEditDialog"):
                 stack.enter_context(mock.patch(target + ".retranslateUi"))
             window = MainWindow(self.factory, self.config)
             self.addCleanup(window.close)
-            files = OpenFileDialog(window, str(self.root))
             apps = AppPathConfig(window, window.appList)
             headers = HeaderEditDialog(window, self.factory)
-            for dialog in (files, apps, headers):
+            for dialog in (apps, headers):
                 self.addCleanup(dialog.close)
             self.assertEqual(window.searchBtn.text(), "Поиск")
             self.assertEqual(window.label.text(), "Папки проектов")
@@ -247,7 +240,6 @@ class TestLiveTranslations(unittest.TestCase):
             self.assertEqual(window.d_prj_reload_cmd.text(), "Обновить данные")
             self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
                              "Несопоставленные детали")
-            self.assertEqual(files.windowTitle(), "Выберите файл или ссылку")
             self.assertEqual(apps.ui.saveBtn.text(), "Сохранить")
             self.assertEqual(headers.ui.label.text(), "Раздел:")
             self.assertEqual(headers.ui.icon_selector.itemText(0),
@@ -259,7 +251,6 @@ class TestLiveTranslations(unittest.TestCase):
             self.assertEqual(window.d_prj_reload_cmd.text(), "Reload Data")
             self.assertEqual(window.prj_parts.itemText(window.prj_parts.indexOf(window.prj_parts_lt2)),
                              "Unmatched parts")
-            self.assertEqual(files.windowTitle(), "Select file or URL")
             self.assertEqual(apps.ui.saveBtn.text(), "Save")
             self.assertEqual(headers.ui.label.text(), "Section:")
 
@@ -329,12 +320,11 @@ class TestLiveTranslations(unittest.TestCase):
         """
         with ExitStack() as stack:
             for target in ('ElParts.Ui_MainWindow', 'ElAppPathWnd.Ui_AppPathDialog',
-                           'ElOpenFileWnd.Ui_OpenFileWnd', 'ElHdrEditWnd.Ui_HdrEditDialog',
+                           'ElHdrEditWnd.Ui_HdrEditDialog',
                            'ElPluginsWnd.Ui_Dialog', 'ElUnitsWnd.Ui_units_dialog'):
                 stack.enter_context(mock.patch(target + '.retranslateUi'))
             window = MainWindow(self.factory, self.config)
             self.addCleanup(window.close)
-            files = OpenFileDialog(window, str(self.root))
             apps = AppPathConfig(window, window.appList)
             headers = HeaderEditDialog(window, self.factory)
             with self.factory.scheme.transaction():
@@ -344,14 +334,14 @@ class TestLiveTranslations(unittest.TestCase):
                     description='', author='', enabled=1, manifest_json='{}'))
             plugins = PluginsDialog(window, manager=SimpleNamespace(sync=lambda database: None), conn=self.factory.scheme)
             units = UnitsDialog(self.factory.scheme, window)
-            section = SectionDialog(window, ElDBDataParts.basicTypes(self.factory), 'User section')
+            section = ElTreeEditDlg(window, ElDBDataParts.basicTypes(self.factory), 'User section')
             values = PartValuesDialog(window, [self.section.getHeaders()['part_num']])
             preview = ImportPreview(SimpleNamespace(name='User project', components=[], warnings=[]),
                                     SimpleNamespace(added=(), changed=(), removed=()), window)
             logs = PluginLogsDialog('', window)
             progress = ImportProgressDialog(window)
             installation = ImportProgressDialog(window, installing=True)
-            for dialog in (files, apps, headers, plugins, units, section, values, preview, logs, progress, installation):
+            for dialog in (apps, headers, plugins, units, section, values, preview, logs, progress, installation):
                 self.addCleanup(dialog.close)
             plugins.ui.app_path_input.setText('/tmp/user application')
             units.unitsModel.item(0, 2).setText('User unit')
@@ -371,7 +361,7 @@ class TestLiveTranslations(unittest.TestCase):
                 self.assertEqual(plugins.ui.label_3.text(), application_path)
                 self.assertIn(application_path, plugins.ui.info.toPlainText())
                 self.assertEqual(logs.windowTitle(), log_title)
-                for box in (files.ui.buttonBox, apps.ui.buttonBox, headers.ui.buttonBox,
+                for box in (apps.ui.buttonBox, headers.ui.buttonBox,
                             section.buttons, values.buttons, units.ui.buttonBox, preview.ui.buttons):
                     self.assertEqual(box.button(QDialogButtonBox.StandardButton.Cancel).text(), cancel)
                 self.assertEqual(plugins.ui.app_path_input.text(), '/tmp/user application')

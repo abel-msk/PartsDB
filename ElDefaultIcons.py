@@ -13,10 +13,10 @@ import re
 
 from PyQt6.QtCore import QFile, QDirIterator
 
-import ElLogger
+import ElCommon as ElCommon
 import resources  # noqa: F401  registers :/ resources. Do not delete
 
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 RESOURCES_DIR = ":/parts/icons"
 RESOURCE_TEMPLATE = RESOURCES_DIR + "/{family}_{mount}.png"

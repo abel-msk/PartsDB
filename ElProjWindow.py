@@ -1,22 +1,117 @@
 """Controller for the Projects tab; import actions are exposed to its backend."""
-from PyQt6.QtCore import QObject, Qt, QProcess, QUrl, pyqtSignal
+import ElCommon
+from PyQt6 import sip
+from PyQt6.QtCore import QObject, Qt, QProcess, QUrl, pyqtSignal, QTimer, QEvent
 from pathlib import Path
 import shlex
 import sys
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
-from PyQt6.QtWidgets import QAbstractItemView, QMenu, QMessageBox, QPushButton
+from PyQt6.QtWidgets import QAbstractItemView, QMenu, QMessageBox, QPushButton, QHeaderView
 
+from ElData import ElDBDataProj
 from ElData.ElDBDataPlagins import PluginDataStore
 from ElProjList import ProjList
-from ElProjectTableLayout import ProjectTableLayout
 from ElConstants import (PROJECT_TABLE_ALL, PROJECT_TABLE_UNMATCHED, MATCHING_CANDIDATES_ROLE,
                          PROJECT_MATCH_STATUS_COLUMN, MATCHING_STATUS_ROLE, MATCHING_LABEL_ROLE,
-                         PROJECT_MATCHED_COLOR, PROJECT_UNMATCHED_COLOR, PROJECT_MATCH_BUTTON_STYLE)
+                         PROJECT_MATCHED_COLOR, PROJECT_UNMATCHED_COLOR, PROJECT_MATCH_BUTTON_STYLE,
+                         PROJECT_TABLE_FIELDS, PROJECT_TABLE_DEFAULT_WIDTH)
 from ElPartsMatching import PartsMatching
+from ElMatchingLog import MatchingLogDialog
 from ElWindowTexts import (projWindowTexts, projectMatchTexts, projectComponentHeaders,
                            projectMatchingButtonTexts)
 from ElTranslations import translate
 from ElPluginMgr.repository import ProjectRepository
+
+logger = ElCommon.setLogger(__name__)
+
+
+class ProjectTableLayout(QObject):
+    """Keep user widths separate from automatic expansion; holds view, factory and stable table ID."""
+
+    def __init__(self, view, factory, table_name):
+        """Bind layout. @param view [QTableView]; factory [DBFactory]; table_name [str] stable identifier."""
+        super().__init__(view)
+        self.view, self.factory, self.table_name = view, factory, table_name
+        self.minimums = {}
+        self.applying = False
+        self.dragging = False
+        self.dirty = False
+        self.pending = False
+        header = view.horizontalHeader()
+        self.headerViewport = header.viewport()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setStretchLastSection(False)
+        header.sectionResized.connect(self.sectionResized)
+        view.viewport().installEventFilter(self)
+        header.viewport().installEventFilter(self)
+        self.setFactory(factory)
+
+    def setFactory(self, factory):
+        """Read widths for the selected database. @param factory [DBFactory]."""
+        self.factory = factory
+        self.minimums = ElDBDataProj.columnWidths(factory, self.table_name)
+        self.dragging = self.dirty = False
+        self.schedule()
+
+    def schedule(self):
+        """Apply after Qt has updated viewport geometry; takes no parameters."""
+        if not self.pending:
+            self.pending = True
+            QTimer.singleShot(0, self.apply)
+
+    def apply(self):
+        """Expand in saved proportions; shrink only to saved widths; takes no parameters."""
+        self.pending = False
+        if sip.isdeleted(self.view) or self.dragging:
+            return
+        header = self.view.horizontalHeader()
+        columns = [(index, field) for index, field in enumerate(PROJECT_TABLE_FIELDS)
+                   if index < header.count() and not header.isSectionHidden(index)]
+        if not columns:
+            return
+        bases = [max(header.minimumSectionSize(), self.minimums.get(field, PROJECT_TABLE_DEFAULT_WIDTH))
+                 for _, field in columns]
+        available = max(sum(bases), self.view.viewport().width())
+        # Cumulative rounding gives the viewport's exact width, without one-pixel overflow.
+        total, used, accumulated = sum(bases), 0, 0
+        self.applying = True
+        try:
+            for (index, _), base in zip(columns, bases):
+                accumulated += base
+                boundary = round(available * accumulated / total)
+                header.resizeSection(index, max(base, boundary - used))
+                used = boundary
+        finally:
+            self.applying = False
+
+    def sectionResized(self, index, old_size, new_size):
+        """Track user gestures only. @param index, old_size, new_size [int] header resize values."""
+        if self.dragging and not self.applying:
+            self.dirty = True
+
+    def saveUserWidths(self):
+        """Persist current widths after a user gesture; automatic expansion never writes the DB."""
+        header = self.view.horizontalHeader()
+        self.minimums = {field: header.sectionSize(index)
+                         for index, field in enumerate(PROJECT_TABLE_FIELDS) if index < header.count()}
+        ElDBDataProj.saveColumnWidths(self.factory, self.table_name, self.minimums)
+        self.dirty = False
+        self.schedule()
+
+    def eventFilter(self, watched, event):
+        """Handle viewport geometry and user resize gestures. @param watched [QObject]; event [QEvent]."""
+        if sip.isdeleted(self.view):
+            return False
+        if watched is self.headerViewport:
+            if event.type() == QEvent.Type.MouseButtonPress:
+                self.dragging = True
+            elif event.type() == QEvent.Type.MouseButtonRelease:
+                self.dragging = False
+                if self.dirty:
+                    self.saveUserWidths()
+        elif event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            self.schedule()
+        return super().eventFilter(watched, event)
 
 
 class ProjWindow(QObject):
@@ -45,6 +140,8 @@ class ProjWindow(QObject):
         self.ui = window
         self.project = None
         self.matchingCandidates = {}
+        self.matchingResults = {}
+        self.matchingLog = None
         self.componentsModel = QStandardItemModel(self)
         window.prj_parts_all.setModel(self.componentsModel)
         window.prj_parts_all.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -55,6 +152,7 @@ class ProjWindow(QObject):
         window.no_matched_tbl.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tableLayouts = [ProjectTableLayout(window.prj_parts_all, factory, PROJECT_TABLE_ALL),
                              ProjectTableLayout(window.no_matched_tbl, factory, PROJECT_TABLE_UNMATCHED)]
+        window.d_proj_link_cmd.clicked.connect(self.runMatching)
         self.projList = ProjList(factory, window.proj_list)
         self.projList.projectSelected.connect(self.onProjectSelected)
         window.proj_add_cmd.clicked.connect(self.onAddProject)
@@ -71,6 +169,7 @@ class ProjWindow(QObject):
 
         @param factory [DBFactory] Factory connected to the active database.
         @return [None] No value is returned."""
+        self.matchingResults.clear()
         for layout in self.tableLayouts:
             layout.setFactory(factory)
         self.projList.setFactory(factory)
@@ -105,6 +204,7 @@ class ProjWindow(QObject):
         if load_components:
             self.loadComponents(project)
         self.ui.det_frm.setEnabled(project is not None)
+        self.ui.d_proj_link_cmd.setEnabled(project is not None)
         self.ui.proj_remove_cmd.setEnabled(project is not None)
         self.ui.d_prj_reload_cmd.setEnabled(project is not None and bool(project.source_uri))
         self.ui.d_prj_open_cmd.setEnabled(project is not None and bool(project.source_uri))
@@ -179,7 +279,8 @@ class ProjWindow(QObject):
             matcher = PartsMatching(self.projList.factory)
             for row in repository.components(project.id):
                 match = matches.get(row['id'])
-                candidates = matcher.findCandidates(row)
+                saved = self.matchingResults.get((project.id, row['id']))
+                candidates = saved[1] if saved and saved[0] == row else []
                 self.matchingCandidates[row['id']] = candidates
                 confirmed = next((candidate for candidate in candidates
                                   if match and candidate.part_id == match['part_id']), None)
@@ -187,7 +288,7 @@ class ProjWindow(QObject):
                               if match else candidates[0].key_text if candidates else '')
                 found = bool(match or candidates)
                 values = [row['reference'], row['kind'], row['value_raw'], row['footprint'] or '',
-                          str(row['in_bom']), str(row['on_board']), str(row['dnp']),
+                          str(row['quantity']), str(row['on_board']), str(row['dnp']),
                           '',
                           str(match['needs_review']) if match else '']
                 items = [QStandardItem(value) for value in values]
@@ -211,6 +312,53 @@ class ProjWindow(QObject):
 
         for layout in self.tableLayouts:
             layout.schedule()
+
+    def runMatching(self):
+        """Start an explicit matching pass, yielding to Qt between component rows.
+
+        @return [None] Show progress and one result per component; confirmed links are preserved.
+        """
+        if self.project is None or (self.matchingLog is not None and self.matchingLog.running):
+            return
+        project = self.project
+        factory = self.projList.factory
+        rows = ProjectRepository(factory.scheme).components(project.id)
+        logger.debug('Starting explicit matching: project=%s groups=%s', project.id, len(rows))
+        dialog = MatchingLogDialog(len(rows), self.ui)
+        self.matchingLog = dialog
+        matcher = PartsMatching(factory)
+        position = 0
+
+        def advance():
+            """Process one saved component and schedule the next without blocking the event loop.
+
+            @return [None] Stop on completion, cancellation, database replacement or failure.
+            """
+            nonlocal position
+            if not dialog.running:
+                if self.project and self.projList.factory is factory and self.project.id == project.id:
+                    self.loadComponents(self.project)
+                return
+            if self.projList.factory is not factory:
+                dialog.finish(cancelled=True)
+                return
+            if position == len(rows):
+                dialog.finish()
+                if self.project and self.project.id == project.id:
+                    self.loadComponents(self.project)
+                return
+            row = rows[position]
+            try:
+                candidates = matcher.findCandidates(row)
+                self.matchingResults[(project.id, row['id'])] = (dict(row), candidates)
+                position += 1
+                dialog.record(position, row, candidates)
+                QTimer.singleShot(0, advance)
+            except Exception as exc:
+                logger.exception('Component matching failed: project=%s reference=%s', project.id, row['reference'])
+                dialog.fail(str(exc))
+        dialog.open()
+        QTimer.singleShot(0, advance)
 
     def addMatchingButton(self, view, model, row, component_id):
         """Place a matching action in one status cell and retain its stable component identity.

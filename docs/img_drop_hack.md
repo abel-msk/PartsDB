@@ -24,7 +24,7 @@ crash location and the successful workaround support this explanation.
 The first attempted fix, `QImage.copy()`, did not solve the problem. Copying the
 pixels did not remove the problematic color profile.
 
-### Workaround in `ElIconDrop.py`
+### Workaround in `ElCommon.py`
 
 1. At drop time, rebuild the color space from its parameters without reading the
    original ICC bytes. Standard sRGB and Display P3 spaces can be reconstructed;

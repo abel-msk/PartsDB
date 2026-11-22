@@ -9,7 +9,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from ElData import ElDBScheme
-import ElLogger
+import ElCommon as ElCommon
 import constants
 from ElConfig import ElConfig
 from ElData.ElDBScheme import DBScheme, DBFactory
@@ -17,7 +17,7 @@ from ElMainWindow import MainWindow
 
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
-logger = ElLogger.setLogger(__name__)
+logger = ElCommon.setLogger(__name__)
 
 
 # constants.LAST_OPEN_FILE = "last_open_file"
@@ -183,16 +183,16 @@ def main():
             log_level = logging.ERROR
             config.set_value(constants.LOG_LEVEL, "err")
 
-    ElLogger.setLevel(log_level)
+    ElCommon.setLevel(log_level)
 
     if log_file is None:
         log_file = config.get_value(constants.LOG_FILE)
 
     if log_file is not None and log_file != "":
-        ElLogger.setLogFile(log_file)
+        ElCommon.setLogFile(log_file)
     else:
         log_file = os.path.join("/tmp", prog_name + ".log")
-        ElLogger.setLogFile(log_file)
+        ElCommon.setLogFile(log_file)
 
 
     ElDBScheme.DB_FACTORY = factory

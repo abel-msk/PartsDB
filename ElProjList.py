@@ -1,6 +1,6 @@
 """Loading and selection of projects in the main window's proj_list."""
 from dataclasses import dataclass
-from ElTwoLineDelegate import TwoLineDelegate
+from ElCommonUI import TwoLineDelegate
 from ElConstants import SUBTITLE_ROLE
 
 from PyQt6.QtCore import QAbstractListModel, QModelIndex, QObject, Qt, pyqtSignal

@@ -3,11 +3,16 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
 from PyQt6.QtWidgets import QComboBox, QDialog, QMessageBox, QStyledItemDelegate
 
-from ElConstants import UNIT_FIELDS, BASIC_TYPE_FIELDS, UNIT_REFERENCE_ROLE, UNIT_ALIAS_COLUMN
+from ElConstants import UNIT_FIELDS, BASIC_TYPE_FIELDS, UNIT_REFERENCE_ROLE, UNIT_ALIAS_COLUMN, BASIC_TYPE_ICON_COLUMN
 from ElData.ElDBDataUnits import UnitsDataStore
 from ElTranslations import TranslatedDialogMixin, translate
 from ElUnitsWnd import Ui_units_dialog
-from ElWindowTexts import unitsDialogTexts, unitsDialogErrorText
+from ElWindowTexts import unitsDialogTexts, unitsDialogErrorText, iconDropErrorText
+from ElCommonUI import IconCellDelegate
+import ElCommon
+from pathlib import Path
+
+logger = ElCommon.setLogger(__name__)
 
 
 class BaseUnitDelegate(QStyledItemDelegate):
@@ -95,19 +100,28 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
     @attr unitsModel [QStandardItemModel] Pending SI unit rows with immutable IDs.
     @attr typesModel [QStandardItemModel] Pending basic type rows with immutable IDs.
     @attr unitAliases [dict[int, tuple[str]]] Saved alternate spellings used to populate editable alias cells.
+    @attr iconsDir [str] File-based icon directory inside configured data_path.
+    @attr pendingIconFiles [set[str]] Owned new PNGs removed on cancellation or replacement.
     @attr nextTypeID [int] Next negative temporary ID for a newly added type.
     @attr nextUnitID [int] Next negative temporary ID for a newly added unit.
     @attr updatingReferences [bool] Guard against recursive reference label updates."""
 
-    def __init__(self, database, parent=None):
+    def __init__(self, database, parent=None, data_path=None):
         """Load both reference tables and connect their editing controls.
 
         @param database [DBScheme] Connected active database.
+        @param data_path [str, None] Resolved factory data directory; parent config takes precedence.
         @param parent [QWidget, None] Qt owner of the dialog.
         @return [None] No value is returned."""
         super().__init__(parent)
         self.store = UnitsDataStore(database)
         self.unitAliases = self.store.aliases()
+        fallback = data_path or str(Path(self.store.scheme.db.dbPath).expanduser().resolve().parent)
+        self.dataPath = ElCommon.configuredDataPath(getattr(parent, 'config', None), fallback)
+        self.iconsDir = ElCommon.basicTypeIconsDir(self.dataPath)
+        self.pendingIconFiles = set()
+        self.iconEditing = True
+        logger.debug('Opening basic type editor: database=%s icons=%s', self.store.scheme.db.dbPath, self.iconsDir)
         self.nextUnitID = -1
         self.nextTypeID = -1
         self.updatingReferences = False
@@ -116,6 +130,13 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         self.unitsModel = self.makeModel(self.ui.si_units_tbl, self.store.units())
         self.typesModel = self.makeModel(self.ui.b_types_tbl, self.store.basicTypes())
         self.ui.si_units_tbl.setItemDelegateForColumn(len(UNIT_FIELDS) - 1, BaseUnitDelegate(self, self.ui.si_units_tbl))
+        self.iconDelegate = IconCellDelegate(self.ui.b_types_tbl, iconsDir=self.iconsDir,
+                                            dropColumn=BASIC_TYPE_ICON_COLUMN, onDrop=self.setDroppedIcon)
+        self.iconDelegate.dropFailed.connect(self.iconDropError)
+        self.ui.b_types_tbl.setItemDelegateForColumn(BASIC_TYPE_ICON_COLUMN, self.iconDelegate)
+        self.ui.b_types_tbl.verticalHeader().setDefaultSectionSize(64)
+        header = self.ui.b_types_tbl.horizontalHeader()
+        header.moveSection(header.visualIndex(3), 0)
         self.ui.b_types_tbl.setItemDelegateForColumn(4, BaseUnitDelegate(self, self.ui.b_types_tbl))
         self.ui.b_types_tbl.setItemDelegateForColumn(5, BasicTypeAliasDelegate(self, self.ui.b_types_tbl))
         self.unitsModel.itemChanged.connect(self.refreshReferences)
@@ -133,6 +154,7 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         self.ui.si_units_tbl.setColumnWidth(len(UNIT_FIELDS) - 1, 260)
         self.ui.si_units_tbl.setColumnWidth(UNIT_ALIAS_COLUMN, 260)
         self.ui.b_types_tbl.setColumnWidth(len(BASIC_TYPE_FIELDS) - 1, 260)
+        self.ui.b_types_tbl.setColumnWidth(3, 64)
 
     def makeModel(self, view, rows):
         """Attach and populate an editable reference model with its ID column hidden.
@@ -309,7 +331,63 @@ class UnitsDialog(TranslatedDialogMixin, QDialog):
         except Exception as exc:
             QMessageBox.critical(self, translate('UnitsDialog', 'Cannot save reference data'), unitsDialogErrorText(str(exc)))
             return
+        retained = {row[3] for row in self.store.basicTypes() if row[3]}
+        self.discardPendingIcons(retained)
+        self.iconEditing = False
+        logger.debug('Basic type editor saved: retained_icons=%s', len(retained))
         super().accept()
+
+    def setDroppedIcon(self, index, image):
+        """Save an owned image to a unique PNG and update only the pending icon cell.
+
+        @param index [QModelIndex] Existing BASIC_TYPES.icon cell in the pending model.
+        @param image [QImage] Decoded owned drop image.
+        @return [bool] True updates the pending path; closed editors reject delayed drops.
+        """
+        if not self.iconEditing or not index.isValid() or index.column() != BASIC_TYPE_ICON_COLUMN:
+            logger.debug('Ignoring delayed icon drop: editing=%s valid=%s', self.iconEditing, index.isValid())
+            return False
+        name = self.typesModel.item(index.row(), 1).text()
+        filename = ElCommon.saveIcon(image, self.iconsDir, name)
+        path = str(Path(self.iconsDir, filename).resolve())
+        self.pendingIconFiles.add(path)
+        self.typesModel.setData(index, path, Qt.ItemDataRole.EditRole)
+        self.iconDelegate.clearCache()
+        logger.debug('Basic type icon pending: type=%s row=%s path=%s', name, index.row(), path)
+        return True
+
+    def iconDropError(self, message):
+        """Show an actionable image-drop error after restoring the normal cursor.
+
+        @param message [str] Diagnostic emitted by the shared delegate.
+        @return [None] Keep the editor and all previously saved paths available.
+        """
+        logger.debug('Basic type icon error: %s', message)
+        QMessageBox.critical(self, translate('UnitsDialog', 'Cannot save reference data'), iconDropErrorText(message))
+
+    def discardPendingIcons(self, retained=()):
+        """Remove only files created by this dialog and not retained by a successful Save.
+
+        @param retained [collection[str]] Paths referenced by the committed basic type rows.
+        @return [None] Preserve existing files and retained icons, clear pending ownership.
+        """
+        for path in self.pendingIconFiles - set(retained):
+            try:
+                Path(path).unlink(missing_ok=True)
+                logger.debug('Removed unused pending basic type icon: %s', path)
+            except OSError:
+                logger.exception('Cannot remove pending basic type icon: %s', path)
+        self.pendingIconFiles.clear()
+
+    def reject(self):
+        """Discard pending reference edits and PNGs created during this editing session.
+
+        @return [None] Keep all previously stored database rows and image files unchanged.
+        """
+        self.iconEditing = False
+        self.discardPendingIcons()
+        logger.debug('Basic type editor cancelled')
+        super().reject()
 
     def retranslate(self):
         """Update localized captions and headers while retaining pending edits.

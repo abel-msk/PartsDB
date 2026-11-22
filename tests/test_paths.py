@@ -19,7 +19,7 @@ import constants
 from ElData import ElDBScheme
 from ElConfig import ElConfig
 from ElData.ElDBScheme import DBFactory, ENV_ICONS_PATH, DEFAULT_ICONS_DIR
-from ElIconDelegate import IconCellDelegate
+from ElCommonUI import IconCellDelegate
 from main import checkDataPath
 
 from tests.qt_support import application

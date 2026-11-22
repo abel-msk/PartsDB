@@ -62,8 +62,8 @@ class PluginWorkflowTests(unittest.TestCase):
                 mock.patch.object(ImportPreview, 'exec', return_value=QDialog.DialogCode.Accepted):
             project_id = self.controller.import_source(self.plugin, SOURCE.as_uri())
         self.assertIsNotNone(project_id)
-        self.assertEqual(self.window.projWindow.componentsModel.rowCount(), 49)
-        self.assertEqual(self.window.projWindow.unmatchedModel.rowCount(), 49)
+        self.assertEqual(self.window.projWindow.componentsModel.rowCount(), 31)
+        self.assertEqual(self.window.projWindow.unmatchedModel.rowCount(), 31)
         self.assertEqual(self.window.projWindow.project.id, project_id)
         before = ProjectRepository(self.conn).components(project_id)
         with mock.patch.object(self.controller.manager, 'get', return_value=self.plugin), \
@@ -93,11 +93,11 @@ class PluginWorkflowTests(unittest.TestCase):
         component_id = repo.components(project_id)[0]['id']
         repo.set_match(component_id, part.id)
         self.window.projWindow.refresh()
-        self.assertEqual(self.window.projWindow.unmatchedModel.rowCount(), 48)
+        self.assertEqual(self.window.projWindow.unmatchedModel.rowCount(), 30)
         self.assertEqual(repo.matches(project_id)[component_id]['part_id'], part.id)
         repo.set_match(component_id)
         self.window.projWindow.refresh()
-        self.assertEqual(self.window.projWindow.unmatchedModel.rowCount(), 49)
+        self.assertEqual(self.window.projWindow.unmatchedModel.rowCount(), 31)
         self.assertEqual(repo.matches(project_id), {})
 
     def test_confirmed_delete_button_removes_import_and_keeps_stock(self):
@@ -112,12 +112,12 @@ class PluginWorkflowTests(unittest.TestCase):
     def test_preview_language_changes_preserve_component_rows(self):
         preview = ImportPreview(self.project, ProjectRepository(self.conn).changes(self.project), self.window)
         self.addCleanup(preview.close)
-        self.assertEqual(preview.ui.table.rowCount(), 49)
+        self.assertEqual(preview.ui.table.rowCount(), 31)
         self.window.languageManager.setLanguage('ru')
         app.processEvents()
         self.assertEqual(preview.windowTitle(), 'Предпросмотр импорта')
-        self.assertEqual(preview.ui.table.item(0, 1).text(), 'C1')
-        self.assertEqual(preview.ui.table.rowCount(), 49)
+        self.assertEqual(preview.ui.table.item(0, 1).text(), preview.components[0]['reference'])
+        self.assertEqual(preview.ui.table.rowCount(), 31)
 
     def test_plugins_dialog_has_install_action_and_preserves_plain_metadata(self):
         manager = PluginManager(self.path / 'plugins')
