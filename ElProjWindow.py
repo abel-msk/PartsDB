@@ -1,7 +1,7 @@
 """Controller for the Projects tab; import actions are exposed to its backend."""
 import ElCommon
 from PyQt6 import sip
-from PyQt6.QtCore import QObject, Qt, QProcess, QUrl, pyqtSignal, QTimer, QEvent
+from PyQt6.QtCore import QObject, Qt, QProcess, QUrl, pyqtSignal, QTimer, QEvent, QAbstractItemModel
 from pathlib import Path
 import shlex
 import sys
@@ -114,6 +114,21 @@ class ProjectTableLayout(QObject):
         return super().eventFilter(watched, event)
 
 
+
+class ProjSelectableModel(QStandardItemModel):
+    """ Overwrite standard class for give user clicr, select an item, but  keep unchanged """
+    def __init__(self, parent):
+        super(ProjSelectableModel, self).__init__(parent)
+
+    def flags(self, index):
+        return ( super().flags(index)
+                | Qt.ItemFlag.ItemIsEditable
+        )
+    def setData(self, index, value, role):
+        if role == Qt.ItemDataRole.EditRole:
+            # self._data[index.row()][index.column()] = value
+            return True
+
 class ProjWindow(QObject):
     """Manage the Projects tab, project actions and component tables.
 
@@ -142,14 +157,16 @@ class ProjWindow(QObject):
         self.matchingCandidates = {}
         self.matchingResults = {}
         self.matchingLog = None
-        self.componentsModel = QStandardItemModel(self)
+        # self.componentsModel = QStandardItemModel(self)
+        self.componentsModel = ProjSelectableModel(self)
         window.prj_parts_all.setModel(self.componentsModel)
-        window.prj_parts_all.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        # window.prj_parts_all.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         window.prj_parts_all.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         window.prj_parts_all.customContextMenuRequested.connect(self.matchMenu)
-        self.unmatchedModel = QStandardItemModel(self)
+        # self.unmatchedModel = QStandardItemModel(self)
+        self.unmatchedModel = ProjSelectableModel(self)
         window.no_matched_tbl.setModel(self.unmatchedModel)
-        window.no_matched_tbl.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        # window.no_matched_tbl.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tableLayouts = [ProjectTableLayout(window.prj_parts_all, factory, PROJECT_TABLE_ALL),
                              ProjectTableLayout(window.no_matched_tbl, factory, PROJECT_TABLE_UNMATCHED)]
         window.d_proj_link_cmd.clicked.connect(self.runMatching)

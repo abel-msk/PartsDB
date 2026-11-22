@@ -1041,14 +1041,14 @@
                   <enum>QFrame::Sunken</enum>
                  </property>
                  <property name="currentIndex">
-                  <number>1</number>
+                  <number>0</number>
                  </property>
                  <widget class="QWidget" name="prj_parts_lt1">
                   <property name="geometry">
                    <rect>
                     <x>0</x>
                     <y>0</y>
-                    <width>627</width>
+                    <width>689</width>
                     <height>392</height>
                    </rect>
                   </property>
@@ -1076,14 +1076,20 @@
                      <property name="frameShadow">
                       <enum>QFrame::Sunken</enum>
                      </property>
+                     <property name="editTriggers">
+                      <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
+                     </property>
                      <property name="selectionMode">
                       <enum>QAbstractItemView::SingleSelection</enum>
                      </property>
                      <property name="selectionBehavior">
-                      <enum>QAbstractItemView::SelectRows</enum>
+                      <enum>QAbstractItemView::SelectItems</enum>
                      </property>
                      <property name="sortingEnabled">
                       <bool>true</bool>
+                     </property>
+                     <property name="cornerButtonEnabled">
+                      <bool>false</bool>
                      </property>
                      <attribute name="horizontalHeaderCascadingSectionResizes">
                       <bool>false</bool>
@@ -1103,7 +1109,7 @@
                    <rect>
                     <x>0</x>
                     <y>0</y>
-                    <width>627</width>
+                    <width>689</width>
                     <height>392</height>
                    </rect>
                   </property>
@@ -1132,7 +1138,7 @@
                       <enum>QAbstractItemView::SingleSelection</enum>
                      </property>
                      <property name="selectionBehavior">
-                      <enum>QAbstractItemView::SelectRows</enum>
+                      <enum>QAbstractItemView::SelectItems</enum>
                      </property>
                      <attribute name="horizontalHeaderCascadingSectionResizes">
                       <bool>false</bool>

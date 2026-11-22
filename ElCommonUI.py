@@ -14,7 +14,7 @@ from ElConstants import (SUBTITLE_ROLE, TWO_LINE_MARGIN, TWO_LINE_GAP,
                          ICON_CELL_PADDING, ICON_CELL_PREVIEW_SIZE, ICON_CELL_CACHE_LIMIT,
                          ICON_CELL_DEFAULT_ICON_OPACITY, ICON_CELL_FRAME_RADIUS, ICON_CELL_FRAME_WIDTH,
                          ICON_CELL_FRAME_PADDING, ICON_CELL_FRAME_BACKGROUND, ICON_CELL_SHADOW_OFFSET,
-                         ICON_CELL_SHADOW_BLUR, ICON_CELL_SHADOW_ALPHA)
+                         ICON_CELL_SHADOW_BLUR, ICON_CELL_SHADOW_ALPHA, ICON_CELL_USE_SHADOW)
 import ElCommon
 from ElTranslations import TranslatedDialogMixin
 from ElWindowTexts import (sectionDialogTexts, partValuesDialogTexts,
@@ -423,13 +423,15 @@ class IconCellDelegate(QStyledItemDelegate):
         frame = QRectF(square).adjusted(0.5, 0.5, -0.5, -0.5)
         r = self.FRAME_RADIUS
 
-        # Shadow: layered rounded rects, shifted down, fading outwards
-        painter.setPen(Qt.PenStyle.NoPen)
-        for i in range(self.SHADOW_BLUR, 0, -1):
-            alpha = int(self.SHADOW_ALPHA * (self.SHADOW_BLUR - i + 1) / (self.SHADOW_BLUR + 1))
-            painter.setBrush(QColor(0, 0, 0, alpha))
-            painter.drawRoundedRect(frame.translated(0, self.SHADOW_OFFSET).adjusted(-i + 1, -i + 1, i - 1, i - 1),
-                                    r + i - 1, r + i - 1)
+        if ICON_CELL_USE_SHADOW :
+            # Shadow: layered rounded rects, shifted down, fading outwards
+            painter.setPen(Qt.PenStyle.NoPen)
+            for i in range(self.SHADOW_BLUR, 0, -1):
+                alpha = int(self.SHADOW_ALPHA * (self.SHADOW_BLUR - i + 1) / (self.SHADOW_BLUR + 1))
+                painter.setBrush(QColor(0, 0, 0, alpha))
+                painter.drawRoundedRect(frame.translated(0, self.SHADOW_OFFSET).adjusted(-i + 1, -i + 1, i - 1, i - 1),
+                                        r + i - 1, r + i - 1)
+
 
         # White card (also hides the shadow behind transparent pictures) and the picture, clipped to the frame
         path = QPainterPath()
