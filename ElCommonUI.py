@@ -3,7 +3,7 @@ import os
 from html import escape
 from PyQt6 import sip
 from PyQt6.QtCore import (QSize, Qt, QRect, QRectF, QModelIndex, QUrl, QFile,
-                          QEvent, QTimer, QPersistentModelIndex, pyqtSignal)
+                          QEvent, QTimer, QPersistentModelIndex, pyqtSignal, QObject, QSignalBlocker)
 from PyQt6.QtGui import (QColor, QFont, QFontMetrics, QPalette, QPixmap,
                          QPainter, QHelpEvent, QPainterPath, QPen)
 from PyQt6.QtWidgets import (QApplication, QStyledItemDelegate, QStyle, QStyleOptionViewItem,
@@ -21,6 +21,89 @@ from ElWindowTexts import (sectionDialogTexts, partValuesDialogTexts,
                            iconDefaultTooltipText, iconMissingTooltipText)
 
 logger = ElCommon.setLogger(__name__)
+
+
+class SectionSelector(QObject):
+    """Populate and synchronize a section combo using full tree paths and hidden IDs.
+
+    @attr factory [DBFactory] Active catalog factory.
+    @attr widget [QComboBox] Owned section selection view.
+    @attr currentTypeId [int, None] Accepted selection.
+    @attr beforeChange [callable, None] Optional veto callback accepting the new section ID.
+    """
+    selected = pyqtSignal(object)
+
+    def __init__(self, factory, widget, before_change=None):
+        """Bind a combo and populate its paths.
+
+        @param factory [DBFactory] Active catalog.
+        @param widget [QComboBox] Combo whose item data stores section IDs.
+        @param before_change [callable, None] Return False to cancel a selection change.
+        """
+        super().__init__(widget)
+        self.factory, self.widget = factory, widget
+        self.beforeChange = before_change
+        self.currentTypeId = None
+        self.reload()
+        widget.currentIndexChanged.connect(self._changed)
+
+    def reload(self, factory=None):
+        """Refresh paths, retaining a valid selection without emitting change signals.
+
+        @param factory [DBFactory, None] Replacement catalog; None keeps the current one.
+        """
+        if factory is not None:
+            self.factory = factory
+        with QSignalBlocker(self.widget):
+            self.widget.clear()
+            self._addTypes(self.factory.getRootTypes(), [])
+            self.widget.setCurrentIndex(self.widget.findData(self.currentTypeId))
+        self.currentTypeId = self.widget.currentData()
+        logger.debug('Section selector loaded: count=%s selected=%s', self.widget.count(), self.currentTypeId)
+
+    def _addTypes(self, types, path):
+        """Append section paths recursively.
+
+        @param types [Types] Sections at the current depth.
+        @param path [list[str]] Ancestor section names.
+        """
+        for section in types:
+            names = path + [section.name]
+            self.widget.addItem(' / '.join(names), section.recId)
+            self._addTypes(section.getChildren(), names)
+
+    def select(self, type_id=None, fallback=False, notify=True):
+        """Choose a section by identity or clear the combo.
+
+        @param type_id [int, None] Requested section ID; None clears selection.
+        @param fallback [bool] Select the first section when the requested ID is absent.
+        @param notify [bool] Apply veto callback and emit selected when True.
+        """
+        index = self.widget.findData(type_id) if type_id is not None else -1
+        if index < 0 and fallback and self.widget.count():
+            index = 0
+        with QSignalBlocker(self.widget):
+            self.widget.setCurrentIndex(index)
+        if notify:
+            self._changed(index)
+        else:
+            self.currentTypeId = self.widget.currentData()
+
+    def _changed(self, index):
+        """Accept a choice or restore the previous choice after a veto.
+
+        @param index [int] New combo index; -1 clears selection.
+        """
+        type_id = self.widget.itemData(index)
+        if type_id == self.currentTypeId:
+            return
+        if self.beforeChange is not None and not self.beforeChange(type_id):
+            self.select(self.currentTypeId, notify=False)
+            logger.debug('Section change cancelled: requested=%s', type_id)
+            return
+        self.currentTypeId = type_id
+        logger.debug('Section selected: type=%s', type_id)
+        self.selected.emit(type_id)
 
 
 def fontSettings(config):

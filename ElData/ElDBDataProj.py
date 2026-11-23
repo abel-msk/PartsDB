@@ -72,3 +72,14 @@ def takePreviousComponent(previous, row):
                 if members.intersection(json.loads(existing['properties_json']).get(
                     COMPONENT_MEMBER_IDS, [existing['external_id']]))), None)
     return previous.pop(key, None)
+
+
+def saveAutomaticMatches(factory, project_id, results):
+    """Save one complete matching snapshot through the schema layer.
+
+    @param factory [DBFactory] Catalog used for this pass.
+    @param project_id [int] Imported project identity.
+    @param results [list[tuple[dict, tuple[int]]]] Original rows and their candidate identities.
+    @return [int] Newly confirmed unique matches; existing links are retained.
+    """
+    return factory.scheme.saveAutomaticMatches(project_id, results)

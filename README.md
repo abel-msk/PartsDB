@@ -1,4 +1,4 @@
-# PartsDB 2.0
+# PartsDB 2.1
 
 [Русская версия](README.ru.md)
 
@@ -8,9 +8,10 @@ in a single SQLite file.
 
 ![Catalog: Main window.](docs/images/main_win.png)
 
-Version 2.0 adds KiCad project imports, plugin management, editable SI units and
-basic component types, and external project application launch. Database schema: **9**.
-See the [2.0 changelog](CHANGELOG.md#20--2026-11-21).
+Version 2.1 adds manual matching in the Projects sidebar and explicit saving of
+unique automatic matches from the log. It also documents plugin-based schematic
+imports and matching in English and Russian. Database schema: **12**.
+See the [2.1 changelog](CHANGELOG.md#21--2026-11-24).
 
 ## Features
 
@@ -46,7 +47,11 @@ See the [2.0 changelog](CHANGELOG.md#20--2026-11-21).
 - **Projects and KiCad import.** Install the KiCad importer wheel through **Setup → Plugins...**,
   then add a project on the **Projects** tab. Preview the component list before saving it.
   Repeat imports preserve existing stock matches and mark changed requirements for review.
-  Importing never changes stock quantities; confirmed matches can be managed from the component context menu.
+  After automatic matching, click **Save** in the log to persist unique matches; **Cancel** closes it without saving.
+  To link manually, select a project component, choose a section and catalog part in the right panel,
+  review its properties, and click **Link**. Existing matches or candidates require confirmation before replacement.
+  [Step-by-step instructions](docs/parts-matching.en.md#manual-matching-in-the-right-panel).
+  Importing never changes stock quantities; remove confirmed links from the component context menu.
 - **Plugin management.** Install and update from wheel, replace an importer for the same external system,
   enable/disable or remove it, and view its log. Plugins run in separate Python environments and processes.
   The standalone application needs an installed Python 3.9+ to create plugin environments.
@@ -61,6 +66,40 @@ See the [2.0 changelog](CHANGELOG.md#20--2026-11-21).
 
 ![Projects: window](docs/images/projects.png)
 ![Plugin: Management](docs/images/plugin_mgr.png)
+
+## Plugins and matching schematic components to stock
+
+PartsDB supports project importer plugins and matches schematic components returned
+by a plugin to part cards in your stock catalog. The available KiCad importer reads
+`.kicad_pro` or `.kicad_sch` files, including child sheets. The plugin extracts
+references, values, component kinds and footprints; PartsDB previews the imported
+components and matches them against your catalog.
+
+1. Open **Setup → Plugins...**, click **Install from file**, select the plugin's
+   `.whl` package, and make sure the installed importer is enabled. To build the
+   KiCad importer from source, run `./build.sh -p`; the package appears in `dist/plugins/`.
+2. On the **Projects** tab, click **Add Project**, choose the importer and a project
+   or schematic file, review the preview, and save the import.
+3. Select the imported project and click **Link Part**. PartsDB searches for
+   candidates using the component kind, original schematic value and configured
+   section key columns, taking SI units and mounting into account. The log shows
+   progress and results for each component group.
+4. When the search finishes, click **Save** in the log. Only unique matches are
+   saved: one candidate for a component that has no confirmed link yet. Existing
+   links are preserved. **Cancel** closes the log without saving matches.
+5. For ambiguous or missing results, select a component row, then choose a section
+   and catalog card in the right panel. Review its properties and click **Link**.
+   Replacing an existing match requires confirmation.
+
+Imports and matching do not change stock quantities. The search includes catalog
+cards regardless of availability, so a match does not establish that enough parts
+are in stock. After editing the schematic, use **Reload Data**; existing links are
+retained and changed requirements are marked for review. Click **Link Part** again
+to run a new search.
+
+Documentation: [automatic matching](docs/parts-matching.en.md#using-automatic-matching),
+[manual part selection](docs/parts-matching.en.md#manual-matching-in-the-right-panel),
+and [plugin installation and imports (Russian)](docs/plugins-ui.md).
 
 ## Installation
 
@@ -115,7 +154,7 @@ test fails.
 Plugin sources are in `ElPartsPluginSrc/kicad`.
 The SDK defines `project_import`, `parts_order` and `shipment_tracking` types.
 Each plugin declares its type in the manifest and `get_plugin_type()`; it is
-validated before use and stored in SQLite `PLUGINS` (current database schema: 9).
+validated before use and stored in SQLite `PLUGINS` (current database schema: 12).
 
 
 Use `./build.sh -p` to build the KiCad plugin wheel in `dist/plugins/`, or
@@ -234,7 +273,7 @@ after success or `--failed` after failure.
 
 ### Plugin documentation
 
-- [Automatic candidate matching](docs/parts-matching.md).
+- [Automatic and manual part matching (English)](docs/parts-matching.en.md) · [Русская версия](docs/parts-matching.md).
 - [Installation, imports, configuration and test cleanup](docs/plugin-runtime.md).
 - [Architecture and public API](docs/plugin-architecture-and-api.md).
 - [Plugin manager and Projects UI](docs/plugins-ui.md).

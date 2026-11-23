@@ -103,3 +103,5 @@ ICON_CELL_SHADOW_OFFSET = 2
 ICON_CELL_SHADOW_BLUR = 3
 ICON_CELL_SHADOW_ALPHA = 60
 ICON_CELL_USE_SHADOW = False
+# Default project matching sidebar width in logical pixels.
+PROJECT_RIGHT_DEFAULT_WIDTH = 100

@@ -221,12 +221,20 @@ p, li { white-space: pre-wrap; }
       <translation>Последний импорт</translation>
     </message>
     <message>
+      <source>Link</source>
+      <translation>Привязать</translation>
+    </message>
+    <message>
       <source>Link Part</source>
       <translation>Сопоставить деталь</translation>
     </message>
     <message>
       <source>Open App</source>
       <translation>Открыть приложение</translation>
+    </message>
+    <message>
+      <source>Parts</source>
+      <translation>Детали</translation>
     </message>
     <message>
       <source>Parts not in store</source>
@@ -249,6 +257,10 @@ p, li { white-space: pre-wrap; }
       <translation>Копировать колонки</translation>
     </message>
     <message>
+      <source>Property</source>
+      <translation>Свойства</translation>
+    </message>
+    <message>
       <source>Refresh date</source>
       <translation>Дата обновления</translation>
     </message>
@@ -269,6 +281,10 @@ p, li { white-space: pre-wrap; }
       <translation>Поиск</translation>
     </message>
     <message>
+      <source>Sections</source>
+      <translation>Разделы</translation>
+    </message>
+    <message>
       <source>Used Parts</source>
       <translation>Используемые детали</translation>
     </message>
@@ -284,16 +300,16 @@ p, li { white-space: pre-wrap; }
       <translation>Отменено</translation>
     </message>
     <message>
-      <source>Close</source>
-      <translation>Закрыть</translation>
-    </message>
-    <message>
       <source>Completed</source>
       <translation>Завершено</translation>
     </message>
     <message>
       <source>Component matching</source>
       <translation>Сопоставление компонентов</translation>
+    </message>
+    <message>
+      <source>Could not save matches</source>
+      <translation>Не удалось сохранить сопоставления</translation>
     </message>
     <message>
       <source>Error: {}</source>
@@ -306,6 +322,12 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Log:</source>
       <translation>Журнал:</translation>
+    </message>
+    <message>
+      <source>Matches were not saved. Run matching again if the project or database changed.
+{}</source>
+      <translation>Сопоставления не сохранены. Если проект или база изменились, запустите сопоставление заново.
+{}</translation>
     </message>
     <message>
       <source>No match</source>
@@ -1151,6 +1173,37 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Version</source>
       <translation>Версия</translation>
+    </message>
+  </context>
+  <context>
+    <name>ProjectSelector</name>
+    <message>
+      <source>First select a project component and a catalog part.</source>
+      <translation>Сначала выберите компонент проекта и деталь каталога.</translation>
+    </message>
+    <message>
+      <source>Link</source>
+      <translation>Привязать</translation>
+    </message>
+    <message>
+      <source>Parts</source>
+      <translation>Детали</translation>
+    </message>
+    <message>
+      <source>Properties</source>
+      <translation>Свойства</translation>
+    </message>
+    <message>
+      <source>Sections</source>
+      <translation>Разделы</translation>
+    </message>
+    <message>
+      <source>Stock match</source>
+      <translation>Сопоставление со складом</translation>
+    </message>
+    <message>
+      <source>This component already has matches. Replace the match?</source>
+      <translation>Для этого компонента уже есть сопоставления. Заменить сопоставление?</translation>
     </message>
   </context>
   <context>

@@ -228,12 +228,20 @@ p, li { white-space: pre-wrap; }
       <translation>Last Import</translation>
     </message>
     <message>
+      <source>Link</source>
+      <translation>Link</translation>
+    </message>
+    <message>
       <source>Link Part</source>
       <translation>Link Part</translation>
     </message>
     <message>
       <source>Open App</source>
       <translation>Open App</translation>
+    </message>
+    <message>
+      <source>Parts</source>
+      <translation>Parts</translation>
     </message>
     <message>
       <source>Parts not in store</source>
@@ -256,6 +264,10 @@ p, li { white-space: pre-wrap; }
       <translation>Propagate Header</translation>
     </message>
     <message>
+      <source>Property</source>
+      <translation>Property</translation>
+    </message>
+    <message>
       <source>Refresh date</source>
       <translation>Refresh date</translation>
     </message>
@@ -276,6 +288,10 @@ p, li { white-space: pre-wrap; }
       <translation>Search</translation>
     </message>
     <message>
+      <source>Sections</source>
+      <translation>Sections</translation>
+    </message>
+    <message>
       <source>Used Parts</source>
       <translation>Used Parts</translation>
     </message>
@@ -291,16 +307,16 @@ p, li { white-space: pre-wrap; }
       <translation>Cancelled</translation>
     </message>
     <message>
-      <source>Close</source>
-      <translation>Close</translation>
-    </message>
-    <message>
       <source>Completed</source>
       <translation>Completed</translation>
     </message>
     <message>
       <source>Component matching</source>
       <translation>Component matching</translation>
+    </message>
+    <message>
+      <source>Could not save matches</source>
+      <translation>Could not save matches</translation>
     </message>
     <message>
       <source>Error: {}</source>
@@ -313,6 +329,12 @@ p, li { white-space: pre-wrap; }
     <message>
       <source>Log:</source>
       <translation>Log:</translation>
+    </message>
+    <message>
+      <source>Matches were not saved. Run matching again if the project or database changed.
+{}</source>
+      <translation>Matches were not saved. Run matching again if the project or database changed.
+{}</translation>
     </message>
     <message>
       <source>No match</source>
@@ -1158,6 +1180,37 @@ Document files will remain on disk. The icon file in the icons folder will be de
     <message>
       <source>Version</source>
       <translation>Version</translation>
+    </message>
+  </context>
+  <context>
+    <name>ProjectSelector</name>
+    <message>
+      <source>First select a project component and a catalog part.</source>
+      <translation>First select a project component and a catalog part.</translation>
+    </message>
+    <message>
+      <source>Link</source>
+      <translation>Link</translation>
+    </message>
+    <message>
+      <source>Parts</source>
+      <translation>Parts</translation>
+    </message>
+    <message>
+      <source>Properties</source>
+      <translation>Properties</translation>
+    </message>
+    <message>
+      <source>Sections</source>
+      <translation>Sections</translation>
+    </message>
+    <message>
+      <source>Stock match</source>
+      <translation>Stock match</translation>
+    </message>
+    <message>
+      <source>This component already has matches. Replace the match?</source>
+      <translation>This component already has matches. Replace the match?</translation>
     </message>
   </context>
   <context>

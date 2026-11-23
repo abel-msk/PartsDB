@@ -13,6 +13,7 @@ from ElData import ElDBScheme
 import ElDefaultIcons
 import ElCommon as ElCommon
 from ElHdrEditWnd import Ui_HdrEditDialog
+from ElCommonUI import SectionSelector
 
 logger = ElCommon.setLogger(__name__)
 # logger = logging.getLogger(__name__)
@@ -272,8 +273,8 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
 
         self.currentTypeId = None
         self.pendingIcon = None  # icon chosen for the current type but not saved yet ('' = auto)
-        self._fillTypesList()
-        self.ui.typesList.currentIndexChanged.connect(self.onTypeSelected)
+        self.typeSelector = SectionSelector(factory, self.ui.typesList, self._beforeTypeChange)
+        self.typeSelector.selected.connect(self._load)
         self._fillIconSelector()
         self.ui.icon_selector.currentIndexChanged.connect(self.onIconSelected)
         self.retranslate()
@@ -350,57 +351,22 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
         @return [bool] True when header settings or the icon have unsaved changes."""
         return self.tableModel.isChanged() or self.pendingIcon is not None
 
-    def _fillTypesList(self):
-        """Populate section choices using their full tree paths.
+    def _beforeTypeChange(self, typeId):
+        """Offer to save pending edits before the shared selector accepts a new section.
 
-        @return [None] Update the owned UI or state without returning a value."""
-        combo: QtWidgets.QComboBox = self.ui.typesList
-        combo.blockSignals(True)
-        combo.clear()
-        self._addTypes(self.factory.getRootTypes(), [])
-        combo.blockSignals(False)
-
-    def _addTypes(self, types: ElDBScheme.Types, path: list):
-        """Append section paths recursively to the type selector.
-
-        @param types [Types] Section collection to traverse recursively.
-        @param path [list[str]] Ancestor section names used to form display paths.
-        @return [None] Update the owned UI or state without returning a value."""
-        for theType in types:
-            typePath = path + [theType.name]
-            self.ui.typesList.addItem(" / ".join(typePath), theType.recId)
-            if theType.isChildren():
-                self._addTypes(theType.getChildren(), typePath)
-
-    def onTypeSelected(self, index):
-        """Handle section changes, offering to save or discard pending edits.
-
-        @param index [int] Zero-based combo-box choice index.
-        @return [None] Update the owned UI or state without returning a value."""
-        typeId = self.ui.typesList.itemData(index)
-        if typeId is None or typeId == self.currentTypeId:
-            return
-        if self.isChanged():
-            answer = QMessageBox.question(
-                self, translate("PartsDB", 'Unsaved changes'),
-                translate("PartsDB", 'Save header and icon changes for the current type?'),
-                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard
-                | QMessageBox.StandardButton.Cancel)
-            if answer == QMessageBox.StandardButton.Cancel:
-                # Return the combo to the type being edited
-                combo = self.ui.typesList
-                combo.blockSignals(True)
-                combo.setCurrentIndex(combo.findData(self.currentTypeId))
-                combo.blockSignals(False)
-                return
-            if answer == QMessageBox.StandardButton.Save:
-                if not self.onSave():
-                    combo = self.ui.typesList
-                    combo.blockSignals(True)
-                    combo.setCurrentIndex(combo.findData(self.currentTypeId))
-                    combo.blockSignals(False)
-                    return
-        self._load(typeId)
+        @param typeId [int, None] Requested section ID.
+        @return [bool] False when cancelled or saving fails validation.
+        """
+        if not self.isChanged():
+            return True
+        answer = QMessageBox.question(
+            self, translate("PartsDB", 'Unsaved changes'),
+            translate("PartsDB", 'Save header and icon changes for the current type?'),
+            QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel)
+        if answer == QMessageBox.StandardButton.Cancel:
+            return False
+        return answer != QMessageBox.StandardButton.Save or self.onSave()
 
     def _load(self, typeId):
         """Load settings and the default icon for one section.
@@ -417,16 +383,9 @@ class HeaderEditDialog(TranslatedDialogMixin, QDialog):
 
         @param typeId [int, None] Section ID; None selects a fallback only in loadData.
         @return [None] Update the owned UI or state without returning a value."""
-        combo = self.ui.typesList
-        index = combo.findData(typeId) if typeId is not None else -1
-        if index < 0:
-            index = 0 if combo.count() > 0 else -1
-        if index < 0:
-            return
-        combo.blockSignals(True)
-        combo.setCurrentIndex(index)
-        combo.blockSignals(False)
-        self._load(combo.itemData(index))
+        self.typeSelector.select(typeId, fallback=True, notify=False)
+        if self.typeSelector.currentTypeId is not None:
+            self._load(self.typeSelector.currentTypeId)
 
     def accept(self):
         """Validate and save pending changes before accepting the dialog.

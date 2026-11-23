@@ -90,3 +90,25 @@ def matchingPart(factory, part_id):
     @return [dict, None] Card with ordered keys; None when the card no longer exists.
     """
     return factory.scheme.loadMatchingPart(part_id)
+
+
+def sectionParts(factory, type_id):
+    """Read catalog cards in a section and its descendants through the factory.
+
+    @param factory [DBFactory] Active catalog.
+    @param type_id [int] Existing catalog section ID.
+    @return [list[Part]] Cards carrying their actual section IDs.
+    """
+    return list(factory.loadPartsByType(factory.getTypeByID(type_id)))
+
+
+def visibleHeaders(factory, type_id):
+    """Read effective visible fields in configured order, excluding internal identities.
+
+    @param factory [DBFactory] Active catalog.
+    @param type_id [int] Section whose headers apply to the displayed card.
+    @return [list[Header]] Visible user fields, including inherited defaults.
+    """
+    headers = factory.getHeadersByType(type_id)
+    return sorted((headers[field] for field in ELEMENT_FLD_NAMES[2:] if not headers[field]['hidden']),
+                  key=lambda header: header['position'])

@@ -8,7 +8,8 @@ import sys
 from PyQt6.QtGui import QStandardItem, QStandardItemModel
 from PyQt6.QtWidgets import QAbstractItemView, QMenu, QMessageBox, QPushButton, QHeaderView
 
-from ElData import ElDBDataProj
+from ElData import ElDBDataProj, ElDBDataParts
+from ElCommonUI import SectionSelector
 from ElData.ElDBDataPlagins import PluginDataStore
 from ElProjList import ProjList
 from ElConstants import (PROJECT_TABLE_ALL, PROJECT_TABLE_UNMATCHED, MATCHING_CANDIDATES_ROLE,
@@ -18,8 +19,8 @@ from ElConstants import (PROJECT_TABLE_ALL, PROJECT_TABLE_UNMATCHED, MATCHING_CA
 from ElPartsMatching import PartsMatching
 from ElMatchingLog import MatchingLogDialog
 from ElWindowTexts import (projWindowTexts, projectMatchTexts, projectComponentHeaders,
-                           projectMatchingButtonTexts)
-from ElTranslations import translate
+                           projectMatchingButtonTexts, projectSelectorTexts)
+from ElTranslations import translate, defaultHeaderText
 from ElPluginMgr.repository import ProjectRepository
 
 logger = ElCommon.setLogger(__name__)
@@ -116,18 +117,22 @@ class ProjectTableLayout(QObject):
 
 
 class ProjSelectableModel(QStandardItemModel):
-    """ Overwrite standard class for give user clicr, select an item, but  keep unchanged """
+    """Allow copying editable-looking project cells while keeping imported model values unchanged."""
     def __init__(self, parent):
+        """Create the model. @param parent [QObject] Owning project controller."""
         super(ProjSelectableModel, self).__init__(parent)
 
     def flags(self, index):
+        """Enable cell editors for copying. @param index [QModelIndex] Project cell."""
         return ( super().flags(index)
                 | Qt.ItemFlag.ItemIsEditable
         )
     def setData(self, index, value, role):
+        """Ignore user edits and store metadata. @param index [QModelIndex]; value [object]; role [int]."""
         if role == Qt.ItemDataRole.EditRole:
             # self._data[index.row()][index.column()] = value
             return True
+        return super().setData(index, value, role)
 
 class ProjWindow(QObject):
     """Manage the Projects tab, project actions and component tables.
@@ -139,7 +144,11 @@ class ProjWindow(QObject):
     @attr unmatchedModel [QStandardItemModel] Rows with neither catalog candidates nor a confirmed link.
     @attr matchingRequested [pyqtBoundSignal] Emits an internal component ID for the future matching form.
     @attr matchingCandidates [dict[int, list[CatalogMatch]]] Automatic candidates keyed by hidden component ID.
-    @attr tableLayouts [list[ProjectTableLayout]] Saved sizing preferences for both tables."""
+    @attr tableLayouts [list[ProjectTableLayout]] Saved sizing preferences for both tables.
+    @attr sectionSelector [SectionSelector] Shared catalog section combo controller.
+    @attr catalogModel [QStandardItemModel] Key labels and hidden stock cards.
+    @attr propertyModel [QStandardItemModel] Single-line visible column names and values.
+    @attr selectedComponentId [int, None] Latest selected imported component identity."""
     addProjectRequested = pyqtSignal()
     removeProjectRequested = pyqtSignal(object)
     reloadProjectRequested = pyqtSignal(object)
@@ -170,6 +179,21 @@ class ProjWindow(QObject):
         self.tableLayouts = [ProjectTableLayout(window.prj_parts_all, factory, PROJECT_TABLE_ALL),
                              ProjectTableLayout(window.no_matched_tbl, factory, PROJECT_TABLE_UNMATCHED)]
         window.d_proj_link_cmd.clicked.connect(self.runMatching)
+        self.selectedComponentId = None
+        self.sectionSelector = SectionSelector(factory, window.section_list)
+        self.catalogModel = QStandardItemModel(self)
+        self.propertyModel = QStandardItemModel(self)
+        window.parts_list.setModel(self.catalogModel)
+        window.prop_list.setModel(self.propertyModel)
+        window.parts_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        window.prop_list.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.sectionSelector.selected.connect(self.loadSectionParts)
+        window.parts_list.selectionModel().currentChanged.connect(self.showPartProperties)
+        window.p_link_cmd.clicked.connect(self.linkSelectedPart)
+        for table in (window.prj_parts_all, window.no_matched_tbl):
+            table.selectionModel().currentChanged.connect(self.selectComponent)
+            table.clicked.connect(self.selectComponent)
+        self.matchingRequested.connect(self.selectComponentById)
         self.projList = ProjList(factory, window.proj_list)
         self.projList.projectSelected.connect(self.onProjectSelected)
         window.proj_add_cmd.clicked.connect(self.onAddProject)
@@ -187,6 +211,9 @@ class ProjWindow(QObject):
         @param factory [DBFactory] Factory connected to the active database.
         @return [None] No value is returned."""
         self.matchingResults.clear()
+        self.sectionSelector.select(None, notify=False)
+        self.sectionSelector.reload(factory)
+        self.loadSectionParts(None)
         for layout in self.tableLayouts:
             layout.setFactory(factory)
         self.projList.setFactory(factory)
@@ -195,6 +222,7 @@ class ProjWindow(QObject):
         """Reload cards and update details after backend changes.
 
         @return [None] No value is returned."""
+        self.sectionSelector.reload()
         self.projList.load()
 
     def retranslate(self):
@@ -202,6 +230,11 @@ class ProjWindow(QObject):
 
         @return [None] No value is returned."""
         projWindowTexts(self.ui)
+        if hasattr(self, "propertyModel"):
+            for row in range(self.propertyModel.rowCount()):
+                item = self.propertyModel.item(row)
+                header, field, value = item.data(Qt.ItemDataRole.UserRole)
+                item.setText(f"{defaultHeaderText(header, field)}: {value}")
         self.onProjectSelected(self.project, load_components=False)
         headers = projectComponentHeaders()
         self.componentsModel.setHorizontalHeaderLabels(headers)
@@ -284,6 +317,9 @@ class ProjWindow(QObject):
 
         @param project [Project, None] Selected database card; None clears the details.
         @return [None] No value is returned."""
+        self.selectedComponentId = None
+        self.sectionSelector.select(None, notify=False)
+        self.loadSectionParts(None)
         self.componentsModel.clear()
         self.unmatchedModel.clear()
         self.matchingCandidates.clear()
@@ -330,6 +366,126 @@ class ProjWindow(QObject):
         for layout in self.tableLayouts:
             layout.schedule()
 
+    def loadSectionParts(self, type_id):
+        """Fill catalog choices from visible key values joined by spaces.
+
+        @param type_id [int, None] Section to browse; None clears both lists.
+        """
+        self.catalogModel.clear()
+        self.propertyModel.clear()
+        if type_id is None:
+            return
+        factory = self.sectionSelector.factory
+        headers = {}
+        for part in ElDBDataParts.sectionParts(factory, type_id):
+            if part['type_id'] not in headers:
+                headers[part['type_id']] = ElDBDataParts.visibleHeaders(factory, part['type_id'])
+            keys = [header for header in headers[part['type_id']] if header['is_key']]
+            label = ' '.join(str(part[h['field_name']]).strip() for h in keys
+                             if part[h['field_name']] is not None and str(part[h['field_name']]).strip())
+            item = QStandardItem(label)
+            item.setData(part, Qt.ItemDataRole.UserRole)
+            self.catalogModel.appendRow(item)
+        logger.debug('Catalog selector loaded: section=%s cards=%s', type_id, self.catalogModel.rowCount())
+
+    def showPartProperties(self, current, previous=None):
+        """Render each visible field as a standard single-line name/value entry.
+
+        @param current [QModelIndex] Selected catalog card, or invalid index to clear properties.
+        @param previous [QModelIndex, None] Previous selection supplied by Qt.
+        """
+        self.propertyModel.clear()
+        part = current.data(Qt.ItemDataRole.UserRole) if current.isValid() else None
+        if part is None:
+            return
+        for header in ElDBDataParts.visibleHeaders(self.sectionSelector.factory, part['type_id']):
+            field = header['field_name']
+            value = '' if part[field] is None else ' '.join(str(part[field]).splitlines())
+            item = QStandardItem(f"{defaultHeaderText(header, field)}: {value}")
+            item.setData((header, field, value), Qt.ItemDataRole.UserRole)
+            self.propertyModel.appendRow(item)
+        logger.debug('Catalog properties shown: part=%s fields=%s', part.id, self.propertyModel.rowCount())
+
+    def selectComponent(self, current, previous=None):
+        """Synchronize catalog selectors with the latest selected row in either project table.
+
+        @param current [QModelIndex] Component cell; invalid indices clear the active component.
+        @param previous [QModelIndex, None] Previous cell supplied by Qt.
+        """
+        self.selectComponentById(current.siblingAtColumn(0).data(Qt.ItemDataRole.UserRole)
+                                 if current.isValid() else None)
+
+    def selectComponentById(self, component_id):
+        """Show a confirmed stock card or the first candidate; clear selectors without a match.
+
+        @param component_id [int, None] Stable imported component ID, never displayed.
+        """
+        self.selectedComponentId = component_id
+        self.sectionSelector.select(None, notify=False)
+        self.loadSectionParts(None)
+        if component_id is None or self.project is None:
+            return
+        match = ProjectRepository(self.projList.factory.scheme).matches(self.project.id).get(component_id)
+        candidates = self.matchingCandidates.get(component_id, [])
+        part_id = match['part_id'] if match else candidates[0].part_id if candidates else None
+        if part_id is None:
+            logger.debug('Selected component has no catalog match: component=%s', component_id)
+            return
+        card = ElDBDataParts.matchingPart(self.sectionSelector.factory, part_id)
+        if card is None:
+            return
+        self.sectionSelector.select(card['type_id'], notify=False)
+        self.loadSectionParts(card['type_id'])
+        for row in range(self.catalogModel.rowCount()):
+            index = self.catalogModel.index(row, 0)
+            if index.data(Qt.ItemDataRole.UserRole).id == part_id:
+                self.ui.parts_list.setCurrentIndex(index)
+                self.ui.parts_list.scrollTo(index)
+                break
+        logger.debug('Component selectors synchronized: component=%s part=%s', component_id, part_id)
+
+    def linkSelectedPart(self):
+        """Confirm a selected stock link, asking before replacing a match or candidates.
+
+        @return [None] Save through the project repository and refresh both tables.
+        """
+        part = self.ui.parts_list.currentIndex().data(Qt.ItemDataRole.UserRole)
+        component_id = self.selectedComponentId
+        title, missing, replace = projectSelectorTexts()
+        component_selected = any(
+            index.siblingAtColumn(0).data(Qt.ItemDataRole.UserRole) == component_id
+            for table in (self.ui.prj_parts_all, self.ui.no_matched_tbl)
+            for index in table.selectionModel().selectedIndexes())
+        stock_selected = bool(self.ui.parts_list.selectionModel().selectedIndexes())
+        if (self.project is None or component_id is None or part is None
+                or not component_selected or not stock_selected):
+            logger.debug('Skipping stock link: project=%s component=%s part=%s',
+                         self.project.id if self.project else None, component_id, part.id if part else None)
+            QMessageBox.warning(self.ui, title, missing)
+            return
+        repository = ProjectRepository(self.projList.factory.scheme)
+        matches = repository.matches(self.project.id)
+        if component_id in matches or self.matchingCandidates.get(component_id):
+            if QMessageBox.question(self.ui, title, replace,
+                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                    QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+                logger.debug('Stock link replacement cancelled: component=%s', component_id)
+                return
+        try:
+            logger.debug('Saving stock link: component=%s part=%s', component_id, part.id)
+            repository.set_match(component_id, part.id)
+            self.loadComponents(self.project)
+            for row in range(self.componentsModel.rowCount()):
+                index = self.componentsModel.index(row, 0)
+                if index.data(Qt.ItemDataRole.UserRole) == component_id:
+                    self.ui.prj_parts_all.setCurrentIndex(index)
+                    break
+            self.selectComponentById(component_id)
+            logger.debug('Stock link saved: component=%s part=%s', component_id, part.id)
+        except Exception as exc:
+            logger.exception('Stock link failed: component=%s part=%s', component_id, part.id)
+            QMessageBox.critical(self.ui, title, str(exc))
+
     def runMatching(self):
         """Start an explicit matching pass, yielding to Qt between component rows.
 
@@ -341,7 +497,22 @@ class ProjWindow(QObject):
         factory = self.projList.factory
         rows = ProjectRepository(factory.scheme).components(project.id)
         logger.debug('Starting explicit matching: project=%s groups=%s', project.id, len(rows))
-        dialog = MatchingLogDialog(len(rows), self.ui)
+        results = []
+
+        def save():
+            """Persist this pass only while its source database is still active.
+
+            @return [int] Newly confirmed unique links; existing links are preserved.
+            @raise [ValueError] The active database changed before Save.
+            """
+            if self.projList.factory is not factory:
+                raise ValueError('The active database changed since matching started')
+            saved = ElDBDataProj.saveAutomaticMatches(factory, project.id, results)
+            if self.project and self.project.id == project.id:
+                self.loadComponents(self.project)
+            return saved
+
+        dialog = MatchingLogDialog(len(rows), self.ui, save_callback=save)
         self.matchingLog = dialog
         matcher = PartsMatching(factory)
         position = 0
@@ -368,6 +539,7 @@ class ProjWindow(QObject):
             try:
                 candidates = matcher.findCandidates(row)
                 self.matchingResults[(project.id, row['id'])] = (dict(row), candidates)
+                results.append((dict(row), tuple(candidate.part_id for candidate in candidates)))
                 position += 1
                 dialog.record(position, row, candidates)
                 QTimer.singleShot(0, advance)

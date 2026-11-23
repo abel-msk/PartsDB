@@ -3,6 +3,7 @@ from PyQt6.QtCore import QT_TRANSLATE_NOOP
 from ElTranslations import TranslatedAction as QAction
 from ElTranslations import LanguageManager
 from ElWindowTexts import mainWindowTexts
+from ElConstants import PROJECT_RIGHT_DEFAULT_WIDTH
 from PyQt6.QtGui import QActionGroup
 import logging
 import os
@@ -560,10 +561,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusbar.showMessage(translate("PartsDB", "Looking for parts with '{}'").format(searchStr))
 
     def closeEvent(self, event):
-        """
-        Event occurred when the main window classed
-        :param event:
-        :return:
+        """Save window geometry and visible splitter widths to configuration.
+
+        @param event [QCloseEvent] Qt close notification.
         """
         # self.DB.disconnect()
         if self.config is not None:
@@ -572,6 +572,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.config.set_value("tree_width", self.selector_split.sizes()[0], "window")
             if self._project_width_restored:
                 self.config.set_value("project_list_width", self.project_split.sizes()[0], "window")
+                self.config.set_value("project_right_width", self.project_split.sizes()[2], "window")
             self.config.set_value("active_tab", self.view.currentIndex(), "window")
 
             # (x, y) = self.location_on_the_screen()
@@ -693,18 +694,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.selector_split.setSizes([tree_width, available_width - tree_width])
         self.restoreProjectWidth()
 
+    def showEvent(self, event):
+        """Restore matching sidebar geometry after the initial visible layout is ready.
+
+        @param event [QShowEvent] Qt window visibility notification.
+        """
+        super().showEvent(event)
+        QtCore.QTimer.singleShot(0, self.restoreProjectWidth)
+
     def restoreProjectWidth(self, index=None):
+        """Restore project navigation and matching panel widths after the tab becomes visible.
+
+        @param index [int, None] Activated tab index from Qt; unused for geometry calculation.
+        """
         # Hidden tabs have not received their final geometry yet.
         if self._project_width_restored or not self.project_tab.isVisible():
             return
-        available_width = max(0, self.project_split.width() - self.project_split.handleWidth())
+        available_width = max(0, self.project_split.width() - self.project_split.handleWidth() * (self.project_split.count() - 1))
         width = self.config.get_value("project_list_width", "window") if self.config is not None else None
         if type(width) is not int or width < 0:
             width = int(available_width * 0.25)
-        width = min(width, available_width)
+        right = self.config.get_value("project_right_width", "window") if self.config is not None else None
+        if type(right) is not int or right < 0:
+            right = max(self.project_right_frame.minimumSizeHint().width(), PROJECT_RIGHT_DEFAULT_WIDTH)
+        right = min(right, available_width)
+        width = min(width, max(0, available_width - right))
         self.project_split.setStretchFactor(0, 0)
         self.project_split.setStretchFactor(1, 1)
-        self.project_split.setSizes([width, available_width - width])
+        self.project_split.setStretchFactor(2, 0)
+        self.project_split.setSizes([width, max(0, available_width - width - right), right])
+        logger.debug('Project splitter widths restored: sizes=%s', self.project_split.sizes())
         self._project_width_restored = True
 
     def setStartupMode(self, startupMode):

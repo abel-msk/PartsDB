@@ -1049,6 +1049,34 @@ class DBScheme:
                     'ON CONFLICT(component_id) DO UPDATE SET part_id=excluded.part_id,needs_review=0,'
                     "matched_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')", (component_id, part_id))
 
+    def saveAutomaticMatches(self, project_id, results):
+        """Atomically confirm unique candidates for unchanged component rows, preserving existing links.
+
+        @param project_id [int] Project whose complete matching pass is being saved.
+        @param results [list[tuple[dict, tuple[int]]]] Original component rows and candidate IDs.
+        @return [int] Number of newly confirmed links; ambiguous and unmatched rows are skipped.
+        @raise [ValueError] Project requirements changed after the pass started.
+        """
+        saved = 0
+        logger.debug('Saving automatic matches: project=%s groups=%s', project_id, len(results))
+        with self.transaction(foreign_keys=True):
+            current = {row['id']: row for row in self.loadProjectComponents(project_id).values()}
+            expected = {row['id']: row for row, _ in results}
+            if current != expected:
+                raise ValueError('Project components changed since matching started')
+            existing = self.loadProjectMatches(project_id)
+            for row, candidates in results:
+                if row['id'] in existing or len(candidates) != 1:
+                    logger.debug('Skipping automatic match: component=%s confirmed=%s candidates=%s',
+                                 row['id'], row['id'] in existing, len(candidates))
+                    continue
+                cursor = self.db.execute(
+                    'INSERT INTO PROJECT_COMPONENT_MATCHES(component_id,part_id,needs_review) VALUES (?,?,0) '
+                    'ON CONFLICT(component_id) DO NOTHING', (row['id'], candidates[0]))
+                saved += cursor.rowcount
+        logger.debug('Automatic matches committed: project=%s saved=%s', project_id, saved)
+        return saved
+
     @staticmethod
     def _pluginValues(metadata: dict) -> tuple:
         """Order a plugin metadata dict according to PLUGIN_COLUMNS; no DB operations."""

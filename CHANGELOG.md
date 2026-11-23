@@ -1,5 +1,26 @@
 # Changelog
 
+[Русская версия](CHANGELOG.ru.md)
+
+## 2.1 — 2026-11-24
+
+- Added a Projects sidebar for manual matching: section selection, catalog cards
+  labeled with their visible keys, and properties displayed as `Heading: value`.
+  Selecting a project component shows its confirmed card or first candidate.
+- Added Link with missing-selection warnings and confirmation before replacing
+  existing matches. The right panel width persists between launches.
+- Replaced the matching log's closing controls with Cancel and Save. Save atomically
+  persists only unique matches without an existing confirmed link; ambiguous results
+  remain available for manual selection. Cancel closes without saving.
+- Preserved confirmed links and review flags during automatic saving. Failed saves
+  roll back the batch; results from changed project data or another database are rejected.
+- Extracted the shared section combo controller into `SectionSelector` in `ElCommonUI.py`
+  for the header editor and project sidebar.
+- Added English matching documentation, bilingual README workflows for plugin setup,
+  schematic imports and stock matching, and a project rule to maintain both languages.
+- Added regression coverage for manual selection, sidebar synchronization, width
+  persistence, automatic saving, cancellation, ambiguous candidates and transaction rollback.
+
 ## 2.0 — 2026-11-21
 
 - Added the KiCad importer and API 1: recursive project/schematic reading, one row per physical

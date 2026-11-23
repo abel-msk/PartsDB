@@ -27,6 +27,23 @@
 Подписи элементов интерфейса для двух языков задавать в отдельном модуле `ElWindowTexts.py`, отдельной функцией для каждого окна. Вызывать её из кода окна при инициализации после создания виджетов и при смене языка. Не вносить изменения для локализации в автоматически генерируемые Python-файлы. Каталоги переводов и управление языком находятся в `translations/` и `ElTranslations.py`.
 
 
+## Документация / Documentation
+
+Всю документацию проекта вести на русском и английском языках. При создании
+документа сразу добавлять обе версии; при изменении существующего документа
+синхронно обновлять обе версии. Если перевода ещё нет, создавать его.
+Сохранять принятую пару имён файлов; для новых документов в `docs/` использовать
+`<name>.md` для русского текста и `<name>.en.md` для английского.
+В каждой версии добавлять ссылку на другую. Ссылки из `README.md` вести на
+английскую документацию, из `README.ru.md` — на русскую.
+
+Maintain all project documentation in Russian and English. Create both versions
+for every new document and update both together when editing an existing document.
+If a translation is missing, create it. Preserve established filename pairs;
+for new documents in `docs/`, use `<name>.md` for Russian and `<name>.en.md`
+for English. Link each version to its counterpart. Link `README.md` to English
+documentation and `README.ru.md` to Russian documentation.
+
 ## Тестовые базы и резервные копии
 
 После успешного полного прогона тестов удалять временную `test_db.sqlite` в корне

@@ -44,6 +44,10 @@ def projWindowTexts(window):
     ui.view.setTabText(ui.view.indexOf(ui.project_tab), translate("MainWindow", "Projects"))
     ui.label_2.setText(translate("MainWindow", "Last Import"))
     ui.label_3.setText(translate("MainWindow", "Imported by"))
+    ui.label_4.setText(translate('ProjectSelector', 'Sections'))
+    ui.label_7.setText(translate('ProjectSelector', 'Parts'))
+    ui.label_6.setText(translate('ProjectSelector', 'Properties'))
+    ui.p_link_cmd.setText(translate('ProjectSelector', 'Link'))
     ui.label_5.setText(translate("MainWindow", "Refresh date"))
     ui.d_proj_link_cmd.setText(translate("MainWindow", "Link Part"))
 
@@ -330,7 +334,7 @@ def matchingLogTexts(window):
     from PyQt6.QtWidgets import QDialogButtonBox
     window.setWindowTitle(translate('MatchingLog', 'Component matching'))
     window.ui.label.setText(translate('MatchingLog', 'Log:'))
-    window.ui.buttonBox.button(QDialogButtonBox.StandardButton.Ok).setText(translate('MatchingLog', 'Close'))
+    window.ui.buttonBox.button(QDialogButtonBox.StandardButton.Save).setText(translate('PluginWorkflow', 'Save'))
     window.ui.buttonBox.button(QDialogButtonBox.StandardButton.Cancel).setText(translate('PluginWorkflow', 'Cancel'))
 
 
@@ -359,3 +363,23 @@ def iconMissingTooltipText(path):
     """
     from html import escape
     return translate('PartsDB', 'Image not found:<br>{}').format(escape(path))
+
+
+def projectSelectorTexts():
+    """Return localized selection warnings and the replacement question for project linking.
+
+    @return [tuple[str, str, str]] Dialog title, missing-selection warning and replacement prompt.
+    """
+    return (translate('ProjectSelector', 'Stock match'),
+            translate('ProjectSelector', 'First select a project component and a catalog part.'),
+            translate('ProjectSelector', 'This component already has matches. Replace the match?'))
+
+
+def matchingSaveErrorTexts(message):
+    """Format the error shown when a matching pass cannot be persisted.
+
+    @param message [str] Diagnostic text from the data layer.
+    @return [tuple[str, str]] Localized title and message.
+    """
+    return (translate('MatchingLog', 'Could not save matches'),
+            translate('MatchingLog', 'Matches were not saved. Run matching again if the project or database changed.\n{}').format(message))
